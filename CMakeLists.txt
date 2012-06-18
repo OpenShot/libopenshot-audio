@@ -15,15 +15,16 @@ MESSAGE("--------------------------------------------------------------")
 # Failing to do so will cause your program to be terminated when a png
 # or a jpeg exception is thrown on linux or macosx.
 IF (CMAKE_COMPILER_IS_GNUCC)
-	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 
 IF (WIN32)
+	SET_PROPERTY(GLOBAL PROPERTY JUCE_WINDOWS "JUCE_WINDOWS")
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_MINGW "JUCE_MINGW")
 	ADD_DEFINITIONS(-DDONT_AUTOLINK_TO_JUCE_LIBRARY)
 
-	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -march=i686 ")
+	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -march=i686")
 
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
 		kernel32.lib

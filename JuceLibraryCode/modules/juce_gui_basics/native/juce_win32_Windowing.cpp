@@ -54,7 +54,12 @@ void* getUser32Function (const char* functionName) // (NB: this function also us
     HMODULE user32Mod = GetModuleHandleA ("user32.dll");
     jassert (user32Mod != 0);
 
-    return static_cast <void*> (GetProcAddress (user32Mod, functionName));
+	#if ! JUCE_MINGW
+		return static_cast <void*> (GetProcAddress (user32Mod, functionName));
+	#else
+		jassertfalse; // need to find a mingw equivalent 
+	#endif
+	
 }
 
 //==============================================================================

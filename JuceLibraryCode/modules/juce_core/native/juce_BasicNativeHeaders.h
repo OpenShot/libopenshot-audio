@@ -87,6 +87,10 @@
   #define _WIN32_IE 0x0400
  #endif
 
+ #if JUCE_MINGW
+  #include <basetyps.h>
+ #endif
+ 
  #include <windows.h>
  #include <shellapi.h>
  #include <tchar.h>
@@ -102,9 +106,7 @@
  #include <shlwapi.h>
  #include <mmsystem.h>
 
- #if JUCE_MINGW
-  #include <basetyps.h>
- #else
+ #if ! JUCE_MINGW
   #include <crtdbg.h>
   #include <comutil.h>
  #endif
