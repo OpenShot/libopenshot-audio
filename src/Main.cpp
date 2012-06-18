@@ -1,20 +1,36 @@
-/*
-  ==============================================================================
+/**
+ * \file
+ * \brief Source code to play a test sound
+ * \author Copyright (c) 2011 Jonathan Thomas
+ */
 
-    This file was auto-generated!
-
-    It contains the basic startup code for a Juce application.
-
-  ==============================================================================
-*/
-
+#include <iostream>
 #include "../JuceLibraryCode/JuceHeader.h"
+
+using namespace std;
 
 //==============================================================================
 int main()
 {
-    // ..your code goes here!
-	int a = 0;
 
-    return a;
+	// Initialize audio devices
+	AudioDeviceManager deviceManager;
+	deviceManager.initialise (	0, /* number of input channels */
+								2, /* number of output channels */
+								0, /* no XML settings.. */
+								true  /* select default device on failure */);
+
+	// Play test sound
+	deviceManager.playTestSound();
+
+	// Sleep for 2 seconds
+	cout << "Playing test sound now..." << endl;
+	sleep(2);
+
+	// Stop audio devices
+    deviceManager.closeAudioDevice();
+    deviceManager.removeAllChangeListeners();
+    deviceManager.dispatchPendingMessages();
+
+    return 0;
 }

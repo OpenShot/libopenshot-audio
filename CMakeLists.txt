@@ -47,13 +47,14 @@ ELSE (WIN32)
 		IF   (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
 			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -lobjc")
+			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -lobjc")
 		ELSE (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
 			FIND_PACKAGE(X11 REQUIRED)
 			INCLUDE_DIRECTORIES(${X11_INCLUDE_DIR})
 			INCLUDE_DIRECTORIES(/usr/include/freetype2)
 			ADD_DEFINITIONS(-DLINUX)
-
+			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES ${X11_LIBRARIES} asound freetype Xinerama)
 		ENDIF(APPLE)
 	ENDIF(UNIX)
 ENDIF(WIN32)
@@ -82,6 +83,9 @@ ADD_LIBRARY(openshot-audio SHARED
 TARGET_LINK_LIBRARIES(openshot-audio
 	${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
 )
+
+# PROCESS SUB-DIRECTORIES
+add_subdirectory(src)
 
 # Install Files
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
