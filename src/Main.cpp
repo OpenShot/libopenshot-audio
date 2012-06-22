@@ -3,9 +3,14 @@
  * \brief Source code to play a test sound
  * \author Copyright (c) 2011 Jonathan Thomas
  */
-
+ 
 #include <iostream>
 #include "../JuceLibraryCode/JuceHeader.h"
+
+#if JUCE_MINGW
+	#define sleep(a) Sleep(a * 1000)
+	#include <windows.h>
+#endif
 
 using namespace std;
 
