@@ -5,7 +5,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 ################### SETUP PROJECT ###################
 project(libopenshot-audio)
-set(PROJECT_VERSION 0.1.0)
+set(PROJECT_VERSION 0.1.2)
+set(SO_VERSION 0.1.0)
 MESSAGE("--------------------------------------------------------------")
 message("---- Generating build files for ${PROJECT_NAME} (${PROJECT_VERSION})")
 MESSAGE("--------------------------------------------------------------")
@@ -82,6 +83,12 @@ FILE(GLOB JUCE_SOURCES
 ADD_LIBRARY(openshot-audio SHARED
 	${JUCE_SOURCES}
 )
+
+# Set SONAME and other library properties
+set_target_properties(openshot-audio
+			PROPERTIES
+			VERSION ${PROJECT_VERSION}
+			SOVERSION ${SO_VERSION})
 
 TARGET_LINK_LIBRARIES(openshot-audio
 	${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
