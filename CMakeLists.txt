@@ -93,16 +93,11 @@ add_subdirectory(src)
 # Install Files
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
+INSTALL(TARGETS openshot-audio DESTINATION lib)
 
-IF (UNIX)
-	INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libopenshot-audio.so DESTINATION lib)
-ELSE (UNIX)
-	IF (WIN32)
-		INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libopenshot-audio.dll DESTINATION lib)
-	ELSE (WIN32)
-		IF (APPLE)
-			INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/libopenshot-audio.so DESTINATION lib)
-		ENDIF(APPLE)
-	ENDIF(WIN32)
-ENDIF(UNIX)
+################### DOCUMENTATION ###################
+# Find Doxygen (used for documentation)
+include(cmake/Modules/UseDoxygen.cmake)
 
+file(GLOB_RECURSE doc_files ${CMAKE_CURRENT_BINARY_DIR}/doc/html/*.*)
+INSTALL(FILES ${doc_files} DESTINATION share/doc/libopenshot-audio)
