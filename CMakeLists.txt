@@ -4,11 +4,11 @@ cmake_minimum_required(VERSION 2.8)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 ################### SETUP PROJECT ###################
-project(libopenshot-audio)
+project(openshot-audio)
 set(PROJECT_VERSION 0.1.2)
-set(SO_VERSION 0.1.0)
+set(SO_VERSION 1)
 MESSAGE("--------------------------------------------------------------")
-message("---- Generating build files for ${PROJECT_NAME} (${PROJECT_VERSION})")
+MESSAGE("---- Generating build files for ${PROJECT_NAME} (${PROJECT_VERSION})")
 MESSAGE("--------------------------------------------------------------")
 
 
