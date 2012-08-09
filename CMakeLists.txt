@@ -106,5 +106,9 @@ INSTALL(TARGETS openshot-audio DESTINATION lib)
 # Find Doxygen (used for documentation)
 include(cmake/Modules/UseDoxygen.cmake)
 
+# Install Doxygen html documentation
 file(GLOB_RECURSE doc_files ${CMAKE_CURRENT_BINARY_DIR}/doc/html/*.*)
 INSTALL(FILES ${doc_files} DESTINATION share/doc/libopenshot-audio)
+
+# Install manpage
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1 DESTINATION share/doc/libopenshot-audio)
