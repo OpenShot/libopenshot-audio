@@ -12,6 +12,7 @@
  */
  
 #include <iostream>
+#include <unistd.h>
 #include "../JuceLibraryCode/JuceHeader.h"
 
 #if JUCE_MINGW
