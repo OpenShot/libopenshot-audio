@@ -23,8 +23,9 @@ ENDIF(CMAKE_COMPILER_IS_GNUCC)
 IF (WIN32)
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_WINDOWS "JUCE_WINDOWS")
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_MINGW "JUCE_MINGW")
+    SET(EXTENSION "cpp")
+    
 	ADD_DEFINITIONS(-DDONT_AUTOLINK_TO_JUCE_LIBRARY)
-
 	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -march=i686")
 
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
@@ -49,11 +50,16 @@ IF (WIN32)
 ELSE (WIN32)
 	IF   (UNIX)
 		IF   (APPLE)
-			SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
-			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -lobjc")
-			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -lobjc")
-		ELSE (APPLE)
+            SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
+            SET(EXTENSION "mm")
+            
+            SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
+            SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc")
+		
+        ELSE (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
+            SET(EXTENSION "cpp")
+            
 			FIND_PACKAGE(X11 REQUIRED)
 			INCLUDE_DIRECTORIES(${X11_INCLUDE_DIR})
 			INCLUDE_DIRECTORIES(/usr/include/freetype2)
@@ -66,18 +72,18 @@ ENDIF(WIN32)
 # Include header directories
 include_directories("JuceLibraryCode")
 
-# List of modules to build
+# List of modules to build (Extension based on OS)
 FILE(GLOB JUCE_SOURCES
-	JuceLibraryCode/modules/juce_core/juce_core.cpp
-	JuceLibraryCode/modules/juce_data_structures/juce_data_structures.cpp
-	JuceLibraryCode/modules/juce_events/juce_events.cpp
-	JuceLibraryCode/modules/juce_graphics/juce_graphics.cpp
-	JuceLibraryCode/modules/juce_gui_basics/juce_gui_basics.cpp
-	JuceLibraryCode/modules/juce_gui_extra/juce_gui_extra.cpp
-	JuceLibraryCode/modules/juce_audio_basics/juce_audio_basics.cpp
-	JuceLibraryCode/modules/juce_audio_devices/juce_audio_devices.cpp
-	JuceLibraryCode/modules/juce_audio_formats/juce_audio_formats.cpp
-	JuceLibraryCode/modules/juce_audio_processors/juce_audio_processors.cpp
+	JuceLibraryCode/modules/juce_core/juce_core.${EXTENSION}
+	JuceLibraryCode/modules/juce_data_structures/juce_data_structures.${EXTENSION}
+	JuceLibraryCode/modules/juce_events/juce_events.${EXTENSION}
+	JuceLibraryCode/modules/juce_graphics/juce_graphics.${EXTENSION}
+	JuceLibraryCode/modules/juce_gui_basics/juce_gui_basics.${EXTENSION}
+	JuceLibraryCode/modules/juce_gui_extra/juce_gui_extra.${EXTENSION}
+	JuceLibraryCode/modules/juce_audio_basics/juce_audio_basics.${EXTENSION}
+	JuceLibraryCode/modules/juce_audio_devices/juce_audio_devices.${EXTENSION}
+	JuceLibraryCode/modules/juce_audio_formats/juce_audio_formats.${EXTENSION}
+	JuceLibraryCode/modules/juce_audio_processors/juce_audio_processors.${EXTENSION}
 )
 
 ADD_LIBRARY(openshot-audio SHARED
