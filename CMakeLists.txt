@@ -51,6 +51,7 @@ ELSE (WIN32)
 	IF   (UNIX)
 		IF   (APPLE)
             SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
+            ADD_DEFINITIONS(-DNDEBUG)
             SET(EXTENSION "mm")
             
             SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)

@@ -10,7 +10,7 @@
  * Welcome to the OpenShot Audio Library C++ API.  This library is used by libopenshot to enable audio
  * features, which powers the <a href="http://www.openshot.org">OpenShot Video Editor</a> application.
  */
- 
+
 #include <iostream>
 #include <unistd.h>
 #include "../JuceLibraryCode/JuceHeader.h"
