@@ -28,8 +28,10 @@
 
 //==============================================================================
 #if JUCE_MINGW
- /** This allocator is not defined in mingw gcc. */
- #define alloca              __builtin_alloca
+ #ifndef alloca
+	 /** This allocator is not defined in mingw gcc. */
+	 #define alloca              __builtin_alloca
+ #endif
 #endif
 
 //==============================================================================
