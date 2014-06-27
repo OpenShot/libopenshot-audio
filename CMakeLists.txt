@@ -104,10 +104,13 @@ TARGET_LINK_LIBRARIES(openshot-audio
 # PROCESS SUB-DIRECTORIES
 add_subdirectory(src)
 
+# Determine correct lib folder
+set(LIB_INSTALL_DIR lib${LIB_SUFFIX}) 
+
 # Install Files
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
-INSTALL(TARGETS openshot-audio DESTINATION lib)
+INSTALL(TARGETS openshot-audio DESTINATION ${LIB_INSTALL_DIR})
 
 ################### DOCUMENTATION ###################
 # Find Doxygen (used for documentation)
