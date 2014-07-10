@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -41,12 +40,8 @@ DrawableComposite::DrawableComposite (const DrawableComposite& other)
       updateBoundsReentrant (false)
 {
     for (int i = 0; i < other.getNumChildComponents(); ++i)
-    {
-        const Drawable* const d = dynamic_cast <const Drawable*> (other.getChildComponent(i));
-
-        if (d != nullptr)
+        if (const Drawable* const d = dynamic_cast <const Drawable*> (other.getChildComponent(i)))
             addAndMakeVisible (d->createCopy());
-    }
 }
 
 DrawableComposite::~DrawableComposite()
@@ -65,13 +60,9 @@ Rectangle<float> DrawableComposite::getDrawableBounds() const
     Rectangle<float> r;
 
     for (int i = getNumChildComponents(); --i >= 0;)
-    {
-        const Drawable* const d = dynamic_cast <const Drawable*> (getChildComponent(i));
-
-        if (d != nullptr)
-            r = r.getUnion (d->isTransformed() ? d->getDrawableBounds().transformed (d->getTransform())
+        if (const Drawable* const d = dynamic_cast <const Drawable*> (getChildComponent(i)))
+            r = r.getUnion (d->isTransformed() ? d->getDrawableBounds().transformedBy (d->getTransform())
                                                : d->getDrawableBounds());
-    }
 
     return r;
 }
@@ -200,12 +191,8 @@ void DrawableComposite::updateBoundsToFitChildren()
                 originRelativeToComponent -= delta;
 
                 for (int i = getNumChildComponents(); --i >= 0;)
-                {
-                    Component* const c = getChildComponent(i);
-
-                    if (c != nullptr)
+                    if (Component* const c = getChildComponent(i))
                         c->setBounds (c->getBounds() - delta);
-                }
             }
 
             setBounds (childArea);
@@ -271,24 +258,24 @@ void DrawableComposite::ValueTreeWrapper::resetBoundingBoxToContentArea (UndoMan
 
 RelativeRectangle DrawableComposite::ValueTreeWrapper::getContentArea() const
 {
-    MarkerList::ValueTreeWrapper markersX (getMarkerList (true));
-    MarkerList::ValueTreeWrapper markersY (getMarkerList (false));
+    MarkerList::ValueTreeWrapper marksX (getMarkerList (true));
+    MarkerList::ValueTreeWrapper marksY (getMarkerList (false));
 
-    return RelativeRectangle (markersX.getMarker (markersX.getMarkerState (0)).position,
-                              markersX.getMarker (markersX.getMarkerState (1)).position,
-                              markersY.getMarker (markersY.getMarkerState (0)).position,
-                              markersY.getMarker (markersY.getMarkerState (1)).position);
+    return RelativeRectangle (marksX.getMarker (marksX.getMarkerState (0)).position,
+                              marksX.getMarker (marksX.getMarkerState (1)).position,
+                              marksY.getMarker (marksY.getMarkerState (0)).position,
+                              marksY.getMarker (marksY.getMarkerState (1)).position);
 }
 
 void DrawableComposite::ValueTreeWrapper::setContentArea (const RelativeRectangle& newArea, UndoManager* undoManager)
 {
-    MarkerList::ValueTreeWrapper markersX (getMarkerListCreating (true, nullptr));
-    MarkerList::ValueTreeWrapper markersY (getMarkerListCreating (false, nullptr));
+    MarkerList::ValueTreeWrapper marksX (getMarkerListCreating (true, nullptr));
+    MarkerList::ValueTreeWrapper marksY (getMarkerListCreating (false, nullptr));
 
-    markersX.setMarker (MarkerList::Marker (contentLeftMarkerName, newArea.left), undoManager);
-    markersX.setMarker (MarkerList::Marker (contentRightMarkerName, newArea.right), undoManager);
-    markersY.setMarker (MarkerList::Marker (contentTopMarkerName, newArea.top), undoManager);
-    markersY.setMarker (MarkerList::Marker (contentBottomMarkerName, newArea.bottom), undoManager);
+    marksX.setMarker (MarkerList::Marker (contentLeftMarkerName, newArea.left), undoManager);
+    marksX.setMarker (MarkerList::Marker (contentRightMarkerName, newArea.right), undoManager);
+    marksY.setMarker (MarkerList::Marker (contentTopMarkerName, newArea.top), undoManager);
+    marksY.setMarker (MarkerList::Marker (contentBottomMarkerName, newArea.bottom), undoManager);
 }
 
 MarkerList::ValueTreeWrapper DrawableComposite::ValueTreeWrapper::getMarkerList (bool xAxis) const

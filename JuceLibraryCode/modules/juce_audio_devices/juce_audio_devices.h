@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_AUDIO_DEVICES_JUCEHEADER__
-#define __JUCE_AUDIO_DEVICES_JUCEHEADER__
+#ifndef JUCE_AUDIO_DEVICES_H_INCLUDED
+#define JUCE_AUDIO_DEVICES_H_INCLUDED
 
 #include "../juce_events/juce_events.h"
 #include "../juce_audio_basics/juce_audio_basics.h"
@@ -47,7 +46,7 @@
     Enables WASAPI audio devices (Windows Vista and above).
 */
 #ifndef JUCE_WASAPI
- #define JUCE_WASAPI 0
+ #define JUCE_WASAPI 1
 #endif
 
 /** Config: JUCE_DIRECTSOUND
@@ -101,39 +100,18 @@
 namespace juce
 {
 
-// START_AUTOINCLUDE audio_io, midi_io, sources, audio_cd
-#ifndef __JUCE_AUDIODEVICEMANAGER_JUCEHEADER__
- #include "audio_io/juce_AudioDeviceManager.h"
-#endif
-#ifndef __JUCE_AUDIOIODEVICE_JUCEHEADER__
- #include "audio_io/juce_AudioIODevice.h"
-#endif
-#ifndef __JUCE_AUDIOIODEVICETYPE_JUCEHEADER__
- #include "audio_io/juce_AudioIODeviceType.h"
-#endif
-#ifndef __JUCE_MIDIINPUT_JUCEHEADER__
- #include "midi_io/juce_MidiInput.h"
-#endif
-#ifndef __JUCE_MIDIMESSAGECOLLECTOR_JUCEHEADER__
- #include "midi_io/juce_MidiMessageCollector.h"
-#endif
-#ifndef __JUCE_MIDIOUTPUT_JUCEHEADER__
- #include "midi_io/juce_MidiOutput.h"
-#endif
-#ifndef __JUCE_AUDIOSOURCEPLAYER_JUCEHEADER__
- #include "sources/juce_AudioSourcePlayer.h"
-#endif
-#ifndef __JUCE_AUDIOTRANSPORTSOURCE_JUCEHEADER__
- #include "sources/juce_AudioTransportSource.h"
-#endif
-#ifndef __JUCE_AUDIOCDBURNER_JUCEHEADER__
- #include "audio_cd/juce_AudioCDBurner.h"
-#endif
-#ifndef __JUCE_AUDIOCDREADER_JUCEHEADER__
- #include "audio_cd/juce_AudioCDReader.h"
-#endif
-// END_AUTOINCLUDE
+#include "audio_io/juce_AudioIODevice.h"
+#include "audio_io/juce_AudioIODeviceType.h"
+#include "audio_io/juce_SystemAudioVolume.h"
+#include "midi_io/juce_MidiInput.h"
+#include "midi_io/juce_MidiMessageCollector.h"
+#include "midi_io/juce_MidiOutput.h"
+#include "sources/juce_AudioSourcePlayer.h"
+#include "sources/juce_AudioTransportSource.h"
+#include "audio_cd/juce_AudioCDBurner.h"
+#include "audio_cd/juce_AudioCDReader.h"
+#include "audio_io/juce_AudioDeviceManager.h"
 
 }
 
-#endif   // __JUCE_AUDIO_DEVICES_JUCEHEADER__
+#endif   // JUCE_AUDIO_DEVICES_H_INCLUDED

@@ -1,32 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_RELATIVETIME_JUCEHEADER__
-#define __JUCE_RELATIVETIME_JUCEHEADER__
-
-#include "../text/juce_String.h"
+#ifndef JUCE_RELATIVETIME_H_INCLUDED
+#define JUCE_RELATIVETIME_H_INCLUDED
 
 
 //==============================================================================
@@ -59,34 +60,39 @@ public:
 
     //==============================================================================
     /** Creates a new RelativeTime object representing a number of milliseconds.
-        @see minutes, hours, days, weeks
+        @see seconds, minutes, hours, days, weeks
     */
-    static const RelativeTime milliseconds (int milliseconds) noexcept;
+    static RelativeTime milliseconds (int milliseconds) noexcept;
 
     /** Creates a new RelativeTime object representing a number of milliseconds.
-        @see minutes, hours, days, weeks
+        @see seconds, minutes, hours, days, weeks
     */
-    static const RelativeTime milliseconds (int64 milliseconds) noexcept;
+    static RelativeTime milliseconds (int64 milliseconds) noexcept;
+
+    /** Creates a new RelativeTime object representing a number of seconds.
+        @see milliseconds, minutes, hours, days, weeks
+    */
+    static RelativeTime seconds (double seconds) noexcept;
 
     /** Creates a new RelativeTime object representing a number of minutes.
         @see milliseconds, hours, days, weeks
     */
-    static const RelativeTime minutes (double numberOfMinutes) noexcept;
+    static RelativeTime minutes (double numberOfMinutes) noexcept;
 
     /** Creates a new RelativeTime object representing a number of hours.
         @see milliseconds, minutes, days, weeks
     */
-    static const RelativeTime hours (double numberOfHours) noexcept;
+    static RelativeTime hours (double numberOfHours) noexcept;
 
     /** Creates a new RelativeTime object representing a number of days.
         @see milliseconds, minutes, hours, weeks
     */
-    static const RelativeTime days (double numberOfDays) noexcept;
+    static RelativeTime days (double numberOfDays) noexcept;
 
     /** Creates a new RelativeTime object representing a number of weeks.
         @see milliseconds, minutes, hours, days
     */
-    static const RelativeTime weeks (double numberOfWeeks) noexcept;
+    static RelativeTime weeks (double numberOfWeeks) noexcept;
 
     //==============================================================================
     /** Returns the number of milliseconds this time represents.
@@ -97,7 +103,7 @@ public:
     /** Returns the number of seconds this time represents.
         @see inMilliseconds, inMinutes, inHours, inDays, inWeeks
     */
-    double inSeconds() const noexcept       { return seconds; }
+    double inSeconds() const noexcept       { return numSeconds; }
 
     /** Returns the number of minutes this time represents.
         @see inMilliseconds, inSeconds, inHours, inDays, inWeeks
@@ -139,40 +145,40 @@ public:
 
     //==============================================================================
     /** Adds another RelativeTime to this one. */
-    const RelativeTime& operator+= (const RelativeTime& timeToAdd) noexcept;
+    RelativeTime operator+= (RelativeTime timeToAdd) noexcept;
     /** Subtracts another RelativeTime from this one. */
-    const RelativeTime& operator-= (const RelativeTime& timeToSubtract) noexcept;
+    RelativeTime operator-= (RelativeTime timeToSubtract) noexcept;
 
     /** Adds a number of seconds to this time. */
-    const RelativeTime& operator+= (double secondsToAdd) noexcept;
+    RelativeTime operator+= (double secondsToAdd) noexcept;
     /** Subtracts a number of seconds from this time. */
-    const RelativeTime& operator-= (double secondsToSubtract) noexcept;
+    RelativeTime operator-= (double secondsToSubtract) noexcept;
 
 private:
     //==============================================================================
-    double seconds;
+    double numSeconds;
 };
 
 //==============================================================================
 /** Compares two RelativeTimes. */
-bool operator== (const RelativeTime& t1, const RelativeTime& t2) noexcept;
+bool operator== (RelativeTime t1, RelativeTime t2) noexcept;
 /** Compares two RelativeTimes. */
-bool operator!= (const RelativeTime& t1, const RelativeTime& t2) noexcept;
+bool operator!= (RelativeTime t1, RelativeTime t2) noexcept;
 /** Compares two RelativeTimes. */
-bool operator>  (const RelativeTime& t1, const RelativeTime& t2) noexcept;
+bool operator>  (RelativeTime t1, RelativeTime t2) noexcept;
 /** Compares two RelativeTimes. */
-bool operator<  (const RelativeTime& t1, const RelativeTime& t2) noexcept;
+bool operator<  (RelativeTime t1, RelativeTime t2) noexcept;
 /** Compares two RelativeTimes. */
-bool operator>= (const RelativeTime& t1, const RelativeTime& t2) noexcept;
+bool operator>= (RelativeTime t1, RelativeTime t2) noexcept;
 /** Compares two RelativeTimes. */
-bool operator<= (const RelativeTime& t1, const RelativeTime& t2) noexcept;
+bool operator<= (RelativeTime t1, RelativeTime t2) noexcept;
 
 //==============================================================================
 /** Adds two RelativeTimes together. */
-RelativeTime  operator+  (const RelativeTime&  t1, const RelativeTime& t2) noexcept;
+RelativeTime  operator+  (RelativeTime t1, RelativeTime t2) noexcept;
 /** Subtracts two RelativeTimes. */
-RelativeTime  operator-  (const RelativeTime&  t1, const RelativeTime& t2) noexcept;
+RelativeTime  operator-  (RelativeTime t1, RelativeTime t2) noexcept;
 
 
 
-#endif   // __JUCE_RELATIVETIME_JUCEHEADER__
+#endif   // JUCE_RELATIVETIME_H_INCLUDED

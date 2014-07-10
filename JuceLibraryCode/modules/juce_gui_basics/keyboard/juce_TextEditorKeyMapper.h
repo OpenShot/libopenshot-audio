@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_TEXTEDITORKEYMAPPER_JUCEHEADER__
-#define __JUCE_TEXTEDITORKEYMAPPER_JUCEHEADER__
-
-#include "juce_KeyPress.h"
+#ifndef JUCE_TEXTEDITORKEYMAPPER_H_INCLUDED
+#define JUCE_TEXTEDITORKEYMAPPER_H_INCLUDED
 
 
 //==============================================================================
@@ -43,33 +40,56 @@ struct TextEditorKeyMapper
     */
     static bool invokeKeyFunction (CallbackClass& target, const KeyPress& key)
     {
-        const bool isShiftDown   = key.getModifiers().isShiftDown();
-        const bool ctrlOrAltDown = key.getModifiers().isCtrlDown() || key.getModifiers().isAltDown();
+        const ModifierKeys& mods = key.getModifiers();
+
+        const bool isShiftDown   = mods.isShiftDown();
+        const bool ctrlOrAltDown = mods.isCtrlDown() || mods.isAltDown();
+
+        int numCtrlAltCommandKeys = 0;
+        if (mods.isCtrlDown())    ++numCtrlAltCommandKeys;
+        if (mods.isAltDown())     ++numCtrlAltCommandKeys;
 
         if (key == KeyPress (KeyPress::downKey, ModifierKeys::ctrlModifier, 0) && target.scrollUp())   return true;
         if (key == KeyPress (KeyPress::upKey,   ModifierKeys::ctrlModifier, 0) && target.scrollDown()) return true;
 
        #if JUCE_MAC
-        if (key.getModifiers().isCommandDown())
+        if (mods.isCommandDown() && ! ctrlOrAltDown)
         {
             if (key.isKeyCode (KeyPress::upKey))        return target.moveCaretToTop (isShiftDown);
             if (key.isKeyCode (KeyPress::downKey))      return target.moveCaretToEnd (isShiftDown);
             if (key.isKeyCode (KeyPress::leftKey))      return target.moveCaretToStartOfLine (isShiftDown);
-            if (key.isKeyCode (KeyPress::rightKey))     return target.moveCaretToEndOfLine (isShiftDown);
+            if (key.isKeyCode (KeyPress::rightKey))     return target.moveCaretToEndOfLine   (isShiftDown);
         }
+
+        if (mods.isCommandDown())
+            ++numCtrlAltCommandKeys;
        #endif
 
-        if (key.isKeyCode (KeyPress::upKey))        return target.moveCaretUp (isShiftDown);
-        if (key.isKeyCode (KeyPress::downKey))      return target.moveCaretDown (isShiftDown);
-        if (key.isKeyCode (KeyPress::leftKey))      return target.moveCaretLeft (ctrlOrAltDown, isShiftDown);
-        if (key.isKeyCode (KeyPress::rightKey))     return target.moveCaretRight (ctrlOrAltDown, isShiftDown);
-        if (key.isKeyCode (KeyPress::pageUpKey))    return target.pageUp (isShiftDown);
-        if (key.isKeyCode (KeyPress::pageDownKey))  return target.pageDown (isShiftDown);
+        if (numCtrlAltCommandKeys < 2)
+        {
+            if (key.isKeyCode (KeyPress::leftKey))  return target.moveCaretLeft  (ctrlOrAltDown, isShiftDown);
+            if (key.isKeyCode (KeyPress::rightKey)) return target.moveCaretRight (ctrlOrAltDown, isShiftDown);
 
-        if (key.isKeyCode (KeyPress::homeKey))  return ctrlOrAltDown ? target.moveCaretToTop (isShiftDown)
-                                                                     : target.moveCaretToStartOfLine (isShiftDown);
-        if (key.isKeyCode (KeyPress::endKey))   return ctrlOrAltDown ? target.moveCaretToEnd (isShiftDown)
-                                                                     : target.moveCaretToEndOfLine (isShiftDown);
+            if (key.isKeyCode (KeyPress::homeKey))  return ctrlOrAltDown ? target.moveCaretToTop         (isShiftDown)
+                                                                         : target.moveCaretToStartOfLine (isShiftDown);
+            if (key.isKeyCode (KeyPress::endKey))   return ctrlOrAltDown ? target.moveCaretToEnd         (isShiftDown)
+                                                                         : target.moveCaretToEndOfLine   (isShiftDown);
+        }
+
+        if (numCtrlAltCommandKeys == 0)
+        {
+            if (key.isKeyCode (KeyPress::upKey))        return target.moveCaretUp   (isShiftDown);
+            if (key.isKeyCode (KeyPress::downKey))      return target.moveCaretDown (isShiftDown);
+
+            if (key.isKeyCode (KeyPress::pageUpKey))    return target.pageUp   (isShiftDown);
+            if (key.isKeyCode (KeyPress::pageDownKey))  return target.pageDown (isShiftDown);
+        }
+
+        if (numCtrlAltCommandKeys < 2)
+        {
+            if (key.isKeyCode (KeyPress::backspaceKey)) return target.deleteBackwards (ctrlOrAltDown);
+            if (key.isKeyCode (KeyPress::deleteKey))    return target.deleteForwards  (ctrlOrAltDown);
+        }
 
         if (key == KeyPress ('c', ModifierKeys::commandModifier, 0)
               || key == KeyPress (KeyPress::insertKey, ModifierKeys::ctrlModifier, 0))
@@ -82,9 +102,6 @@ struct TextEditorKeyMapper
         if (key == KeyPress ('v', ModifierKeys::commandModifier, 0)
               || key == KeyPress (KeyPress::insertKey, ModifierKeys::shiftModifier, 0))
             return target.pasteFromClipboard();
-
-        if (key.isKeyCode (KeyPress::backspaceKey))     return target.deleteBackwards (ctrlOrAltDown);
-        if (key.isKeyCode (KeyPress::deleteKey))        return target.deleteForwards (ctrlOrAltDown);
 
         if (key == KeyPress ('a', ModifierKeys::commandModifier, 0))
             return target.selectAll();
@@ -101,4 +118,4 @@ struct TextEditorKeyMapper
 };
 
 
-#endif   // __JUCE_TEXTEDITORKEYMAPPER_JUCEHEADER__
+#endif   // JUCE_TEXTEDITORKEYMAPPER_H_INCLUDED

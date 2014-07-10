@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -39,7 +42,7 @@ namespace WindowsFileHelpers
     {
         static_jassert (sizeof (ULARGE_INTEGER) == sizeof (FILETIME)); // tell me if this fails!
 
-        return (int64) ((reinterpret_cast<const ULARGE_INTEGER*> (ft)->QuadPart - literal64bit (116444736000000000)) / 10000);
+        return (int64) ((reinterpret_cast<const ULARGE_INTEGER*> (ft)->QuadPart - 116444736000000000LL) / 10000);
     }
 
     FILETIME* timeToFileTime (const int64 time, FILETIME* const ft) noexcept
@@ -47,7 +50,7 @@ namespace WindowsFileHelpers
         if (time <= 0)
             return nullptr;
 
-        reinterpret_cast<ULARGE_INTEGER*> (ft)->QuadPart = (ULONGLONG) (time * 10000 + literal64bit (116444736000000000));
+        reinterpret_cast<ULARGE_INTEGER*> (ft)->QuadPart = (ULONGLONG) (time * 10000 + 116444736000000000LL);
         return ft;
     }
 
@@ -59,7 +62,7 @@ namespace WindowsFileHelpers
         const size_t numBytes = CharPointer_UTF16::getBytesRequiredFor (path.getCharPointer()) + 4;
         HeapBlock<WCHAR> pathCopy;
         pathCopy.calloc (numBytes, 1);
-        path.copyToUTF16 (pathCopy, (int) numBytes);
+        path.copyToUTF16 (pathCopy, numBytes);
 
         if (PathStripToRoot (pathCopy))
             path = static_cast <const WCHAR*> (pathCopy);
@@ -90,7 +93,7 @@ namespace WindowsFileHelpers
         if (SHGetSpecialFolderPath (0, path, type, FALSE))
             return File (String (path));
 
-        return File::nonexistent;
+        return File();
     }
 
     File getModuleFileName (HINSTANCE moduleHandle)
@@ -184,7 +187,7 @@ bool File::moveToTrash() const
     const size_t numBytes = CharPointer_UTF16::getBytesRequiredFor (fullPath.getCharPointer()) + 8;
     HeapBlock<WCHAR> doubleNullTermPath;
     doubleNullTermPath.calloc (numBytes, 1);
-    fullPath.copyToUTF16 (doubleNullTermPath, (int) numBytes);
+    fullPath.copyToUTF16 (doubleNullTermPath, numBytes);
 
     SHFILEOPSTRUCT fos = { 0 };
     fos.wFunc = FO_DELETE;
@@ -222,8 +225,6 @@ int64 juce_fileSetPosition (void* handle, int64 pos)
 
 void FileInputStream::openHandle()
 {
-    totalSize = file.getSize();
-
     HANDLE h = CreateFile (file.getFullPathName().toWideCharPointer(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
@@ -233,7 +234,7 @@ void FileInputStream::openHandle()
         status = WindowsFileHelpers::getResultForLastError();
 }
 
-void FileInputStream::closeHandle()
+FileInputStream::~FileInputStream()
 {
     CloseHandle ((HANDLE) fileHandle);
 }
@@ -280,7 +281,7 @@ void FileOutputStream::closeHandle()
     CloseHandle ((HANDLE) fileHandle);
 }
 
-int FileOutputStream::writeInternal (const void* buffer, int numBytes)
+ssize_t FileOutputStream::writeInternal (const void* buffer, size_t numBytes)
 {
     if (fileHandle != nullptr)
     {
@@ -288,7 +289,7 @@ int FileOutputStream::writeInternal (const void* buffer, int numBytes)
         if (! WriteFile ((HANDLE) fileHandle, buffer, (DWORD) numBytes, &actualNum, 0))
             status = WindowsFileHelpers::getResultForLastError();
 
-        return (int) actualNum;
+        return (ssize_t) actualNum;
     }
 
     return 0;
@@ -312,12 +313,17 @@ Result FileOutputStream::truncate()
 }
 
 //==============================================================================
-MemoryMappedFile::MemoryMappedFile (const File& file, MemoryMappedFile::AccessMode mode)
-    : address (nullptr),
-      length (0),
-      fileHandle (nullptr)
+void MemoryMappedFile::openInternal (const File& file, AccessMode mode)
 {
     jassert (mode == readOnly || mode == readWrite);
+
+    if (range.getStart() > 0)
+    {
+        SYSTEM_INFO systemInfo;
+        GetNativeSystemInfo (&systemInfo);
+
+        range.setStart (range.getStart() - (range.getStart() % systemInfo.dwAllocationGranularity));
+    }
 
     DWORD accessMode = GENERIC_READ, createType = OPEN_EXISTING;
     DWORD protect = PAGE_READONLY, access = FILE_MAP_READ;
@@ -331,20 +337,21 @@ MemoryMappedFile::MemoryMappedFile (const File& file, MemoryMappedFile::AccessMo
     }
 
     HANDLE h = CreateFile (file.getFullPathName().toWideCharPointer(), accessMode, FILE_SHARE_READ, 0,
-                           createType, FILE_ATTRIBUTE_NORMAL, 0);
+                           createType, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
     if (h != INVALID_HANDLE_VALUE)
     {
         fileHandle = (void*) h;
-        const int64 fileSize = file.getSize();
 
-        HANDLE mappingHandle = CreateFileMapping (h, 0, protect, (DWORD) (fileSize >> 32), (DWORD) fileSize, 0);
+        HANDLE mappingHandle = CreateFileMapping (h, 0, protect, (DWORD) (range.getEnd() >> 32), (DWORD) range.getEnd(), 0);
+
         if (mappingHandle != 0)
         {
-            address = MapViewOfFile (mappingHandle, access, 0, 0, (SIZE_T) fileSize);
+            address = MapViewOfFile (mappingHandle, access, (DWORD) (range.getStart() >> 32),
+                                     (DWORD) range.getStart(), (SIZE_T) range.getLength());
 
-            if (address != nullptr)
-                length = (size_t) fileSize;
+            if (address == nullptr)
+                range = Range<int64>();
 
             CloseHandle (mappingHandle);
         }
@@ -467,6 +474,28 @@ int64 File::getVolumeTotalSize() const
     return WindowsFileHelpers::getDiskSpaceInfo (getFullPathName(), true);
 }
 
+uint64 File::getFileIdentifier() const
+{
+    uint64 result = 0;
+
+    HANDLE h = CreateFile (getFullPathName().toWideCharPointer(),
+                           GENERIC_READ, FILE_SHARE_READ, nullptr,
+                           OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, 0);
+
+    if (h != INVALID_HANDLE_VALUE)
+    {
+        BY_HANDLE_FILE_INFORMATION info;
+        zerostruct (info);
+
+        if (GetFileInformationByHandle (h, &info))
+            result = (((uint64) info.nFileIndexHigh) << 32) | info.nFileIndexLow;
+
+        CloseHandle (h);
+    }
+
+    return result;
+}
+
 //==============================================================================
 bool File::isOnCDRomDrive() const
 {
@@ -482,8 +511,8 @@ bool File::isOnHardDisk() const
 
     if (fullPath.toLowerCase()[0] <= 'b' && fullPath[1] == ':')
         return n != DRIVE_REMOVABLE;
-    else
-        return n != DRIVE_CDROM && n != DRIVE_REMOTE;
+
+    return n != DRIVE_CDROM && n != DRIVE_REMOTE;
 }
 
 bool File::isOnRemovableDrive() const
@@ -511,9 +540,11 @@ File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType type)
         case userDesktopDirectory:              csidlType = CSIDL_DESKTOP; break;
         case userApplicationDataDirectory:      csidlType = CSIDL_APPDATA; break;
         case commonApplicationDataDirectory:    csidlType = CSIDL_COMMON_APPDATA; break;
+        case commonDocumentsDirectory:          csidlType = CSIDL_COMMON_DOCUMENTS; break;
         case globalApplicationsDirectory:       csidlType = CSIDL_PROGRAM_FILES; break;
-        case userMusicDirectory:                csidlType = 0x0d /*CSIDL_MYMUSIC*/; break;
-        case userMoviesDirectory:               csidlType = 0x0e /*CSIDL_MYVIDEO*/; break;
+        case userMusicDirectory:                csidlType = 0x0d; /*CSIDL_MYMUSIC*/ break;
+        case userMoviesDirectory:               csidlType = 0x0e; /*CSIDL_MYVIDEO*/ break;
+        case userPicturesDirectory:             csidlType = 0x27; /*CSIDL_MYPICTURES*/ break;
 
         case tempDirectory:
         {
@@ -533,7 +564,7 @@ File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType type)
 
         default:
             jassertfalse; // unknown type?
-            return File::nonexistent;
+            return File();
     }
 
     return WindowsFileHelpers::getSpecialFolderPath (csidlType);
@@ -581,6 +612,11 @@ String File::getVersion() const
 }
 
 //==============================================================================
+bool File::isLink() const
+{
+    return hasFileExtension (".lnk");
+}
+
 File File::getLinkedTarget() const
 {
     File result (*this);
@@ -588,30 +624,42 @@ File File::getLinkedTarget() const
 
     if (! exists())
         p += ".lnk";
-    else if (getFileExtension() != ".lnk")
+    else if (! hasFileExtension (".lnk"))
         return result;
 
-    ComSmartPtr <IShellLink> shellLink;
-    if (SUCCEEDED (shellLink.CoCreateInstance (CLSID_ShellLink)))
-    {
-        ComSmartPtr <IPersistFile> persistFile;
-        if (SUCCEEDED (shellLink.QueryInterface (persistFile)))
-        {
-            if (SUCCEEDED (persistFile->Load (p.toWideCharPointer(), STGM_READ))
-                 && SUCCEEDED (shellLink->Resolve (0, SLR_ANY_MATCH | SLR_NO_UI)))
-            {
-                WIN32_FIND_DATA winFindData;
-                WCHAR resolvedPath [MAX_PATH];
+    ComSmartPtr<IShellLink> shellLink;
+    ComSmartPtr<IPersistFile> persistFile;
 
-                if (SUCCEEDED (shellLink->GetPath (resolvedPath, MAX_PATH, &winFindData, SLGP_UNCPRIORITY)))
-                    result = File (resolvedPath);
-            }
-        }
+    if (SUCCEEDED (shellLink.CoCreateInstance (CLSID_ShellLink))
+         && SUCCEEDED (shellLink.QueryInterface (persistFile))
+         && SUCCEEDED (persistFile->Load (p.toWideCharPointer(), STGM_READ))
+         && SUCCEEDED (shellLink->Resolve (0, SLR_ANY_MATCH | SLR_NO_UI)))
+    {
+        WIN32_FIND_DATA winFindData;
+        WCHAR resolvedPath [MAX_PATH];
+
+        if (SUCCEEDED (shellLink->GetPath (resolvedPath, MAX_PATH, &winFindData, SLGP_UNCPRIORITY)))
+            result = File (resolvedPath);
     }
 
     return result;
 }
 
+bool File::createLink (const String& description, const File& linkFileToCreate) const
+{
+    linkFileToCreate.deleteFile();
+
+    ComSmartPtr<IShellLink> shellLink;
+    ComSmartPtr<IPersistFile> persistFile;
+
+    CoInitialize (0);
+
+    return SUCCEEDED (shellLink.CoCreateInstance (CLSID_ShellLink))
+        && SUCCEEDED (shellLink->SetPath (getFullPathName().toWideCharPointer()))
+        && SUCCEEDED (shellLink->SetDescription (description.toWideCharPointer()))
+        && SUCCEEDED (shellLink.QueryInterface (persistFile))
+        && SUCCEEDED (persistFile->Save (linkFileToCreate.getFullPathName().toWideCharPointer(), TRUE));
+}
 
 //==============================================================================
 class DirectoryIterator::NativeIterator::Pimpl
@@ -665,7 +713,7 @@ private:
     const String directoryWithWildCard;
     HANDLE handle;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
 };
 
 DirectoryIterator::NativeIterator::NativeIterator (const File& directory, const String& wildCard)
@@ -686,13 +734,14 @@ bool DirectoryIterator::NativeIterator::next (String& filenameFound,
 
 
 //==============================================================================
-bool Process::openDocument (const String& fileName, const String& parameters)
+bool JUCE_CALLTYPE Process::openDocument (const String& fileName, const String& parameters)
 {
     HINSTANCE hInstance = 0;
 
     JUCE_TRY
     {
-        hInstance = ShellExecute (0, 0, fileName.toWideCharPointer(), parameters.toWideCharPointer(), 0, SW_SHOWDEFAULT);
+        hInstance = ShellExecute (0, 0, fileName.toWideCharPointer(),
+                                  parameters.toWideCharPointer(), 0, SW_SHOWDEFAULT);
     }
     JUCE_CATCH_ALL
 
@@ -701,45 +750,42 @@ bool Process::openDocument (const String& fileName, const String& parameters)
 
 void File::revealToUser() const
 {
-   #if JUCE_MINGW
-    jassertfalse; // not supported in MinGW..
-   #else
-    #pragma warning (push)
-    #pragma warning (disable: 4090) // (alignment warning)
-    ITEMIDLIST* const itemIDList = ILCreateFromPath (fullPath.toWideCharPointer());
-    #pragma warning (pop)
+    DynamicLibrary dll ("Shell32.dll");
+    JUCE_LOAD_WINAPI_FUNCTION (dll, ILCreateFromPathW, ilCreateFromPathW, ITEMIDLIST*, (LPCWSTR))
+    JUCE_LOAD_WINAPI_FUNCTION (dll, ILFree, ilFree, void, (ITEMIDLIST*))
+    JUCE_LOAD_WINAPI_FUNCTION (dll, SHOpenFolderAndSelectItems, shOpenFolderAndSelectItems, HRESULT, (ITEMIDLIST*, UINT, void*, DWORD))
 
-    if (itemIDList != nullptr)
+    if (ilCreateFromPathW != nullptr && shOpenFolderAndSelectItems != nullptr && ilFree != nullptr)
     {
-        SHOpenFolderAndSelectItems (itemIDList, 0, nullptr, 0);
-        ILFree (itemIDList);
+        if (ITEMIDLIST* const itemIDList = ilCreateFromPathW (fullPath.toWideCharPointer()))
+        {
+            shOpenFolderAndSelectItems (itemIDList, 0, nullptr, 0);
+            ilFree (itemIDList);
+        }
     }
-   #endif
 }
 
 //==============================================================================
 class NamedPipe::Pimpl
 {
 public:
-    Pimpl (const String& file, const bool isPipe_)
-        : pipeH (0),
+    Pimpl (const String& pipeName, const bool createPipe)
+        : filename ("\\\\.\\pipe\\" + File::createLegalFileName (pipeName)),
+          pipeH (INVALID_HANDLE_VALUE),
           cancelEvent (CreateEvent (0, FALSE, FALSE, 0)),
-          connected (false),
-          isPipe (isPipe_)
+          connected (false), ownsPipe (createPipe), shouldStop (false)
     {
-        pipeH = isPipe ? CreateNamedPipe (file.toWideCharPointer(),
-                                          PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, 0,
-                                          PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, 0)
-                       : CreateFile (file.toWideCharPointer(),
-                                     GENERIC_READ | GENERIC_WRITE, 0, 0,
-                                     OPEN_EXISTING, FILE_FLAG_OVERLAPPED, 0);
+        if (createPipe)
+            pipeH = CreateNamedPipe (filename.toWideCharPointer(),
+                                     PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, 0,
+                                     PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, 0);
     }
 
     ~Pimpl()
     {
         disconnectPipe();
 
-        if (pipeH != 0)
+        if (pipeH != INVALID_HANDLE_VALUE)
             CloseHandle (pipeH);
 
         CloseHandle (cancelEvent);
@@ -747,37 +793,48 @@ public:
 
     bool connect (const int timeOutMs)
     {
-        if (! isPipe)
-            return true;
+        if (! ownsPipe)
+        {
+            if (pipeH != INVALID_HANDLE_VALUE)
+                return true;
+
+            const Time timeOutEnd (Time::getCurrentTime() + RelativeTime::milliseconds (timeOutMs));
+
+            for (;;)
+            {
+                {
+                    const ScopedLock sl (createFileLock);
+
+                    if (pipeH == INVALID_HANDLE_VALUE)
+                        pipeH = CreateFile (filename.toWideCharPointer(),
+                                            GENERIC_READ | GENERIC_WRITE, 0, 0,
+                                            OPEN_EXISTING, FILE_FLAG_OVERLAPPED, 0);
+                }
+
+                if (pipeH != INVALID_HANDLE_VALUE)
+                    return true;
+
+                if (shouldStop || (timeOutMs >= 0 && Time::getCurrentTime() > timeOutEnd))
+                    return false;
+
+                Thread::sleep (1);
+            }
+        }
 
         if (! connected)
         {
-            OVERLAPPED over = { 0 };
-            over.hEvent = CreateEvent (0, TRUE, FALSE, 0);
+            OverlappedEvent over;
 
-            if (ConnectNamedPipe (pipeH, &over))
+            if (ConnectNamedPipe (pipeH, &over.over) == 0)
             {
-                connected = false;  // yes, you read that right. In overlapped mode it should always return 0.
-            }
-            else
-            {
-                const DWORD err = GetLastError();
-
-                if (err == ERROR_IO_PENDING || err == ERROR_PIPE_LISTENING)
+                switch (GetLastError())
                 {
-                    HANDLE handles[] = { over.hEvent, cancelEvent };
-
-                    if (WaitForMultipleObjects (2, handles, FALSE,
-                                                timeOutMs >= 0 ? timeOutMs : INFINITE) == WAIT_OBJECT_0)
-                        connected = true;
-                }
-                else if (err == ERROR_PIPE_CONNECTED)
-                {
-                    connected = true;
+                    case ERROR_PIPE_CONNECTED:   connected = true; break;
+                    case ERROR_IO_PENDING:
+                    case ERROR_PIPE_LISTENING:   connected = waitForIO (over, timeOutMs); break;
+                    default: break;
                 }
             }
-
-            CloseHandle (over.hEvent);
         }
 
         return connected;
@@ -785,174 +842,150 @@ public:
 
     void disconnectPipe()
     {
-        if (connected)
+        if (ownsPipe && connected)
         {
             DisconnectNamedPipe (pipeH);
             connected = false;
         }
     }
 
-    bool isConnected() const noexcept  { return connected; }
-
-    HANDLE pipeH, cancelEvent;
-    bool connected, isPipe;
-};
-
-NamedPipe::NamedPipe()
-{
-}
-
-NamedPipe::~NamedPipe()
-{
-    close();
-}
-
-bool NamedPipe::isOpen() const
-{
-    return pimpl != nullptr && pimpl->connected;
-}
-
-void NamedPipe::cancelPendingReads()
-{
-    if (pimpl != nullptr)
-        SetEvent (pimpl->cancelEvent);
-}
-
-void NamedPipe::close()
-{
-    cancelPendingReads();
-
-    const ScopedLock sl (lock);
-    ScopedPointer<Pimpl> deleter (pimpl); // (clears the pimpl member variable before deleting it)
-}
-
-bool NamedPipe::openInternal (const String& pipeName, const bool createPipe)
-{
-    close();
-
-    pimpl = new Pimpl ("\\\\.\\pipe\\" + File::createLegalFileName (pipeName), createPipe);
-
-    if (pimpl->pipeH != INVALID_HANDLE_VALUE)
-        return true;
-
-    pimpl = nullptr;
-    return false;
-}
-
-int NamedPipe::read (void* destBuffer, const int maxBytesToRead, const int timeOutMilliseconds)
-{
-    const ScopedLock sl (lock);
-    int bytesRead = -1;
-    bool waitAgain = true;
-
-    while (waitAgain && pimpl != nullptr)
+    int read (void* destBuffer, const int maxBytesToRead, const int timeOutMilliseconds)
     {
-        waitAgain = false;
-
-        if (! pimpl->connect (timeOutMilliseconds))
-            break;
-
-        if (maxBytesToRead <= 0)
-            return 0;
-
-        OVERLAPPED over = { 0 };
-        over.hEvent = CreateEvent (0, TRUE, FALSE, 0);
-
-        unsigned long numRead;
-
-        if (ReadFile (pimpl->pipeH, destBuffer, (DWORD) maxBytesToRead, &numRead, &over))
+        while (connect (timeOutMilliseconds))
         {
-            bytesRead = (int) numRead;
-        }
-        else
-        {
+            if (maxBytesToRead <= 0)
+                return 0;
+
+            OverlappedEvent over;
+            unsigned long numRead;
+
+            if (ReadFile (pipeH, destBuffer, (DWORD) maxBytesToRead, &numRead, &over.over))
+                return (int) numRead;
+
             const DWORD lastError = GetLastError();
 
             if (lastError == ERROR_IO_PENDING)
             {
-                HANDLE handles[] = { over.hEvent, pimpl->cancelEvent };
-                DWORD waitResult = WaitForMultipleObjects (2, handles, FALSE,
-                                                           timeOutMilliseconds >= 0 ? timeOutMilliseconds
-                                                                                    : INFINITE);
-                if (waitResult != WAIT_OBJECT_0)
-                {
-                    // if the operation timed out, let's cancel it...
-                    CancelIo (pimpl->pipeH);
-                    WaitForSingleObject (over.hEvent, INFINITE);  // makes sure cancel is complete
-                }
+                if (! waitForIO (over, timeOutMilliseconds))
+                    return -1;
 
-                if (GetOverlappedResult (pimpl->pipeH, &over, &numRead, FALSE))
-                {
-                    bytesRead = (int) numRead;
-                }
-                else if ((GetLastError() == ERROR_BROKEN_PIPE || GetLastError() == ERROR_PIPE_NOT_CONNECTED) && pimpl->isPipe)
-                {
-                    pimpl->disconnectPipe();
-                    waitAgain = true;
-                }
+                if (GetOverlappedResult (pipeH, &over.over, &numRead, FALSE))
+                    return (int) numRead;
             }
-            else if (pimpl->isPipe)
-            {
-                waitAgain = true;
 
-                if (lastError == ERROR_BROKEN_PIPE || lastError == ERROR_PIPE_NOT_CONNECTED)
-                    pimpl->disconnectPipe();
-                else
-                    Sleep (5);
+            if (ownsPipe && (GetLastError() == ERROR_BROKEN_PIPE || GetLastError() == ERROR_PIPE_NOT_CONNECTED))
+                disconnectPipe();
+            else
+                break;
+        }
+
+        return -1;
+    }
+
+    int write (const void* sourceBuffer, int numBytesToWrite, int timeOutMilliseconds)
+    {
+        if (connect (timeOutMilliseconds))
+        {
+            if (numBytesToWrite <= 0)
+                return 0;
+
+            OverlappedEvent over;
+            unsigned long numWritten;
+
+            if (WriteFile (pipeH, sourceBuffer, (DWORD) numBytesToWrite, &numWritten, &over.over))
+                return (int) numWritten;
+
+            if (GetLastError() == ERROR_IO_PENDING)
+            {
+                if (! waitForIO (over, timeOutMilliseconds))
+                    return -1;
+
+                if (GetOverlappedResult (pipeH, &over.over, &numWritten, FALSE))
+                    return (int) numWritten;
+
+                if (GetLastError() == ERROR_BROKEN_PIPE && ownsPipe)
+                    disconnectPipe();
             }
         }
 
-        CloseHandle (over.hEvent);
+        return -1;
     }
 
-    return bytesRead;
+    const String filename;
+    HANDLE pipeH, cancelEvent;
+    bool connected, ownsPipe, shouldStop;
+    CriticalSection createFileLock;
+
+private:
+    struct OverlappedEvent
+    {
+        OverlappedEvent()
+        {
+            zerostruct (over);
+            over.hEvent = CreateEvent (0, TRUE, FALSE, 0);
+        }
+
+        ~OverlappedEvent()
+        {
+            CloseHandle (over.hEvent);
+        }
+
+        OVERLAPPED over;
+    };
+
+    bool waitForIO (OverlappedEvent& over, int timeOutMilliseconds)
+    {
+        if (shouldStop)
+            return false;
+
+        HANDLE handles[] = { over.over.hEvent, cancelEvent };
+        DWORD waitResult = WaitForMultipleObjects (2, handles, FALSE,
+                                                   timeOutMilliseconds >= 0 ? timeOutMilliseconds
+                                                                            : INFINITE);
+
+        if (waitResult == WAIT_OBJECT_0)
+            return true;
+
+        CancelIo (pipeH);
+        return false;
+    }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
+};
+
+void NamedPipe::close()
+{
+    if (pimpl != nullptr)
+    {
+        pimpl->shouldStop = true;
+        SetEvent (pimpl->cancelEvent);
+
+        ScopedWriteLock sl (lock);
+        pimpl = nullptr;
+    }
+}
+
+bool NamedPipe::openInternal (const String& pipeName, const bool createPipe)
+{
+    pimpl = new Pimpl (pipeName, createPipe);
+
+    if (createPipe && pimpl->pipeH == INVALID_HANDLE_VALUE)
+    {
+        pimpl = nullptr;
+        return false;
+    }
+
+    return true;
+}
+
+int NamedPipe::read (void* destBuffer, int maxBytesToRead, int timeOutMilliseconds)
+{
+    ScopedReadLock sl (lock);
+    return pimpl != nullptr ? pimpl->read (destBuffer, maxBytesToRead, timeOutMilliseconds) : -1;
 }
 
 int NamedPipe::write (const void* sourceBuffer, int numBytesToWrite, int timeOutMilliseconds)
 {
-    int bytesWritten = -1;
-
-    if (pimpl != nullptr && pimpl->connect (timeOutMilliseconds))
-    {
-        if (numBytesToWrite <= 0)
-            return 0;
-
-        OVERLAPPED over = { 0 };
-        over.hEvent = CreateEvent (0, TRUE, FALSE, 0);
-
-        unsigned long numWritten;
-
-        if (WriteFile (pimpl->pipeH, sourceBuffer, (DWORD) numBytesToWrite, &numWritten, &over))
-        {
-            bytesWritten = (int) numWritten;
-        }
-        else if (GetLastError() == ERROR_IO_PENDING)
-        {
-            HANDLE handles[] = { over.hEvent, pimpl->cancelEvent };
-            DWORD waitResult;
-
-            waitResult = WaitForMultipleObjects (2, handles, FALSE,
-                                                 timeOutMilliseconds >= 0 ? timeOutMilliseconds
-                                                                          : INFINITE);
-
-            if (waitResult != WAIT_OBJECT_0)
-            {
-                CancelIo (pimpl->pipeH);
-                WaitForSingleObject (over.hEvent, INFINITE);
-            }
-
-            if (GetOverlappedResult (pimpl->pipeH, &over, &numWritten, FALSE))
-            {
-                bytesWritten = (int) numWritten;
-            }
-            else if (GetLastError() == ERROR_BROKEN_PIPE && pimpl->isPipe)
-            {
-                pimpl->disconnectPipe();
-            }
-        }
-
-        CloseHandle (over.hEvent);
-    }
-
-    return bytesWritten;
+    ScopedReadLock sl (lock);
+    return pimpl != nullptr ? pimpl->write (sourceBuffer, numBytesToWrite, timeOutMilliseconds) : -1;
 }

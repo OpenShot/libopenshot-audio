@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -40,7 +39,7 @@ public:
                           const OwnedArray <MidiBuffer>& sharedMidiBuffers,
                           const int numSamples) = 0;
 
-    JUCE_LEAK_DETECTOR (AudioGraphRenderingOp);
+    JUCE_LEAK_DETECTOR (AudioGraphRenderingOp)
 };
 
 //==============================================================================
@@ -59,7 +58,7 @@ public:
 private:
     const int channelNum;
 
-    JUCE_DECLARE_NON_COPYABLE (ClearChannelOp);
+    JUCE_DECLARE_NON_COPYABLE (ClearChannelOp)
 };
 
 //==============================================================================
@@ -79,7 +78,7 @@ public:
 private:
     const int srcChannelNum, dstChannelNum;
 
-    JUCE_DECLARE_NON_COPYABLE (CopyChannelOp);
+    JUCE_DECLARE_NON_COPYABLE (CopyChannelOp)
 };
 
 //==============================================================================
@@ -99,7 +98,7 @@ public:
 private:
     const int srcChannelNum, dstChannelNum;
 
-    JUCE_DECLARE_NON_COPYABLE (AddChannelOp);
+    JUCE_DECLARE_NON_COPYABLE (AddChannelOp)
 };
 
 //==============================================================================
@@ -118,7 +117,7 @@ public:
 private:
     const int bufferNum;
 
-    JUCE_DECLARE_NON_COPYABLE (ClearMidiBufferOp);
+    JUCE_DECLARE_NON_COPYABLE (ClearMidiBufferOp)
 };
 
 //==============================================================================
@@ -138,7 +137,7 @@ public:
 private:
     const int srcBufferNum, dstBufferNum;
 
-    JUCE_DECLARE_NON_COPYABLE (CopyMidiBufferOp);
+    JUCE_DECLARE_NON_COPYABLE (CopyMidiBufferOp)
 };
 
 //==============================================================================
@@ -159,7 +158,7 @@ public:
 private:
     const int srcBufferNum, dstBufferNum;
 
-    JUCE_DECLARE_NON_COPYABLE (AddMidiBufferOp);
+    JUCE_DECLARE_NON_COPYABLE (AddMidiBufferOp)
 };
 
 //==============================================================================
@@ -176,7 +175,7 @@ public:
 
     void perform (AudioSampleBuffer& sharedBufferChans, const OwnedArray <MidiBuffer>&, const int numSamples)
     {
-        float* data = sharedBufferChans.getSampleData (channel, 0);
+        float* data = sharedBufferChans.getWritePointer (channel, 0);
 
         for (int i = numSamples; --i >= 0;)
         {
@@ -193,7 +192,7 @@ private:
     const int channel, bufferSize;
     int readIndex, writeIndex;
 
-    JUCE_DECLARE_NON_COPYABLE (DelayChannelOp);
+    JUCE_DECLARE_NON_COPYABLE (DelayChannelOp)
 };
 
 
@@ -220,7 +219,7 @@ public:
     void perform (AudioSampleBuffer& sharedBufferChans, const OwnedArray <MidiBuffer>& sharedMidiBuffers, const int numSamples)
     {
         for (int i = totalChans; --i >= 0;)
-            channels[i] = sharedBufferChans.getSampleData (audioChannelsToUse.getUnchecked (i), 0);
+            channels[i] = sharedBufferChans.getWritePointer (audioChannelsToUse.getUnchecked (i), 0);
 
         AudioSampleBuffer buffer (channels, totalChans, numSamples);
 
@@ -231,12 +230,12 @@ public:
     AudioProcessor* const processor;
 
 private:
-    Array <int> audioChannelsToUse;
-    HeapBlock <float*> channels;
+    Array<int> audioChannelsToUse;
+    HeapBlock<float*> channels;
     int totalChans;
     int midiBufferToUse;
 
-    JUCE_DECLARE_NON_COPYABLE (ProcessBufferOp);
+    JUCE_DECLARE_NON_COPYABLE (ProcessBufferOp)
 };
 
 //==============================================================================
@@ -665,8 +664,7 @@ private:
 
     void markAnyUnusedBuffersAsFree (const int stepIndex)
     {
-        int i;
-        for (i = 0; i < nodeIds.size(); ++i)
+        for (int i = 0; i < nodeIds.size(); ++i)
         {
             if (isNodeBusy (nodeIds.getUnchecked(i))
                  && ! isBufferNeededLater (stepIndex, -1,
@@ -677,7 +675,7 @@ private:
             }
         }
 
-        for (i = 0; i < midiNodeIds.size(); ++i)
+        for (int i = 0; i < midiNodeIds.size(); ++i)
         {
             if (isNodeBusy (midiNodeIds.getUnchecked(i))
                  && ! isBufferNeededLater (stepIndex, -1,
@@ -738,7 +736,7 @@ private:
         }
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RenderingOpSequenceCalculator);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RenderingOpSequenceCalculator)
 };
 
 //==============================================================================
@@ -780,7 +778,7 @@ private:
         const uint32 destNodeId;
         SortedSet<uint32> srcNodes;
 
-        JUCE_DECLARE_NON_COPYABLE (Entry);
+        JUCE_DECLARE_NON_COPYABLE (Entry)
     };
 
     OwnedArray<Entry> entries;
@@ -790,9 +788,8 @@ private:
                                int recursionCheck) const noexcept
     {
         int index;
-        const Entry* const entry = findEntry (possibleDestinationId, index);
 
-        if (entry != nullptr)
+        if (const Entry* const entry = findEntry (possibleDestinationId, index))
         {
             const SortedSet<uint32>& srcNodes = entry->srcNodes;
 
@@ -850,7 +847,7 @@ private:
         return result;
     }
 
-    JUCE_DECLARE_NON_COPYABLE (ConnectionLookupTable);
+    JUCE_DECLARE_NON_COPYABLE (ConnectionLookupTable)
 };
 
 //==============================================================================
@@ -859,14 +856,14 @@ struct ConnectionSorter
     static int compareElements (const AudioProcessorGraph::Connection* const first,
                                 const AudioProcessorGraph::Connection* const second) noexcept
     {
-        if      (first->sourceNodeId < second->sourceNodeId)                return -1;
-        else if (first->sourceNodeId > second->sourceNodeId)                return 1;
-        else if (first->destNodeId < second->destNodeId)                    return -1;
-        else if (first->destNodeId > second->destNodeId)                    return 1;
-        else if (first->sourceChannelIndex < second->sourceChannelIndex)    return -1;
-        else if (first->sourceChannelIndex > second->sourceChannelIndex)    return 1;
-        else if (first->destChannelIndex < second->destChannelIndex)        return -1;
-        else if (first->destChannelIndex > second->destChannelIndex)        return 1;
+        if (first->sourceNodeId < second->sourceNodeId)                return -1;
+        if (first->sourceNodeId > second->sourceNodeId)                return 1;
+        if (first->destNodeId < second->destNodeId)                    return -1;
+        if (first->destNodeId > second->destNodeId)                    return 1;
+        if (first->sourceChannelIndex < second->sourceChannelIndex)    return -1;
+        if (first->sourceChannelIndex > second->sourceChannelIndex)    return 1;
+        if (first->destChannelIndex < second->destChannelIndex)        return -1;
+        if (first->destChannelIndex > second->destChannelIndex)        return 1;
 
         return 0;
     }
@@ -888,7 +885,7 @@ AudioProcessorGraph::Node::Node (const uint32 nodeId_, AudioProcessor* const pro
       processor (processor_),
       isPrepared (false)
 {
-    jassert (processor_ != nullptr);
+    jassert (processor != nullptr);
 }
 
 void AudioProcessorGraph::Node::prepare (const double sampleRate, const int blockSize,
@@ -918,18 +915,16 @@ void AudioProcessorGraph::Node::unprepare()
 
 void AudioProcessorGraph::Node::setParentGraph (AudioProcessorGraph* const graph) const
 {
-    AudioProcessorGraph::AudioGraphIOProcessor* const ioProc
-        = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (processor.get());
-
-    if (ioProc != nullptr)
+    if (AudioProcessorGraph::AudioGraphIOProcessor* const ioProc
+            = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (processor.get()))
         ioProc->setParentGraph (graph);
 }
 
 //==============================================================================
 AudioProcessorGraph::AudioProcessorGraph()
     : lastNodeId (0),
-      renderingBuffers (1, 1),
-      currentAudioOutputBuffer (1, 1)
+      currentAudioInputBuffer (nullptr),
+      currentMidiInputBuffer (nullptr)
 {
 }
 
@@ -963,10 +958,19 @@ AudioProcessorGraph::Node* AudioProcessorGraph::getNodeForId (const uint32 nodeI
 
 AudioProcessorGraph::Node* AudioProcessorGraph::addNode (AudioProcessor* const newProcessor, uint32 nodeId)
 {
-    if (newProcessor == nullptr)
+    if (newProcessor == nullptr || newProcessor == this)
     {
         jassertfalse;
         return nullptr;
+    }
+
+    for (int i = nodes.size(); --i >= 0;)
+    {
+        if (nodes.getUnchecked(i)->getProcessor() == newProcessor)
+        {
+            jassertfalse; // Cannot add the same object to the graph twice!
+            return nullptr;
+        }
     }
 
     if (nodeId == 0)
@@ -982,6 +986,8 @@ AudioProcessorGraph::Node* AudioProcessorGraph::addNode (AudioProcessor* const n
         if (nodeId > lastNodeId)
             lastNodeId = nodeId;
     }
+
+    newProcessor->setPlayHead (getPlayHead());
 
     Node* const n = new Node (nodeId, newProcessor);
     nodes.add (n);
@@ -1171,8 +1177,8 @@ void AudioProcessorGraph::clearRenderingSequence()
     Array<void*> oldOps;
 
     {
-        const ScopedLock sl (renderLock);
-        renderingOps.swapWithArray (oldOps);
+        const ScopedLock sl (getCallbackLock());
+        renderingOps.swapWith (oldOps);
     }
 
     deleteRenderOpArray (oldOps);
@@ -1235,7 +1241,7 @@ void AudioProcessorGraph::buildRenderingSequence()
 
     {
         // swap over to the new rendering sequence..
-        const ScopedLock sl (renderLock);
+        const ScopedLock sl (getCallbackLock());
 
         renderingBuffers.setSize (numRenderingBuffersNeeded, getBlockSize());
         renderingBuffers.clear();
@@ -1246,7 +1252,7 @@ void AudioProcessorGraph::buildRenderingSequence()
         while (midiBuffers.size() < numMidiBuffersNeeded)
             midiBuffers.add (new MidiBuffer());
 
-        renderingOps.swapWithArray (newRenderingOps);
+        renderingOps.swapWith (newRenderingOps);
     }
 
     // delete the old ones..
@@ -1284,11 +1290,17 @@ void AudioProcessorGraph::releaseResources()
     currentMidiOutputBuffer.clear();
 }
 
+void AudioProcessorGraph::reset()
+{
+    const ScopedLock sl (getCallbackLock());
+
+    for (int i = 0; i < nodes.size(); ++i)
+        nodes.getUnchecked(i)->getProcessor()->reset();
+}
+
 void AudioProcessorGraph::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
     const int numSamples = buffer.getNumSamples();
-
-    const ScopedLock sl (renderLock);
 
     currentAudioInputBuffer = &buffer;
     currentAudioOutputBuffer.setSize (jmax (1, buffer.getNumChannels()), numSamples);
@@ -1296,8 +1308,7 @@ void AudioProcessorGraph::processBlock (AudioSampleBuffer& buffer, MidiBuffer& m
     currentMidiInputBuffer = &midiMessages;
     currentMidiOutputBuffer.clear();
 
-    int i;
-    for (i = 0; i < renderingOps.size(); ++i)
+    for (int i = 0; i < renderingOps.size(); ++i)
     {
         GraphRenderingOps::AudioGraphRenderingOp* const op
             = (GraphRenderingOps::AudioGraphRenderingOp*) renderingOps.getUnchecked(i);
@@ -1305,7 +1316,7 @@ void AudioProcessorGraph::processBlock (AudioSampleBuffer& buffer, MidiBuffer& m
         op->perform (renderingBuffers, midiBuffers, numSamples);
     }
 
-    for (i = 0; i < buffer.getNumChannels(); ++i)
+    for (int i = 0; i < buffer.getNumChannels(); ++i)
         buffer.copyFrom (i, 0, currentAudioOutputBuffer, i, 0, numSamples);
 
     midiMessages.clear();
@@ -1324,6 +1335,8 @@ const String AudioProcessorGraph::getOutputChannelName (int channelIndex) const
 
 bool AudioProcessorGraph::isInputChannelStereoPair (int /*index*/) const    { return true; }
 bool AudioProcessorGraph::isOutputChannelStereoPair (int /*index*/) const   { return true; }
+bool AudioProcessorGraph::silenceInProducesSilenceOut() const               { return false; }
+double AudioProcessorGraph::getTailLengthSeconds() const                    { return 0; }
 bool AudioProcessorGraph::acceptsMidi() const   { return true; }
 bool AudioProcessorGraph::producesMidi() const  { return true; }
 void AudioProcessorGraph::getStateInformation (juce::MemoryBlock& /*destData*/)   {}
@@ -1352,7 +1365,7 @@ const String AudioProcessorGraph::AudioGraphIOProcessor::getName() const
         default:                break;
     }
 
-    return String::empty;
+    return String();
 }
 
 void AudioProcessorGraph::AudioGraphIOProcessor::fillInPluginDescription (PluginDescription& d) const
@@ -1425,6 +1438,16 @@ void AudioProcessorGraph::AudioGraphIOProcessor::processBlock (AudioSampleBuffer
     }
 }
 
+bool AudioProcessorGraph::AudioGraphIOProcessor::silenceInProducesSilenceOut() const
+{
+    return isOutput();
+}
+
+double AudioProcessorGraph::AudioGraphIOProcessor::getTailLengthSeconds() const
+{
+    return 0;
+}
+
 bool AudioProcessorGraph::AudioGraphIOProcessor::acceptsMidi() const
 {
     return type == midiOutputNode;
@@ -1444,7 +1467,7 @@ const String AudioProcessorGraph::AudioGraphIOProcessor::getInputChannelName (in
         default:                break;
     }
 
-    return String::empty;
+    return String();
 }
 
 const String AudioProcessorGraph::AudioGraphIOProcessor::getOutputChannelName (int channelIndex) const
@@ -1456,7 +1479,7 @@ const String AudioProcessorGraph::AudioGraphIOProcessor::getOutputChannelName (i
         default:                break;
     }
 
-    return String::empty;
+    return String();
 }
 
 bool AudioProcessorGraph::AudioGraphIOProcessor::isInputChannelStereoPair (int /*index*/) const
@@ -1476,17 +1499,17 @@ bool AudioProcessorGraph::AudioGraphIOProcessor::hasEditor() const              
 AudioProcessorEditor* AudioProcessorGraph::AudioGraphIOProcessor::createEditor()    { return nullptr; }
 
 int AudioProcessorGraph::AudioGraphIOProcessor::getNumParameters()                  { return 0; }
-const String AudioProcessorGraph::AudioGraphIOProcessor::getParameterName (int)     { return String::empty; }
+const String AudioProcessorGraph::AudioGraphIOProcessor::getParameterName (int)     { return String(); }
 
 float AudioProcessorGraph::AudioGraphIOProcessor::getParameter (int)                { return 0.0f; }
-const String AudioProcessorGraph::AudioGraphIOProcessor::getParameterText (int)     { return String::empty; }
+const String AudioProcessorGraph::AudioGraphIOProcessor::getParameterText (int)     { return String(); }
 void AudioProcessorGraph::AudioGraphIOProcessor::setParameter (int, float)          { }
 
 int AudioProcessorGraph::AudioGraphIOProcessor::getNumPrograms()                    { return 0; }
 int AudioProcessorGraph::AudioGraphIOProcessor::getCurrentProgram()                 { return 0; }
 void AudioProcessorGraph::AudioGraphIOProcessor::setCurrentProgram (int)            { }
 
-const String AudioProcessorGraph::AudioGraphIOProcessor::getProgramName (int)       { return String::empty; }
+const String AudioProcessorGraph::AudioGraphIOProcessor::getProgramName (int)       { return String(); }
 void AudioProcessorGraph::AudioGraphIOProcessor::changeProgramName (int, const String&) {}
 
 void AudioProcessorGraph::AudioGraphIOProcessor::getStateInformation (juce::MemoryBlock&) {}

@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -40,38 +43,36 @@ ReadWriteLock::~ReadWriteLock() noexcept
 //==============================================================================
 void ReadWriteLock::enterRead() const noexcept
 {
+    while (! tryEnterRead())
+        waitEvent.wait (100);
+}
+
+bool ReadWriteLock::tryEnterRead() const noexcept
+{
     const Thread::ThreadID threadId = Thread::getCurrentThreadId();
+
     const SpinLock::ScopedLockType sl (accessLock);
 
-    for (;;)
+    for (int i = 0; i < readerThreads.size(); ++i)
     {
-        jassert (readerThreads.size() % 2 == 0);
+        ThreadRecursionCount& trc = readerThreads.getReference(i);
 
-        int i;
-        for (i = 0; i < readerThreads.size(); i += 2)
-            if (readerThreads.getUnchecked(i) == threadId)
-                break;
-
-        if (i < readerThreads.size()
-              || numWriters + numWaitingWriters == 0
-              || (threadId == writerThreadId && numWriters > 0))
+        if (trc.threadID == threadId)
         {
-            if (i < readerThreads.size())
-            {
-                readerThreads.set (i + 1, (Thread::ThreadID) (1 + (pointer_sized_int) readerThreads.getUnchecked (i + 1)));
-            }
-            else
-            {
-                readerThreads.add (threadId);
-                readerThreads.add ((Thread::ThreadID) 1);
-            }
-
-            return;
+            trc.count++;
+            return true;
         }
-
-        const SpinLock::ScopedUnlockType ul (accessLock);
-        waitEvent.wait (100);
     }
+
+    if (numWriters + numWaitingWriters == 0
+         || (threadId == writerThreadId && numWriters > 0))
+    {
+        ThreadRecursionCount trc = { threadId, 1 };
+        readerThreads.add (trc);
+        return true;
+    }
+
+    return false;
 }
 
 void ReadWriteLock::exitRead() const noexcept
@@ -79,20 +80,16 @@ void ReadWriteLock::exitRead() const noexcept
     const Thread::ThreadID threadId = Thread::getCurrentThreadId();
     const SpinLock::ScopedLockType sl (accessLock);
 
-    for (int i = 0; i < readerThreads.size(); i += 2)
+    for (int i = 0; i < readerThreads.size(); ++i)
     {
-        if (readerThreads.getUnchecked(i) == threadId)
-        {
-            const pointer_sized_int newCount = ((pointer_sized_int) readerThreads.getUnchecked (i + 1)) - 1;
+        ThreadRecursionCount& trc = readerThreads.getReference(i);
 
-            if (newCount == 0)
+        if (trc.threadID == threadId)
+        {
+            if (--(trc.count) == 0)
             {
-                readerThreads.removeRange (i, 2);
+                readerThreads.remove (i);
                 waitEvent.signal();
-            }
-            else
-            {
-                readerThreads.set (i + 1, (Thread::ThreadID) newCount);
             }
 
             return;
@@ -108,18 +105,8 @@ void ReadWriteLock::enterWrite() const noexcept
     const Thread::ThreadID threadId = Thread::getCurrentThreadId();
     const SpinLock::ScopedLockType sl (accessLock);
 
-    for (;;)
+    while (! tryEnterWriteInternal (threadId))
     {
-        if (readerThreads.size() + numWriters == 0
-             || threadId == writerThreadId
-             || (readerThreads.size() == 2
-                  && readerThreads.getUnchecked(0) == threadId))
-        {
-            writerThreadId = threadId;
-            ++numWriters;
-            break;
-        }
-
         ++numWaitingWriters;
         accessLock.exit();
         waitEvent.wait (100);
@@ -130,13 +117,15 @@ void ReadWriteLock::enterWrite() const noexcept
 
 bool ReadWriteLock::tryEnterWrite() const noexcept
 {
-    const Thread::ThreadID threadId = Thread::getCurrentThreadId();
     const SpinLock::ScopedLockType sl (accessLock);
+    return tryEnterWriteInternal (Thread::getCurrentThreadId());
+}
 
+bool ReadWriteLock::tryEnterWriteInternal (Thread::ThreadID threadId) const noexcept
+{
     if (readerThreads.size() + numWriters == 0
          || threadId == writerThreadId
-         || (readerThreads.size() == 2
-              && readerThreads.getUnchecked(0) == threadId))
+         || (readerThreads.size() == 1 && readerThreads.getReference(0).threadID == threadId))
     {
         writerThreadId = threadId;
         ++numWriters;

@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_RESIZABLEBORDERCOMPONENT_JUCEHEADER__
-#define __JUCE_RESIZABLEBORDERCOMPONENT_JUCEHEADER__
-
-#include "juce_ComponentBoundsConstrainer.h"
+#ifndef JUCE_RESIZABLEBORDERCOMPONENT_H_INCLUDED
+#define JUCE_RESIZABLEBORDERCOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -106,20 +103,22 @@ public:
 
         //==============================================================================
         /** Creates a Zone from a combination of the flags in \enum Zones. */
-        explicit Zone (int zoneFlags = 0) noexcept;
-        Zone (const Zone& other) noexcept;
-        Zone& operator= (const Zone& other) noexcept;
+        explicit Zone (int zoneFlags) noexcept;
 
-        bool operator== (const Zone& other) const noexcept;
-        bool operator!= (const Zone& other) const noexcept;
+        Zone() noexcept;
+        Zone (const Zone&) noexcept;
+        Zone& operator= (const Zone&) noexcept;
+
+        bool operator== (const Zone&) const noexcept;
+        bool operator!= (const Zone&) const noexcept;
 
         //==============================================================================
         /** Given a point within a rectangle with a resizable border, this returns the
             zone that the point lies within.
         */
-        static const Zone fromPositionOnBorder (const Rectangle<int>& totalSize,
-                                                const BorderSize<int>& border,
-                                                const Point<int>& position);
+        static Zone fromPositionOnBorder (const Rectangle<int>& totalSize,
+                                          const BorderSize<int>& border,
+                                          Point<int> position);
 
         /** Returns an appropriate mouse-cursor for this resize zone. */
         MouseCursor getMouseCursor() const noexcept;
@@ -139,23 +138,16 @@ public:
             applies to.
         */
         template <typename ValueType>
-        const Rectangle<ValueType> resizeRectangleBy (Rectangle<ValueType> original,
-                                                      const Point<ValueType>& distance) const noexcept
+        Rectangle<ValueType> resizeRectangleBy (Rectangle<ValueType> original,
+                                                const Point<ValueType>& distance) const noexcept
         {
             if (isDraggingWholeObject())
                 return original + distance;
 
-            if (isDraggingLeftEdge())
-                original.setLeft (jmin (original.getRight(), original.getX() + distance.x));
-
-            if (isDraggingRightEdge())
-                original.setWidth (jmax (ValueType(), original.getWidth() + distance.x));
-
-            if (isDraggingTopEdge())
-                original.setTop (jmin (original.getBottom(), original.getY() + distance.y));
-
-            if (isDraggingBottomEdge())
-                original.setHeight (jmax (ValueType(), original.getHeight() + distance.y));
+            if (isDraggingLeftEdge())   original.setLeft (jmin (original.getRight(), original.getX() + distance.x));
+            if (isDraggingRightEdge())  original.setWidth (jmax (ValueType(), original.getWidth() + distance.x));
+            if (isDraggingTopEdge())    original.setTop (jmin (original.getBottom(), original.getY() + distance.y));
+            if (isDraggingBottomEdge()) original.setHeight (jmax (ValueType(), original.getHeight() + distance.y));
 
             return original;
         }
@@ -168,23 +160,24 @@ public:
         int zone;
     };
 
+    /** Returns the zone in which the mouse was last seen. */
+    Zone getCurrentZone() const noexcept                 { return mouseZone; }
 
 protected:
-    //==============================================================================
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
     /** @internal */
-    void mouseEnter (const MouseEvent& e);
+    void mouseEnter (const MouseEvent&) override;
     /** @internal */
-    void mouseMove (const MouseEvent& e);
+    void mouseMove (const MouseEvent&) override;
     /** @internal */
-    void mouseDown (const MouseEvent& e);
+    void mouseDown (const MouseEvent&) override;
     /** @internal */
-    void mouseDrag (const MouseEvent& e);
+    void mouseDrag (const MouseEvent&) override;
     /** @internal */
-    void mouseUp (const MouseEvent& e);
+    void mouseUp (const MouseEvent&) override;
     /** @internal */
-    bool hitTest (int x, int y);
+    bool hitTest (int x, int y) override;
 
 private:
     WeakReference<Component> component;
@@ -193,10 +186,10 @@ private:
     Rectangle<int> originalBounds;
     Zone mouseZone;
 
-    void updateMouseZone (const MouseEvent& e);
+    void updateMouseZone (const MouseEvent&);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResizableBorderComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResizableBorderComponent)
 };
 
 
-#endif   // __JUCE_RESIZABLEBORDERCOMPONENT_JUCEHEADER__
+#endif   // JUCE_RESIZABLEBORDERCOMPONENT_H_INCLUDED

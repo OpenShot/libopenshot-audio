@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -29,10 +28,8 @@ MidiMessageSequence::MidiMessageSequence()
 
 MidiMessageSequence::MidiMessageSequence (const MidiMessageSequence& other)
 {
-    list.ensureStorageAllocated (other.list.size());
-
-    for (int i = 0; i < other.list.size(); ++i)
-        list.add (new MidiEventHolder (other.list.getUnchecked(i)->message));
+    list.addCopiesOf (other.list);
+    updateMatchedPairs();
 }
 
 MidiMessageSequence& MidiMessageSequence::operator= (const MidiMessageSequence& other)
@@ -44,7 +41,7 @@ MidiMessageSequence& MidiMessageSequence::operator= (const MidiMessageSequence& 
 
 void MidiMessageSequence::swapWith (MidiMessageSequence& other) noexcept
 {
-    list.swapWithArray (other.list);
+    list.swapWith (other.list);
 }
 
 MidiMessageSequence::~MidiMessageSequence()
@@ -56,39 +53,39 @@ void MidiMessageSequence::clear()
     list.clear();
 }
 
-int MidiMessageSequence::getNumEvents() const
+int MidiMessageSequence::getNumEvents() const noexcept
 {
     return list.size();
 }
 
-MidiMessageSequence::MidiEventHolder* MidiMessageSequence::getEventPointer (const int index) const
+MidiMessageSequence::MidiEventHolder* MidiMessageSequence::getEventPointer (const int index) const noexcept
 {
     return list [index];
 }
 
-double MidiMessageSequence::getTimeOfMatchingKeyUp (const int index) const
+double MidiMessageSequence::getTimeOfMatchingKeyUp (const int index) const noexcept
 {
-    const MidiEventHolder* const meh = list [index];
+    if (const MidiEventHolder* const meh = list [index])
+        if (meh->noteOffObject != nullptr)
+            return meh->noteOffObject->message.getTimeStamp();
 
-    if (meh != nullptr && meh->noteOffObject != nullptr)
-        return meh->noteOffObject->message.getTimeStamp();
-    else
-        return 0.0;
+    return 0.0;
 }
 
-int MidiMessageSequence::getIndexOfMatchingKeyUp (const int index) const
+int MidiMessageSequence::getIndexOfMatchingKeyUp (const int index) const noexcept
 {
-    const MidiEventHolder* const meh = list [index];
+    if (const MidiEventHolder* const meh = list [index])
+        return list.indexOf (meh->noteOffObject);
 
-    return meh != nullptr ? list.indexOf (meh->noteOffObject) : -1;
+    return -1;
 }
 
-int MidiMessageSequence::getIndexOf (MidiEventHolder* const event) const
+int MidiMessageSequence::getIndexOf (MidiEventHolder* const event) const noexcept
 {
     return list.indexOf (event);
 }
 
-int MidiMessageSequence::getNextIndexAtTime (const double timeStamp) const
+int MidiMessageSequence::getNextIndexAtTime (const double timeStamp) const noexcept
 {
     const int numEvents = list.size();
 
@@ -101,25 +98,27 @@ int MidiMessageSequence::getNextIndexAtTime (const double timeStamp) const
 }
 
 //==============================================================================
-double MidiMessageSequence::getStartTime() const
+double MidiMessageSequence::getStartTime() const noexcept
 {
     return getEventTime (0);
 }
 
-double MidiMessageSequence::getEndTime() const
+double MidiMessageSequence::getEndTime() const noexcept
 {
     return getEventTime (list.size() - 1);
 }
 
-double MidiMessageSequence::getEventTime (const int index) const
+double MidiMessageSequence::getEventTime (const int index) const noexcept
 {
-    const MidiEventHolder* const e = list [index];
-    return e != nullptr ? e->message.getTimeStamp() : 0.0;
+    if (const MidiEventHolder* const meh = list [index])
+        return meh->message.getTimeStamp();
+
+    return 0.0;
 }
 
 //==============================================================================
-void MidiMessageSequence::addEvent (const MidiMessage& newMessage,
-                                    double timeAdjustment)
+MidiMessageSequence::MidiEventHolder* MidiMessageSequence::addEvent (const MidiMessage& newMessage,
+                                                                     double timeAdjustment)
 {
     MidiEventHolder* const newOne = new MidiEventHolder (newMessage);
 
@@ -132,6 +131,7 @@ void MidiMessageSequence::addEvent (const MidiMessage& newMessage,
             break;
 
     list.insert (i + 1, newOne);
+    return newOne;
 }
 
 void MidiMessageSequence::deleteEvent (const int index,
@@ -178,20 +178,26 @@ void MidiMessageSequence::addSequence (const MidiMessageSequence& other,
         }
     }
 
+    sort();
+}
+
+//==============================================================================
+void MidiMessageSequence::sort() noexcept
+{
     MidiMessageSequenceSorter sorter;
     list.sort (sorter, true);
 }
 
-//==============================================================================
-void MidiMessageSequence::updateMatchedPairs()
+void MidiMessageSequence::updateMatchedPairs() noexcept
 {
     for (int i = 0; i < list.size(); ++i)
     {
-        const MidiMessage& m1 = list.getUnchecked(i)->message;
+        MidiEventHolder* const meh = list.getUnchecked(i);
+        const MidiMessage& m1 = meh->message;
 
         if (m1.isNoteOn())
         {
-            list.getUnchecked(i)->noteOffObject = nullptr;
+            meh->noteOffObject = nullptr;
             const int note = m1.getNoteNumber();
             const int chan = m1.getChannel();
             const int len = list.size();
@@ -204,14 +210,15 @@ void MidiMessageSequence::updateMatchedPairs()
                 {
                     if (m.isNoteOff())
                     {
-                        list.getUnchecked(i)->noteOffObject = list[j];
+                        meh->noteOffObject = list[j];
                         break;
                     }
                     else if (m.isNoteOn())
                     {
-                        list.insert (j, new MidiEventHolder (MidiMessage::noteOff (chan, note)));
-                        list.getUnchecked(j)->message.setTimeStamp (m.getTimeStamp());
-                        list.getUnchecked(i)->noteOffObject = list[j];
+                        MidiEventHolder* const newEvent = new MidiEventHolder (MidiMessage::noteOff (chan, note));
+                        list.insert (j, newEvent);
+                        newEvent->message.setTimeStamp (m.getTimeStamp());
+                        meh->noteOffObject = newEvent;
                         break;
                     }
                 }
@@ -220,11 +227,13 @@ void MidiMessageSequence::updateMatchedPairs()
     }
 }
 
-void MidiMessageSequence::addTimeToMessages (const double delta)
+void MidiMessageSequence::addTimeToMessages (const double delta) noexcept
 {
     for (int i = list.size(); --i >= 0;)
-        list.getUnchecked (i)->message.setTimeStamp (list.getUnchecked (i)->message.getTimeStamp()
-                                                      + delta);
+    {
+        MidiMessage& mm = list.getUnchecked(i)->message;
+        mm.setTimeStamp (mm.getTimeStamp() + delta);
+    }
 }
 
 //==============================================================================
@@ -236,11 +245,8 @@ void MidiMessageSequence::extractMidiChannelMessages (const int channelNumberToE
     {
         const MidiMessage& mm = list.getUnchecked(i)->message;
 
-        if (mm.isForChannel (channelNumberToExtract)
-             || (alsoIncludeMetaEvents && mm.isMetaEvent()))
-        {
+        if (mm.isForChannel (channelNumberToExtract) || (alsoIncludeMetaEvents && mm.isMetaEvent()))
             destSequence.addEvent (mm);
-        }
     }
 }
 
@@ -276,15 +282,14 @@ void MidiMessageSequence::createControllerUpdatesForTime (const int channelNumbe
 {
     bool doneProg = false;
     bool donePitchWheel = false;
-    Array <int> doneControllers;
+    Array<int> doneControllers;
     doneControllers.ensureStorageAllocated (32);
 
     for (int i = list.size(); --i >= 0;)
     {
         const MidiMessage& mm = list.getUnchecked(i)->message;
 
-        if (mm.isForChannel (channelNumber)
-             && mm.getTimeStamp() <= time)
+        if (mm.isForChannel (channelNumber) && mm.getTimeStamp() <= time)
         {
             if (mm.isProgramChange())
             {
@@ -316,9 +321,8 @@ void MidiMessageSequence::createControllerUpdatesForTime (const int channelNumbe
 
 
 //==============================================================================
-MidiMessageSequence::MidiEventHolder::MidiEventHolder (const MidiMessage& message_)
-   : message (message_),
-     noteOffObject (nullptr)
+MidiMessageSequence::MidiEventHolder::MidiEventHolder (const MidiMessage& mm)
+   : message (mm), noteOffObject (nullptr)
 {
 }
 

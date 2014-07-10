@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_LASSOCOMPONENT_JUCEHEADER__
-#define __JUCE_LASSOCOMPONENT_JUCEHEADER__
-
-#include "../components/juce_Component.h"
-#include "juce_SelectedItemSet.h"
+#ifndef JUCE_LASSOCOMPONENT_H_INCLUDED
+#define JUCE_LASSOCOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -51,7 +47,7 @@ public:
         Your implementation of this method must find all the relevent items that lie
         within the given rectangle. and add them to the itemsFound array.
 
-        The co-ordinates are relative to the top-left of the lasso component's parent
+        The coordinates are relative to the top-left of the lasso component's parent
         component. (i.e. they are the same as the size and position of the lasso
         component itself).
     */
@@ -65,7 +61,7 @@ public:
         the set so that your UI objects will know when the selection changes and
         be able to update themselves appropriately.
     */
-    virtual SelectedItemSet <SelectableItemType>& getLassoSelection() = 0;
+    virtual SelectedItemSet<SelectableItemType>& getLassoSelection() = 0;
 };
 
 
@@ -101,19 +97,8 @@ class LassoComponent  : public Component
 {
 public:
     //==============================================================================
-    /** Creates a Lasso component.
-
-        The fill colour is used to fill the lasso'ed rectangle, and the outline
-        colour is used to draw a line around its edge.
-    */
-    explicit LassoComponent (const int outlineThickness_ = 1)
-        : source (nullptr),
-          outlineThickness (outlineThickness_)
-    {
-    }
-
-    /** Destructor. */
-    ~LassoComponent()
+    /** Creates a Lasso component. */
+    LassoComponent()  : source (nullptr)
     {
     }
 
@@ -128,8 +113,7 @@ public:
 
         @see dragLasso, endLasso, LassoSource
     */
-    void beginLasso (const MouseEvent& e,
-                     LassoSource <SelectableItemType>* const lassoSource)
+    void beginLasso (const MouseEvent& e, LassoSource<SelectableItemType>* lassoSource)
     {
         jassert (source == nullptr);  // this suggests that you didn't call endLasso() after the last drag...
         jassert (lassoSource != nullptr); // the source can't be null!
@@ -163,7 +147,7 @@ public:
             setBounds (Rectangle<int> (dragStartPos, e.getPosition()));
             setVisible (true);
 
-            Array <SelectableItemType> itemsInLasso;
+            Array<SelectableItemType> itemsInLasso;
             source->findLassoItemsInArea (itemsInLasso, getBounds());
 
             if (e.mods.isShiftDown())
@@ -173,19 +157,18 @@ public:
             }
             else if (e.mods.isCommandDown() || e.mods.isAltDown())
             {
-                Array <SelectableItemType> originalMinusNew (originalSelection);
+                Array<SelectableItemType> originalMinusNew (originalSelection);
                 originalMinusNew.removeValuesIn (itemsInLasso);
 
                 itemsInLasso.removeValuesIn (originalSelection);
                 itemsInLasso.addArray (originalMinusNew);
             }
 
-            source->getLassoSelection() = SelectedItemSet <SelectableItemType> (itemsInLasso);
+            source->getLassoSelection() = SelectedItemSet<SelectableItemType> (itemsInLasso);
         }
     }
 
     /** Call this in your mouseUp event, after the lasso has been dragged.
-
         @see beginLasso, dragLasso
     */
     void endLasso()
@@ -214,12 +197,9 @@ public:
 
     //==============================================================================
     /** @internal */
-    void paint (Graphics& g)
+    void paint (Graphics& g) override
     {
-        g.fillAll (findColour (lassoFillColourId));
-
-        g.setColour (findColour (lassoOutlineColourId));
-        g.drawRect (0, 0, getWidth(), getHeight(), outlineThickness);
+        getLookAndFeel().drawLasso (g, *this);
 
         // this suggests that you've left a lasso comp lying around after the
         // mouse drag has finished.. Be careful to call endLasso() when you get a
@@ -228,17 +208,16 @@ public:
     }
 
     /** @internal */
-    bool hitTest (int, int)             { return false; }
+    bool hitTest (int, int) override        { return false; }
 
 private:
     //==============================================================================
-    Array <SelectableItemType> originalSelection;
-    LassoSource <SelectableItemType>* source;
-    int outlineThickness;
+    Array<SelectableItemType> originalSelection;
+    LassoSource<SelectableItemType>* source;
     Point<int> dragStartPos;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LassoComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LassoComponent)
 };
 
 
-#endif   // __JUCE_LASSOCOMPONENT_JUCEHEADER__
+#endif   // JUCE_LASSOCOMPONENT_H_INCLUDED

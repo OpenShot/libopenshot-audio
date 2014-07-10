@@ -1,38 +1,36 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-//==============================================================================
-SamplerSound::SamplerSound (const String& name_,
+SamplerSound::SamplerSound (const String& soundName,
                             AudioFormatReader& source,
-                            const BigInteger& midiNotes_,
+                            const BigInteger& notes,
                             const int midiNoteForNormalPitch,
                             const double attackTimeSecs,
                             const double releaseTimeSecs,
                             const double maxSampleLengthSeconds)
-    : name (name_),
-      midiNotes (midiNotes_),
+    : name (soundName),
+      midiNotes (notes),
       midiRootNote (midiNoteForNormalPitch)
 {
     sourceSampleRate = source.sampleRate;
@@ -61,7 +59,6 @@ SamplerSound::~SamplerSound()
 {
 }
 
-//==============================================================================
 bool SamplerSound::appliesToNote (const int midiNoteNumber)
 {
     return midiNotes [midiNoteNumber];
@@ -72,15 +69,13 @@ bool SamplerSound::appliesToChannel (const int /*midiChannel*/)
     return true;
 }
 
-
 //==============================================================================
 SamplerVoice::SamplerVoice()
     : pitchRatio (0.0),
       sourceSamplePosition (0.0),
-      lgain (0.0f),
-      rgain (0.0f),
-      isInAttack (false),
-      isInRelease (false)
+      lgain (0.0f), rgain (0.0f),
+      attackReleaseLevel (0), attackDelta (0), releaseDelta (0),
+      isInAttack (false), isInRelease (false)
 {
 }
 
@@ -90,7 +85,7 @@ SamplerVoice::~SamplerVoice()
 
 bool SamplerVoice::canPlaySound (SynthesiserSound* sound)
 {
-    return dynamic_cast <const SamplerSound*> (sound) != nullptr;
+    return dynamic_cast<const SamplerSound*> (sound) != nullptr;
 }
 
 void SamplerVoice::startNote (const int midiNoteNumber,
@@ -98,15 +93,10 @@ void SamplerVoice::startNote (const int midiNoteNumber,
                               SynthesiserSound* s,
                               const int /*currentPitchWheelPosition*/)
 {
-    const SamplerSound* const sound = dynamic_cast <const SamplerSound*> (s);
-    jassert (sound != nullptr); // this object can only play SamplerSounds!
-
-    if (sound != nullptr)
+    if (const SamplerSound* const sound = dynamic_cast <const SamplerSound*> (s))
     {
-        const double targetFreq = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
-        const double naturalFreq = MidiMessage::getMidiNoteInHertz (sound->midiRootNote);
-
-        pitchRatio = (targetFreq * sound->sourceSampleRate) / (naturalFreq * getSampleRate());
+        pitchRatio = pow (2.0, (midiNoteNumber - sound->midiRootNote) / 12.0)
+                        * sound->sourceSampleRate / getSampleRate();
 
         sourceSamplePosition = 0.0;
         lgain = velocity;
@@ -127,13 +117,13 @@ void SamplerVoice::startNote (const int midiNoteNumber,
         }
 
         if (sound->releaseSamples > 0)
-        {
             releaseDelta = (float) (-pitchRatio / sound->releaseSamples);
-        }
         else
-        {
             releaseDelta = 0.0f;
-        }
+    }
+    else
+    {
+        jassertfalse; // this object can only play SamplerSounds!
     }
 }
 
@@ -162,16 +152,14 @@ void SamplerVoice::controllerMoved (const int /*controllerNumber*/,
 //==============================================================================
 void SamplerVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples)
 {
-    const SamplerSound* const playingSound = static_cast <SamplerSound*> (getCurrentlyPlayingSound().getObject());
-
-    if (playingSound != nullptr)
+    if (const SamplerSound* const playingSound = static_cast <SamplerSound*> (getCurrentlyPlayingSound().get()))
     {
-        const float* const inL = playingSound->data->getSampleData (0, 0);
+        const float* const inL = playingSound->data->getReadPointer (0);
         const float* const inR = playingSound->data->getNumChannels() > 1
-                                    ? playingSound->data->getSampleData (1, 0) : nullptr;
+                                    ? playingSound->data->getReadPointer (1) : nullptr;
 
-        float* outL = outputBuffer.getSampleData (0, startSample);
-        float* outR = outputBuffer.getNumChannels() > 1 ? outputBuffer.getSampleData (1, startSample) : nullptr;
+        float* outL = outputBuffer.getWritePointer (0, startSample);
+        float* outR = outputBuffer.getNumChannels() > 1 ? outputBuffer.getWritePointer (1, startSample) : nullptr;
 
         while (--numSamples >= 0)
         {

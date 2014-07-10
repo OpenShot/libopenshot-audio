@@ -1,32 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_OPTIONALSCOPEDPOINTER_JUCEHEADER__
-#define __JUCE_OPTIONALSCOPEDPOINTER_JUCEHEADER__
-
-#include "juce_ScopedPointer.h"
+#ifndef JUCE_OPTIONALSCOPEDPOINTER_H_INCLUDED
+#define JUCE_OPTIONALSCOPEDPOINTER_H_INCLUDED
 
 
 //==============================================================================
@@ -107,6 +108,9 @@ public:
     inline operator ObjectType*() const noexcept                    { return object; }
 
     /** Returns the object that this pointer is managing. */
+    inline ObjectType* get() const noexcept                         { return object; }
+
+    /** Returns the object that this pointer is managing. */
     inline ObjectType& operator*() const noexcept                   { return *object; }
 
     /** Lets you access methods and properties of the object that this pointer is holding. */
@@ -127,6 +131,41 @@ public:
             object.release();
     }
 
+    /** Makes this OptionalScopedPointer point at a new object, specifying whether the
+        OptionalScopedPointer will take ownership of the object.
+
+        If takeOwnership is true, then the OptionalScopedPointer will act like a ScopedPointer,
+        deleting the object when it is itself deleted. If this parameter is false, then the
+        OptionalScopedPointer just holds a normal pointer to the object, and won't delete it.
+    */
+    void set (ObjectType* newObject, bool takeOwnership)
+    {
+        if (object != newObject)
+        {
+            clear();
+            object = newObject;
+        }
+
+        shouldDelete = takeOwnership;
+    }
+
+    /** Makes this OptionalScopedPointer point at a new object, and take ownership of that object. */
+    void setOwned (ObjectType* newObject)
+    {
+        set (newObject, true);
+    }
+
+    /** Makes this OptionalScopedPointer point at a new object, but will not take ownership of that object. */
+    void setNonOwned (ObjectType* newObject)
+    {
+        set (newObject, false);
+    }
+
+    /** Returns true if the target object will be deleted when this pointer
+        object is deleted.
+    */
+    bool willDeleteObject() const noexcept                          { return shouldDelete; }
+
     //==============================================================================
     /** Swaps this object with another OptionalScopedPointer.
         The two objects simply exchange their states.
@@ -144,4 +183,4 @@ private:
 };
 
 
-#endif   // __JUCE_OPTIONALSCOPEDPOINTER_JUCEHEADER__
+#endif   // JUCE_OPTIONALSCOPEDPOINTER_H_INCLUDED

@@ -1,34 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_CUSTOMTYPEFACE_JUCEHEADER__
-#define __JUCE_CUSTOMTYPEFACE_JUCEHEADER__
-
-#include "juce_Typeface.h"
-class InputStream;
-class OutputStream;
+#ifndef JUCE_CUSTOMTYPEFACE_H_INCLUDED
+#define JUCE_CUSTOMTYPEFACE_H_INCLUDED
 
 
 //==============================================================================
@@ -41,6 +36,11 @@ class OutputStream;
     If you want to create a copy of a native face, you can use addGlyphsFromOtherTypeface()
     to copy glyphs into this face.
 
+    NOTE! For most people this class is almost certainly NOT the right tool to use!
+    If what you want to do is to embed a font into your exe, then your best plan is
+    probably to embed your TTF/OTF font file into your binary using the Introjucer,
+    and then call Typeface::createSystemTypefaceFor() to load it from memory.
+
     @see Typeface, Font
 */
 class JUCE_API  CustomTypeface  : public Typeface
@@ -52,6 +52,11 @@ public:
 
     /** Loads a typeface from a previously saved stream.
         The stream must have been created by writeToStream().
+
+        NOTE! Since this class was written, support was added for loading real font files from
+        memory, so for most people, using Typeface::createSystemTypefaceFor() to load a real font
+        is more appropriate than using this class to store it in a proprietary format.
+
         @see writeToStream
     */
     explicit CustomTypeface (InputStream& serialisedTypefaceStream);
@@ -64,18 +69,30 @@ public:
     void clear();
 
     /** Sets the vital statistics for the typeface.
-        @param name     the typeface's name
-        @param ascent   the ascent - this is normalised to a height of 1.0 and this is
-                        the value that will be returned by Typeface::getAscent(). The
-                        descent is assumed to be (1.0 - ascent)
-        @param isBold   should be true if the typeface is bold
-        @param isItalic should be true if the typeface is italic
-        @param defaultCharacter     the character to be used as a replacement if there's
-                        no glyph available for the character that's being drawn
+        @param fontFamily the typeface's font family
+        @param ascent     the ascent - this is normalised to a height of 1.0 and this is
+                          the value that will be returned by Typeface::getAscent(). The
+                          descent is assumed to be (1.0 - ascent)
+        @param isBold     should be true if the typeface is bold
+        @param isItalic   should be true if the typeface is italic
+        @param defaultCharacter   the character to be used as a replacement if there's
+                          no glyph available for the character that's being drawn
     */
-    void setCharacteristics (const String& name, float ascent,
+    void setCharacteristics (const String& fontFamily, float ascent,
                              bool isBold, bool isItalic,
                              juce_wchar defaultCharacter) noexcept;
+
+    /** Sets the vital statistics for the typeface.
+        @param fontFamily the typeface's font family
+        @param fontStyle  the typeface's font style
+        @param ascent     the ascent - this is normalised to a height of 1.0 and this is
+                          the value that will be returned by Typeface::getAscent(). The
+                          descent is assumed to be (1.0 - ascent)
+        @param defaultCharacter  the character to be used as a replacement if there's
+                          no glyph available for the character that's being drawn
+    */
+    void setCharacteristics (const String& fontFamily, const String& fontStyle,
+                             float ascent, juce_wchar defaultCharacter) noexcept;
 
     /** Adds a glyph to the typeface.
 
@@ -101,23 +118,27 @@ public:
     /** Saves this typeface as a Juce-formatted font file.
         A CustomTypeface can be created to reload the data that is written - see the CustomTypeface
         constructor.
+
+        NOTE! Since this class was written, support was added for loading real font files from
+        memory, so for most people, using Typeface::createSystemTypefaceFor() to load a real font
+        is more appropriate than using this class to store it in a proprietary format.
     */
     bool writeToStream (OutputStream& outputStream);
 
     //==============================================================================
     // The following methods implement the basic Typeface behaviour.
-    float getAscent() const;
-    float getDescent() const;
-    float getStringWidth (const String& text);
-    void getGlyphPositions (const String& text, Array <int>& glyphs, Array<float>& xOffsets);
-    bool getOutlineForGlyph (int glyphNumber, Path& path);
-    EdgeTable* getEdgeTableForGlyph (int glyphNumber, const AffineTransform& transform);
+    float getAscent() const override;
+    float getDescent() const override;
+    float getHeightToPointsFactor() const override;
+    float getStringWidth (const String&) override;
+    void getGlyphPositions (const String&, Array <int>& glyphs, Array<float>& xOffsets) override;
+    bool getOutlineForGlyph (int glyphNumber, Path&) override;
+    EdgeTable* getEdgeTableForGlyph (int glyphNumber, const AffineTransform&, float fontHeight) override;
 
 protected:
     //==============================================================================
     juce_wchar defaultCharacter;
     float ascent;
-    bool isBold, isItalic;
 
     //==============================================================================
     /** If a subclass overrides this, it can load glyphs into the font on-demand.
@@ -131,13 +152,13 @@ protected:
 private:
     //==============================================================================
     class GlyphInfo;
-    friend class OwnedArray<GlyphInfo>;
-    OwnedArray <GlyphInfo> glyphs;
+    friend struct ContainerDeletePolicy<GlyphInfo>;
+    OwnedArray<GlyphInfo> glyphs;
     short lookupTable [128];
 
     GlyphInfo* findGlyph (const juce_wchar character, bool loadIfNeeded) noexcept;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomTypeface);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomTypeface)
 };
 
-#endif   // __JUCE_CUSTOMTYPEFACE_JUCEHEADER__
+#endif   // JUCE_CUSTOMTYPEFACE_H_INCLUDED

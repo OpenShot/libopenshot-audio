@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -82,7 +81,7 @@ public:
 private:
     TabbedComponent& owner;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ButtonBar);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ButtonBar)
 };
 
 
@@ -146,7 +145,7 @@ void TabbedComponent::clearTabs()
 }
 
 void TabbedComponent::addTab (const String& tabName,
-                              const Colour& tabBackgroundColour,
+                              Colour tabBackgroundColour,
                               Component* const contentComponent,
                               const bool deleteComponentWhenNotNeeded,
                               const int insertIndex)
@@ -195,7 +194,7 @@ Colour TabbedComponent::getTabBackgroundColour (const int tabIndex) const noexce
     return tabs->getTabBackgroundColour (tabIndex);
 }
 
-void TabbedComponent::setTabBackgroundColour (const int tabIndex, const Colour& newColour)
+void TabbedComponent::setTabBackgroundColour (const int tabIndex, Colour newColour)
 {
     tabs->setTabBackgroundColour (tabIndex, newColour);
 
@@ -245,7 +244,7 @@ void TabbedComponent::paint (Graphics& g)
 
     if (outlineThickness > 0)
     {
-        RectangleList rl (content);
+        RectangleList<int> rl (content);
         rl.subtract (outline.subtractedFrom (content));
 
         g.reduceClipRegion (rl);
@@ -262,29 +261,30 @@ void TabbedComponent::resized()
     content = BorderSize<int> (edgeIndent).subtractedFrom (outline.subtractedFrom (content));
 
     for (int i = contentComponents.size(); --i >= 0;)
-        if (contentComponents.getReference (i) != nullptr)
-            contentComponents.getReference (i)->setBounds (content);
+        if (Component* c = contentComponents.getReference(i))
+            c->setBounds (content);
 }
 
 void TabbedComponent::lookAndFeelChanged()
 {
     for (int i = contentComponents.size(); --i >= 0;)
-        if (contentComponents.getReference (i) != nullptr)
-            contentComponents.getReference (i)->lookAndFeelChanged();
+        if (Component* c = contentComponents.getReference(i))
+            c->lookAndFeelChanged();
 }
 
 void TabbedComponent::changeCallback (const int newCurrentTabIndex, const String& newTabName)
 {
-    if (panelComponent != nullptr)
-    {
-        panelComponent->setVisible (false);
-        removeChildComponent (panelComponent);
-        panelComponent = nullptr;
-    }
+    Component* const newPanelComp = getTabContentComponent (getCurrentTabIndex());
 
-    if (getCurrentTabIndex() >= 0)
+    if (newPanelComp != panelComponent)
     {
-        panelComponent = getTabContentComponent (getCurrentTabIndex());
+        if (panelComponent != nullptr)
+        {
+            panelComponent->setVisible (false);
+            removeChildComponent (panelComponent);
+        }
+
+        panelComponent = newPanelComp;
 
         if (panelComponent != nullptr)
         {

@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_SCROLLBAR_JUCEHEADER__
-#define __JUCE_SCROLLBAR_JUCEHEADER__
-
-#include "../buttons/juce_Button.h"
+#ifndef JUCE_SCROLLBAR_H_INCLUDED
+#define JUCE_SCROLLBAR_H_INCLUDED
 
 
 //==============================================================================
@@ -44,7 +41,7 @@
     The scrollbar will adjust its own visibility according to whether its thumb size
     allows it to actually be scrolled.
 
-    For most purposes, it's probably easier to use a ViewportContainer or ListBox
+    For most purposes, it's probably easier to use a Viewport or ListBox
     instead of handling a scrollbar directly.
 
     @see ScrollBar::Listener
@@ -56,12 +53,9 @@ class JUCE_API  ScrollBar  : public Component,
 public:
     //==============================================================================
     /** Creates a Scrollbar.
-
-        @param isVertical           whether it should be a vertical or horizontal bar
-        @param buttonsAreVisible    whether to show the up/down or left/right buttons
+        @param isVertical      specifies whether the bar should be a vertical or horizontal
     */
-    ScrollBar (bool isVertical,
-               bool buttonsAreVisible = true);
+    ScrollBar (bool isVertical);
 
     /** Destructor. */
     ~ScrollBar();
@@ -78,9 +72,6 @@ public:
         @param shouldBeVertical     true makes it vertical; false makes it horizontal.
     */
     void setOrientation (bool shouldBeVertical);
-
-    /** Shows or hides the scrollbar's buttons. */
-    void setButtonVisibility (bool buttonsAreVisible);
 
     /** Tells the scrollbar whether to make itself invisible when not needed.
 
@@ -105,7 +96,8 @@ public:
 
         @see setCurrentRange
     */
-    void setRangeLimits (const Range<double>& newRangeLimit);
+    void setRangeLimits (Range<double> newRangeLimit,
+                         NotificationType notification = sendNotificationAsync);
 
     /** Sets the minimum and maximum values that the bar will move between.
 
@@ -114,12 +106,13 @@ public:
 
         @see setCurrentRange
     */
-    void setRangeLimits (double minimum, double maximum);
+    void setRangeLimits (double minimum, double maximum,
+                         NotificationType notification = sendNotificationAsync);
 
     /** Returns the current limits on the thumb position.
         @see setRangeLimits
     */
-    const Range<double> getRangeLimit() const noexcept              { return totalRange; }
+    Range<double> getRangeLimit() const noexcept                    { return totalRange; }
 
     /** Returns the lower value that the thumb can be set to.
 
@@ -136,16 +129,6 @@ public:
     //==============================================================================
     /** Changes the position of the scrollbar's 'thumb'.
 
-        If this method call actually changes the scrollbar's position, it will trigger an
-        asynchronous call to ScrollBar::Listener::scrollBarMoved() for all the listeners that
-        are registered.
-
-        @see getCurrentRange. setCurrentRangeStart
-    */
-    void setCurrentRange (const Range<double>& newRange);
-
-    /** Changes the position of the scrollbar's 'thumb'.
-
         This sets both the position and size of the thumb - to just set the position without
         changing the size, you can use setCurrentRangeStart().
 
@@ -153,15 +136,32 @@ public:
         asynchronous call to ScrollBar::Listener::scrollBarMoved() for all the listeners that
         are registered.
 
+        The notification parameter can be used to optionally send or inhibit a callback to
+        any scrollbar listeners.
+
+        @returns true if the range was changed, or false if nothing was changed.
+        @see getCurrentRange. setCurrentRangeStart
+    */
+    bool setCurrentRange (Range<double> newRange,
+                          NotificationType notification = sendNotificationAsync);
+
+    /** Changes the position of the scrollbar's 'thumb'.
+
+        This sets both the position and size of the thumb - to just set the position without
+        changing the size, you can use setCurrentRangeStart().
+
         @param newStart     the top (or left) of the thumb, in the range
                             getMinimumRangeLimit() <= newStart <= getMaximumRangeLimit(). If the
                             value is beyond these limits, it will be clipped.
         @param newSize      the size of the thumb, such that
                             getMinimumRangeLimit() <= newStart + newSize <= getMaximumRangeLimit(). If the
                             size is beyond these limits, it will be clipped.
+        @param notification specifies if and how a callback should be made to any listeners
+                            if the range actually changes
         @see setCurrentRangeStart, getCurrentRangeStart, getCurrentRangeSize
     */
-    void setCurrentRange (double newStart, double newSize);
+    void setCurrentRange (double newStart, double newSize,
+                          NotificationType notification = sendNotificationAsync);
 
     /** Moves the bar's thumb position.
 
@@ -174,12 +174,13 @@ public:
 
         @see setCurrentRange
     */
-    void setCurrentRangeStart (double newStart);
+    void setCurrentRangeStart (double newStart,
+                               NotificationType notification = sendNotificationAsync);
 
     /** Returns the current thumb range.
         @see getCurrentRange, setCurrentRange
     */
-    const Range<double> getCurrentRange() const noexcept            { return visibleRange; }
+    Range<double> getCurrentRange() const noexcept                  { return visibleRange; }
 
     /** Returns the position of the top of the thumb.
         @see getCurrentRange, setCurrentRangeStart
@@ -197,7 +198,7 @@ public:
         The value here is in terms of the total range, and is added or subtracted
         from the thumb position when the user clicks an up/down (or left/right) button.
     */
-    void setSingleStepSize (double newSingleStepSize);
+    void setSingleStepSize (double newSingleStepSize) noexcept;
 
     /** Moves the scrollbar by a number of single-steps.
 
@@ -206,8 +207,10 @@ public:
 
         A positive value here will move the bar down or to the right, a negative
         value moves it up or to the left.
+        @returns true if the scrollbar's position actually changed.
     */
-    void moveScrollbarInSteps (int howManySteps);
+    bool moveScrollbarInSteps (int howManySteps,
+                               NotificationType notification = sendNotificationAsync);
 
     /** Moves the scroll bar up or down in pages.
 
@@ -216,20 +219,22 @@ public:
 
         A positive value here will move the bar down or to the right, a negative
         value moves it up or to the left.
+        @returns true if the scrollbar's position actually changed.
     */
-    void moveScrollbarInPages (int howManyPages);
+    bool moveScrollbarInPages (int howManyPages,
+                               NotificationType notification = sendNotificationAsync);
 
     /** Scrolls to the top (or left).
-
         This is the same as calling setCurrentRangeStart (getMinimumRangeLimit());
+        @returns true if the scrollbar's position actually changed.
     */
-    void scrollToTop();
+    bool scrollToTop (NotificationType notification = sendNotificationAsync);
 
     /** Scrolls to the bottom (or right).
-
         This is the same as calling setCurrentRangeStart (getMaximumRangeLimit() - getCurrentRangeSize());
+        @returns true if the scrollbar's position actually changed.
     */
-    void scrollToBottom();
+    bool scrollToBottom (NotificationType notification = sendNotificationAsync);
 
     /** Changes the delay before the up and down buttons autorepeat when they are held
         down.
@@ -288,24 +293,89 @@ public:
     void removeListener (Listener* listener);
 
     //==============================================================================
+    /** This abstract base class is implemented by LookAndFeel classes to provide
+        scrollbar-drawing functionality.
+    */
+    struct JUCE_API  LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {}
+
+        virtual bool areScrollbarButtonsVisible() = 0;
+
+        /** Draws one of the buttons on a scrollbar.
+
+            @param g                    the context to draw into
+            @param scrollbar            the bar itself
+            @param width                the width of the button
+            @param height               the height of the button
+            @param buttonDirection      the direction of the button, where 0 = up, 1 = right, 2 = down, 3 = left
+            @param isScrollbarVertical  true if it's a vertical bar, false if horizontal
+            @param isMouseOverButton    whether the mouse is currently over the button (also true if it's held down)
+            @param isButtonDown         whether the mouse button's held down
+        */
+        virtual void drawScrollbarButton (Graphics& g,
+                                          ScrollBar& scrollbar,
+                                          int width, int height,
+                                          int buttonDirection,
+                                          bool isScrollbarVertical,
+                                          bool isMouseOverButton,
+                                          bool isButtonDown) = 0;
+
+        /** Draws the thumb area of a scrollbar.
+
+            @param g                    the context to draw into
+            @param scrollbar            the bar itself
+            @param x                    the x position of the left edge of the thumb area to draw in
+            @param y                    the y position of the top edge of the thumb area to draw in
+            @param width                the width of the thumb area to draw in
+            @param height               the height of the thumb area to draw in
+            @param isScrollbarVertical  true if it's a vertical bar, false if horizontal
+            @param thumbStartPosition   for vertical bars, the y coordinate of the top of the
+                                        thumb, or its x position for horizontal bars
+            @param thumbSize            for vertical bars, the height of the thumb, or its width for
+                                        horizontal bars. This may be 0 if the thumb shouldn't be drawn.
+            @param isMouseOver          whether the mouse is over the thumb area, also true if the mouse is
+                                        currently dragging the thumb
+            @param isMouseDown          whether the mouse is currently dragging the scrollbar
+        */
+        virtual void drawScrollbar (Graphics& g, ScrollBar& scrollbar,
+                                    int x, int y, int width, int height,
+                                    bool isScrollbarVertical,
+                                    int thumbStartPosition,
+                                    int thumbSize,
+                                    bool isMouseOver,
+                                    bool isMouseDown) = 0;
+
+        /** Returns the component effect to use for a scrollbar */
+        virtual ImageEffectFilter* getScrollbarEffect() = 0;
+
+        /** Returns the minimum length in pixels to use for a scrollbar thumb. */
+        virtual int getMinimumScrollbarThumbSize (ScrollBar&) = 0;
+
+        /** Returns the default thickness to use for a scrollbar. */
+        virtual int getDefaultScrollbarWidth() = 0;
+
+        /** Returns the length in pixels to use for a scrollbar button. */
+        virtual int getScrollbarButtonSize (ScrollBar&) = 0;
+    };
+
+    //==============================================================================
     /** @internal */
-    bool keyPressed (const KeyPress& key);
+    bool keyPressed (const KeyPress&) override;
     /** @internal */
-    void mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
+    void mouseWheelMove (const MouseEvent&, const MouseWheelDetails&) override;
     /** @internal */
-    void lookAndFeelChanged();
+    void lookAndFeelChanged() override;
     /** @internal */
-    void handleAsyncUpdate();
+    void mouseDown (const MouseEvent&) override;
     /** @internal */
-    void mouseDown (const MouseEvent& e);
+    void mouseDrag (const MouseEvent&) override;
     /** @internal */
-    void mouseDrag (const MouseEvent& e);
+    void mouseUp   (const MouseEvent&) override;
     /** @internal */
-    void mouseUp   (const MouseEvent& e);
+    void paint (Graphics&) override;
     /** @internal */
-    void paint (Graphics& g);
-    /** @internal */
-    void resized();
+    void resized() override;
 
 private:
     //==============================================================================
@@ -316,18 +386,19 @@ private:
     int initialDelayInMillisecs, repeatDelayInMillisecs, minimumDelayInMillisecs;
     bool vertical, isDraggingThumb, autohides;
     class ScrollbarButton;
-    friend class ScopedPointer<ScrollbarButton>;
+    friend struct ContainerDeletePolicy<ScrollbarButton>;
     ScopedPointer<ScrollbarButton> upButton, downButton;
-    ListenerList <Listener> listeners;
+    ListenerList<Listener> listeners;
 
+    void handleAsyncUpdate() override;
     void updateThumbPosition();
-    void timerCallback();
+    void timerCallback() override;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScrollBar);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScrollBar)
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the ScrollBar::Listener class directly. */
 typedef ScrollBar::Listener ScrollBarListener;
 
 
-#endif   // __JUCE_SCROLLBAR_JUCEHEADER__
+#endif   // JUCE_SCROLLBAR_H_INCLUDED

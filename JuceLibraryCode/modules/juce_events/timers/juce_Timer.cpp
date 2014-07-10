@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -47,7 +46,7 @@ public:
             instance = nullptr;
     }
 
-    void run()
+    void run() override
     {
         uint32 lastTime = Time::getMillisecondCounter();
         MessageManager::MessageBase::Ptr messageToSend (new CallTimersMessage());
@@ -83,7 +82,7 @@ public:
                        when the app has a modal loop), so this is how long to wait before assuming the
                        message has been lost and trying again.
                     */
-                    const uint32 messageDeliveryTimeout = now + 2000;
+                    const uint32 messageDeliveryTimeout = now + 300;
 
                     while (callbackNeeded.get() != 0)
                     {
@@ -93,7 +92,10 @@ public:
                             return;
 
                         if (Time::getMillisecondCounter() > messageDeliveryTimeout)
+                        {
+                            messageToSend->post();
                             break;
+                        }
                     }
                 }
             }
@@ -190,7 +192,7 @@ private:
     {
         CallTimersMessage() {}
 
-        void messageCallback()
+        void messageCallback() override
         {
             if (instance != nullptr)
                 instance->callTimers();
@@ -201,18 +203,9 @@ private:
     void addTimer (Timer* const t) noexcept
     {
        #if JUCE_DEBUG
-        Timer* tt = firstTimer;
-
-        while (tt != nullptr)
-        {
-            // trying to add a timer that's already here - shouldn't get to this point,
-            // so if you get this assertion, let me know!
-            jassert (tt != t);
-
-            tt = tt->next;
-        }
-
-        jassert (t->previous == nullptr && t->next == nullptr);
+        // trying to add a timer that's already here - shouldn't get to this point,
+        // so if you get this assertion, let me know!
+        jassert (! timerExists (t));
        #endif
 
         Timer* i = firstTimer;
@@ -246,23 +239,9 @@ private:
     void removeTimer (Timer* const t) noexcept
     {
        #if JUCE_DEBUG
-        Timer* tt = firstTimer;
-        bool found = false;
-
-        while (tt != nullptr)
-        {
-            if (tt == t)
-            {
-                found = true;
-                break;
-            }
-
-            tt = tt->next;
-        }
-
         // trying to remove a timer that's not here - shouldn't get to this point,
         // so if you get this assertion, let me know!
-        jassert (found);
+        jassert (timerExists (t));
        #endif
 
         if (t->previous != nullptr)
@@ -293,32 +272,35 @@ private:
         return firstTimer != nullptr ? firstTimer->countdownMs : 1000;
     }
 
-    void handleAsyncUpdate()
+    void handleAsyncUpdate() override
     {
         startThread (7);
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TimerThread);
+   #if JUCE_DEBUG
+    bool timerExists (Timer* const t) const noexcept
+    {
+        for (Timer* tt = firstTimer; tt != nullptr; tt = tt->next)
+            if (tt == t)
+                return true;
+
+        return false;
+    }
+   #endif
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TimerThread)
 };
 
 Timer::TimerThread* Timer::TimerThread::instance = nullptr;
 Timer::TimerThread::LockType Timer::TimerThread::lock;
 
 //==============================================================================
-#if JUCE_DEBUG
-static SortedSet <Timer*> activeTimers;
-#endif
-
 Timer::Timer() noexcept
    : countdownMs (0),
      periodMs (0),
      previous (nullptr),
      next (nullptr)
 {
-   #if JUCE_DEBUG
-    const TimerThread::LockType::ScopedLockType sl (TimerThread::lock);
-    activeTimers.add (this);
-   #endif
 }
 
 Timer::Timer (const Timer&) noexcept
@@ -327,29 +309,16 @@ Timer::Timer (const Timer&) noexcept
      previous (nullptr),
      next (nullptr)
 {
-   #if JUCE_DEBUG
-    const TimerThread::LockType::ScopedLockType sl (TimerThread::lock);
-    activeTimers.add (this);
-   #endif
 }
 
 Timer::~Timer()
 {
     stopTimer();
-
-   #if JUCE_DEBUG
-    activeTimers.removeValue (this);
-   #endif
 }
 
 void Timer::startTimer (const int interval) noexcept
 {
     const TimerThread::LockType::ScopedLockType sl (TimerThread::lock);
-
-   #if JUCE_DEBUG
-    // this isn't a valid object! Your timer might be a dangling pointer or something..
-    jassert (activeTimers.contains (this));
-   #endif
 
     if (periodMs == 0)
     {
@@ -366,11 +335,6 @@ void Timer::startTimer (const int interval) noexcept
 void Timer::stopTimer() noexcept
 {
     const TimerThread::LockType::ScopedLockType sl (TimerThread::lock);
-
-   #if JUCE_DEBUG
-    // this isn't a valid object! Your timer might be a dangling pointer or something..
-    jassert (activeTimers.contains (this));
-   #endif
 
     if (periodMs > 0)
     {

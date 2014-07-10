@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_AFFINETRANSFORM_JUCEHEADER__
-#define __JUCE_AFFINETRANSFORM_JUCEHEADER__
+#ifndef JUCE_AFFINETRANSFORM_H_INCLUDED
+#define JUCE_AFFINETRANSFORM_H_INCLUDED
 
 
 //==============================================================================
@@ -74,13 +73,12 @@ public:
         e.g. @code
         AffineTransform myTransform = AffineTransform::identity.rotated (.5f)
                                                                .scaled (2.0f);
-
         @endcode
     */
     static const AffineTransform identity;
 
     //==============================================================================
-    /** Transforms a 2D co-ordinate using this matrix. */
+    /** Transforms a 2D coordinate using this matrix. */
     template <typename ValueType>
     void transformPoint (ValueType& x, ValueType& y) const noexcept
     {
@@ -89,7 +87,7 @@ public:
         y = static_cast <ValueType> (mat10 * oldX + mat11 * y + mat12);
     }
 
-    /** Transforms two 2D co-ordinates using this matrix.
+    /** Transforms two 2D coordinates using this matrix.
         This is just a shortcut for calling transformPoint() on each of these pairs of
         coordinates in turn. (And putting all the calculations into one function hopefully
         also gives the compiler a bit more scope for pipelining it).
@@ -105,7 +103,7 @@ public:
         y2 = static_cast <ValueType> (mat10 * oldX2 + mat11 * y2 + mat12);
     }
 
-    /** Transforms three 2D co-ordinates using this matrix.
+    /** Transforms three 2D coordinates using this matrix.
         This is just a shortcut for calling transformPoint() on each of these pairs of
         coordinates in turn. (And putting all the calculations into one function hopefully
         also gives the compiler a bit more scope for pipelining it).
@@ -129,9 +127,27 @@ public:
     AffineTransform translated (float deltaX,
                                 float deltaY) const noexcept;
 
+    /** Returns a new transform which is the same as this one followed by a translation. */
+    template <typename PointType>
+    AffineTransform translated (PointType delta) const noexcept
+    {
+        return translated ((float) delta.x, (float) delta.y);
+    }
+
     /** Returns a new transform which is a translation. */
     static AffineTransform translation (float deltaX,
                                         float deltaY) noexcept;
+
+    /** Returns a new transform which is a translation. */
+    template <typename PointType>
+    static AffineTransform translation (PointType delta) noexcept
+    {
+        return translation ((float) delta.x, (float) delta.y);
+    }
+
+    /** Returns a copy of this transform with the specified translation matrix values. */
+    AffineTransform withAbsoluteTranslation (float translationX,
+                                             float translationY) const noexcept;
 
     /** Returns a transform which is the same as this one followed by a rotation.
 
@@ -143,7 +159,7 @@ public:
     /** Returns a transform which is the same as this one followed by a rotation about a given point.
 
         The rotation is specified by a number of radians to rotate clockwise, centred around
-        the co-ordinates passed in.
+        the coordinates passed in.
     */
     AffineTransform rotated (float angleInRadians,
                              float pivotX,
@@ -164,6 +180,11 @@ public:
                             float factorY) const noexcept;
 
     /** Returns a transform which is the same as this one followed by a re-scaling.
+        The scaling is centred around the origin (0, 0).
+    */
+    AffineTransform scaled (float factor) const noexcept;
+
+    /** Returns a transform which is the same as this one followed by a re-scaling.
         The scaling is centred around the origin provided.
     */
     AffineTransform scaled (float factorX, float factorY,
@@ -172,6 +193,9 @@ public:
     /** Returns a new transform which is a re-scale about the origin. */
     static AffineTransform scale (float factorX,
                                   float factorY) noexcept;
+
+    /** Returns a new transform which is a re-scale about the origin. */
+    static AffineTransform scale (float factor) noexcept;
 
     /** Returns a new transform which is a re-scale centred around the point provided. */
     static AffineTransform scale (float factorX, float factorY,
@@ -185,7 +209,7 @@ public:
     /** Returns a shear transform, centred around the origin (0, 0). */
     static AffineTransform shear (float shearX, float shearY) noexcept;
 
-    /** Returns a transform that will flip co-ordinates vertically within a window of the given height.
+    /** Returns a transform that will flip coordinates vertically within a window of the given height.
         This is handy for converting between upside-down coordinate systems such as OpenGL or CoreGraphics.
     */
     static AffineTransform verticalFlip (float height) noexcept;
@@ -256,7 +280,7 @@ public:
 
 private:
     //==============================================================================
-    JUCE_LEAK_DETECTOR (AffineTransform);
+    JUCE_LEAK_DETECTOR (AffineTransform)
 };
 
-#endif   // __JUCE_AFFINETRANSFORM_JUCEHEADER__
+#endif   // JUCE_AFFINETRANSFORM_H_INCLUDED

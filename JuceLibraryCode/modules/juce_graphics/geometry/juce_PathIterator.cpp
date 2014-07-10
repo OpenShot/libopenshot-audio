@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -70,48 +69,45 @@ bool PathFlatteningIterator::next()
     float y3 = 0;
     float x4 = 0;
     float y4 = 0;
-    float type;
 
     for (;;)
     {
+        float type;
+
         if (stackPos == stackBase)
         {
             if (index >= path.numElements)
-            {
                 return false;
-            }
-            else
+
+            type = points [index++];
+
+            if (type != Path::closeSubPathMarker)
             {
-                type = points [index++];
+                x2 = points [index++];
+                y2 = points [index++];
 
-                if (type != Path::closeSubPathMarker)
+                if (type == Path::quadMarker)
                 {
-                    x2 = points [index++];
-                    y2 = points [index++];
+                    x3 = points [index++];
+                    y3 = points [index++];
 
-                    if (type == Path::quadMarker)
-                    {
-                        x3 = points [index++];
-                        y3 = points [index++];
+                    if (! isIdentityTransform)
+                        transform.transformPoints (x2, y2, x3, y3);
+                }
+                else if (type == Path::cubicMarker)
+                {
+                    x3 = points [index++];
+                    y3 = points [index++];
+                    x4 = points [index++];
+                    y4 = points [index++];
 
-                        if (! isIdentityTransform)
-                            transform.transformPoints (x2, y2, x3, y3);
-                    }
-                    else if (type == Path::cubicMarker)
-                    {
-                        x3 = points [index++];
-                        y3 = points [index++];
-                        x4 = points [index++];
-                        y4 = points [index++];
-
-                        if (! isIdentityTransform)
-                            transform.transformPoints (x2, y2, x3, y3, x4, y4);
-                    }
-                    else
-                    {
-                        if (! isIdentityTransform)
-                            transform.transformPoint (x2, y2);
-                    }
+                    if (! isIdentityTransform)
+                        transform.transformPoints (x2, y2, x3, y3, x4, y4);
+                }
+                else
+                {
+                    if (! isIdentityTransform)
+                        transform.transformPoint (x2, y2);
                 }
             }
         }
@@ -151,7 +147,8 @@ bool PathFlatteningIterator::next()
 
             return true;
         }
-        else if (type == Path::quadMarker)
+
+        if (type == Path::quadMarker)
         {
             const size_t offset = (size_t) (stackPos - stackBase);
 

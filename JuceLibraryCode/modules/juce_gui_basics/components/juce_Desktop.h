@@ -1,36 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_DESKTOP_JUCEHEADER__
-#define __JUCE_DESKTOP_JUCEHEADER__
-
-#include "juce_Component.h"
-#include "../layout/juce_ComponentAnimator.h"
-class MouseInputSource;
-class MouseInputSourceInternal;
-class MouseListener;
+#ifndef JUCE_DESKTOP_H_INCLUDED
+#define JUCE_DESKTOP_H_INCLUDED
 
 
 //==============================================================================
@@ -62,42 +55,13 @@ class JUCE_API  Desktop  : private DeletedAtShutdown,
 {
 public:
     //==============================================================================
-    /** There's only one dektop object, and this method will return it.
-    */
+    /** There's only one desktop object, and this method will return it. */
     static Desktop& JUCE_CALLTYPE getInstance();
-
-    //==============================================================================
-    /** Returns a list of the positions of all the monitors available.
-
-        The first rectangle in the list will be the main monitor area.
-
-        If clippedToWorkArea is true, it will exclude any areas like the taskbar on Windows,
-        or the menu bar on Mac. If clippedToWorkArea is false, the entire monitor area is returned.
-    */
-    RectangleList getAllMonitorDisplayAreas (bool clippedToWorkArea = true) const;
-
-    /** Returns the position and size of the main monitor.
-
-        If clippedToWorkArea is true, it will exclude any areas like the taskbar on Windows,
-        or the menu bar on Mac. If clippedToWorkArea is false, the entire monitor area is returned.
-    */
-    Rectangle<int> getMainMonitorArea (bool clippedToWorkArea = true) const noexcept;
-
-    /** Returns the position and size of the monitor which contains this co-ordinate.
-
-        If none of the monitors contains the point, this will just return the
-        main monitor.
-
-        If clippedToWorkArea is true, it will exclude any areas like the taskbar on Windows,
-        or the menu bar on Mac. If clippedToWorkArea is false, the entire monitor area is returned.
-    */
-    Rectangle<int> getMonitorAreaContaining (const Point<int>& position, bool clippedToWorkArea = true) const;
-
 
     //==============================================================================
     /** Returns the mouse position.
 
-        The co-ordinates are relative to the top-left of the main monitor.
+        The coordinates are relative to the top-left of the main monitor.
 
         Note that this is just a shortcut for calling getMainMouseSource().getScreenPosition(), and
         you should only resort to grabbing the global mouse position if there's really no
@@ -106,10 +70,9 @@ public:
     static Point<int> getMousePosition();
 
     /** Makes the mouse pointer jump to a given location.
-
-        The co-ordinates are relative to the top-left of the main monitor.
+        The coordinates are relative to the top-left of the main monitor.
     */
-    static void setMousePosition (const Point<int>& newPosition);
+    static void setMousePosition (Point<int> newPosition);
 
     /** Returns the last position at which a mouse button was pressed.
 
@@ -120,12 +83,17 @@ public:
     */
     static Point<int> getLastMouseDownPosition();
 
-    /** Returns the number of times the mouse button has been clicked since the
-        app started.
-
+    /** Returns the number of times the mouse button has been clicked since the app started.
         Each mouse-down event increments this number by 1.
+        @see getMouseWheelMoveCounter
     */
-    static int getMouseButtonClickCounter();
+    int getMouseButtonClickCounter() const noexcept;
+
+    /** Returns the number of times the mouse wheel has been moved since the app started.
+        Each mouse-wheel event increments this number by 1.
+        @see getMouseButtonClickCounter
+    */
+    int getMouseWheelMoveCounter() const noexcept;
 
     //==============================================================================
     /** This lets you prevent the screensaver from becoming active.
@@ -199,7 +167,7 @@ public:
     /** Returns the component that is currently being used in kiosk-mode.
 
         This is the component that was last set by setKioskModeComponent(). If none
-        has been set, this returns 0.
+        has been set, this returns nullptr.
     */
     Component* getKioskModeComponent() const noexcept               { return kioskModeComponent; }
 
@@ -225,9 +193,9 @@ public:
         This will drill down into top-level windows to find the child component at
         the given position.
 
-        Returns 0 if the co-ordinates are inside a non-Juce window.
+        Returns nullptr if the coordinates are inside a non-Juce window.
     */
-    Component* findComponentAt (const Point<int>& screenPosition) const;
+    Component* findComponentAt (Point<int> screenPosition) const;
 
     /** The Desktop object has a ComponentAnimator instance which can be used for performing
         your animations.
@@ -257,13 +225,22 @@ public:
     void setDefaultLookAndFeel (LookAndFeel* newDefaultLookAndFeel);
 
     //==============================================================================
+    /** Provides access to the array of mouse sources, for iteration.
+        In a traditional single-mouse system, there might be only one MouseInputSource. On a
+        multi-touch system, there could be one input source per potential finger. The number
+        of mouse sources returned here may increase dynamically as the program runs.
+        To find out how many mouse events are currently happening, use getNumDraggingMouseSources().
+    */
+    const Array<MouseInputSource>& getMouseSources() const noexcept;
+
     /** Returns the number of MouseInputSource objects the system has at its disposal.
-        In a traditional single-mouse system, there might be only one object. On a multi-touch
-        system, there could be one input source per potential finger.
+        In a traditional single-mouse system, there might be only one MouseInputSource. On a
+        multi-touch system, there could be one input source per potential finger. The number
+        of mouse sources returned here may increase dynamically as the program runs.
         To find out how many mouse events are currently happening, use getNumDraggingMouseSources().
         @see getMouseSource
     */
-    int getNumMouseSources() const noexcept                         { return mouseSources.size(); }
+    int getNumMouseSources() const noexcept;
 
     /** Returns one of the system's MouseInputSource objects.
         The index should be from 0 to getNumMouseSources() - 1. Out-of-range indexes will return
@@ -271,12 +248,12 @@ public:
         In a traditional single-mouse system, there might be only one object. On a multi-touch
         system, there could be one input source per potential finger.
     */
-    MouseInputSource* getMouseSource (int index) const noexcept     { return mouseSources [index]; }
+    MouseInputSource* getMouseSource (int index) const noexcept;
 
     /** Returns the main mouse input device that the system is using.
         @see getNumMouseSources()
     */
-    MouseInputSource& getMainMouseSource() const noexcept           { return *mouseSources.getUnchecked(0); }
+    MouseInputSource getMainMouseSource() const noexcept;
 
     /** Returns the number of mouse-sources that are currently being dragged.
         In a traditional single-mouse system, this will be 0 or 1, depending on whether a
@@ -338,12 +315,82 @@ public:
     bool isOrientationEnabled (DisplayOrientation orientation) const noexcept;
 
     //==============================================================================
-    /** Tells this object to refresh its idea of what the screen resolution is.
+    class JUCE_API  Displays
+    {
+    public:
+        /** Contains details about a display device. */
+        struct Display
+        {
+            /** This is the bounds of the area of this display which isn't covered by
+                OS-dependent objects like the taskbar, menu bar, etc. */
+            Rectangle<int> userArea;
 
-        (Called internally by the native code).
+            /** This is the total physical area of this display, including any taskbars, etc */
+            Rectangle<int> totalArea;
+
+            /** This is the scale-factor of this display.
+                If you create a component with size 1x1, this scale factor indicates the actual
+                size of the component in terms of physical pixels.
+                For higher-resolution displays, it may be a value greater than 1.0
+            */
+            double scale;
+
+            /** The DPI of the display.
+                This is the number of physical pixels per inch. To get the number of logical
+                pixels per inch, divide this by the Display::scale value.
+            */
+            double dpi;
+
+            /** This will be true if this is the user's main screen. */
+            bool isMain;
+        };
+
+        /** Returns the display which acts as user's main screen. */
+        const Display& getMainDisplay() const noexcept;
+
+        /** Returns the display which contains a particular point.
+            If the point lies outside all the displays, the nearest one will be returned.
+        */
+        const Display& getDisplayContaining (Point<int> position) const noexcept;
+
+        /** Returns a RectangleList made up of all the displays. */
+        RectangleList<int> getRectangleList (bool userAreasOnly) const;
+
+        /** Returns the smallest bounding box which contains all the displays. */
+        Rectangle<int> getTotalBounds (bool userAreasOnly) const;
+
+        /** The list of displays. */
+        Array<Display> displays;
+
+       #ifndef DOXYGEN
+        /** @internal */
+        void refresh();
+       #endif
+
+    private:
+        friend class Desktop;
+        friend struct ContainerDeletePolicy<Displays>;
+        Displays (Desktop&);
+        ~Displays();
+
+        void init (Desktop&);
+        void findDisplays (float masterScale);
+    };
+
+    const Displays& getDisplays() const noexcept        { return *displays; }
+
+    //==============================================================================
+    /** Sets a global scale factor to be used for all desktop windows.
+        Setting this will also scale the monitor sizes that are returned by getDisplays().
     */
-    void refreshMonitorSizes();
+    void setGlobalScaleFactor (float newScaleFactor) noexcept;
 
+    /** Returns the current global scale factor, as set by setGlobalScaleFactor().
+        @see setGlobalScaleFactor
+    */
+    float getGlobalScaleFactor() const noexcept         { return masterScaleFactor; }
+
+    //==============================================================================
     /** True if the OS supports semitransparent windows */
     static bool canUseSemiTransparentWindows() noexcept;
 
@@ -353,60 +400,59 @@ private:
 
     friend class Component;
     friend class ComponentPeer;
-    friend class MouseInputSource;
     friend class MouseInputSourceInternal;
     friend class DeletedAtShutdown;
     friend class TopLevelWindowManager;
 
-    OwnedArray <MouseInputSource> mouseSources;
-    void createMouseInputSources();
+    ScopedPointer<MouseInputSource::SourceList> mouseSources;
 
-    ListenerList <MouseListener> mouseListeners;
-    ListenerList <FocusChangeListener> focusListeners;
+    ListenerList<MouseListener> mouseListeners;
+    ListenerList<FocusChangeListener> focusListeners;
 
-    Array <Component*> desktopComponents;
-    Array <Rectangle<int> > monitorCoordsClipped, monitorCoordsUnclipped;
+    Array<Component*> desktopComponents;
+    Array<ComponentPeer*> peers;
+
+    ScopedPointer<Displays> displays;
 
     Point<int> lastFakeMouseMove;
     void sendMouseMove();
 
-    int mouseClickCounter;
+    int mouseClickCounter, mouseWheelCounter;
     void incrementMouseClickCounter() noexcept;
-
-    ScopedPointer<Timer> dragRepeater;
+    void incrementMouseWheelCounter() noexcept;
 
     ScopedPointer<LookAndFeel> defaultLookAndFeel;
     WeakReference<LookAndFeel> currentLookAndFeel;
 
     Component* kioskModeComponent;
     Rectangle<int> kioskComponentOriginalBounds;
+    bool kioskModeReentrant;
 
     int allowedOrientations;
+    float masterScaleFactor;
 
     ComponentAnimator animator;
 
-    void timerCallback();
+    void timerCallback() override;
     void resetTimer();
-    ListenerList <MouseListener>& getMouseListeners();
-
-    int getNumDisplayMonitors() const noexcept;
-    Rectangle<int> getDisplayMonitorCoordinates (int index, bool clippedToWorkArea) const noexcept;
-    static void getCurrentMonitorPositions (Array <Rectangle<int> >&, const bool clipToWorkArea);
+    ListenerList<MouseListener>& getMouseListeners();
 
     void addDesktopComponent (Component*);
     void removeDesktopComponent (Component*);
     void componentBroughtToFront (Component*);
 
-    static void setKioskComponent (Component*, bool enableOrDisable, bool allowMenusAndBars);
+    void setKioskComponent (Component*, bool enableOrDisable, bool allowMenusAndBars);
 
     void triggerFocusCallback();
-    void handleAsyncUpdate();
+    void handleAsyncUpdate() override;
+
+    static double getDefaultMasterScale();
 
     Desktop();
     ~Desktop();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Desktop);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Desktop)
 };
 
 
-#endif   // __JUCE_DESKTOP_JUCEHEADER__
+#endif   // JUCE_DESKTOP_H_INCLUDED

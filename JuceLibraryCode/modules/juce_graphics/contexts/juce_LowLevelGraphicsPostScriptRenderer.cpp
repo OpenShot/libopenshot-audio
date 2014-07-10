@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -90,12 +89,12 @@ bool LowLevelGraphicsPostScriptRenderer::isVectorDevice() const
     return true;
 }
 
-void LowLevelGraphicsPostScriptRenderer::setOrigin (int x, int y)
+void LowLevelGraphicsPostScriptRenderer::setOrigin (Point<int> o)
 {
-    if (x != 0 || y != 0)
+    if (! o.isOrigin())
     {
-        stateStack.getLast()->xOffset += x;
-        stateStack.getLast()->yOffset += y;
+        stateStack.getLast()->xOffset += o.x;
+        stateStack.getLast()->yOffset += o.y;
         needToClip = true;
     }
 }
@@ -106,11 +105,7 @@ void LowLevelGraphicsPostScriptRenderer::addTransform (const AffineTransform& /*
     jassertfalse;
 }
 
-float LowLevelGraphicsPostScriptRenderer::getScaleFactor()
-{
-    jassertfalse; //xxx
-    return 1.0f;
-}
+float LowLevelGraphicsPostScriptRenderer::getPhysicalPixelScaleFactor()    { return 1.0f; }
 
 bool LowLevelGraphicsPostScriptRenderer::clipToRectangle (const Rectangle<int>& r)
 {
@@ -118,7 +113,7 @@ bool LowLevelGraphicsPostScriptRenderer::clipToRectangle (const Rectangle<int>& 
     return stateStack.getLast()->clip.clipTo (r.translated (stateStack.getLast()->xOffset, stateStack.getLast()->yOffset));
 }
 
-bool LowLevelGraphicsPostScriptRenderer::clipToRectangleList (const RectangleList& clipRegion)
+bool LowLevelGraphicsPostScriptRenderer::clipToRectangleList (const RectangleList<int>& clipRegion)
 {
     needToClip = true;
     return stateStack.getLast()->clip.clipTo (clipRegion);
@@ -205,7 +200,7 @@ void LowLevelGraphicsPostScriptRenderer::writeClip()
 
         int itemsOnLine = 0;
 
-        for (RectangleList::Iterator i (stateStack.getLast()->clip); i.next();)
+        for (const Rectangle<int>* i = stateStack.getLast()->clip.begin(), * const e = stateStack.getLast()->clip.end(); i != e; ++i)
         {
             if (++itemsOnLine == 6)
             {
@@ -213,17 +208,15 @@ void LowLevelGraphicsPostScriptRenderer::writeClip()
                 out << '\n';
             }
 
-            const Rectangle<int>& r = *i.getRectangle();
-
-            out << r.getX() << ' ' << -r.getY() << ' '
-                << r.getWidth() << ' ' << -r.getHeight() << " pr ";
+            out << i->getX() << ' ' << -i->getY() << ' '
+                << i->getWidth() << ' ' << -i->getHeight() << " pr ";
         }
 
         out << "endclip\n";
     }
 }
 
-void LowLevelGraphicsPostScriptRenderer::writeColour (const Colour& colour)
+void LowLevelGraphicsPostScriptRenderer::writeColour (Colour colour)
 {
     Colour c (Colours::white.overlaidWith (colour));
 
@@ -343,12 +336,18 @@ void LowLevelGraphicsPostScriptRenderer::setInterpolationQuality (Graphics::Resa
 //==============================================================================
 void LowLevelGraphicsPostScriptRenderer::fillRect (const Rectangle<int>& r, const bool /*replaceExistingContents*/)
 {
+    fillRect (r.toFloat());
+}
+
+void LowLevelGraphicsPostScriptRenderer::fillRect (const Rectangle<float>& r)
+{
     if (stateStack.getLast()->fillType.isColour())
     {
         writeClip();
         writeColour (stateStack.getLast()->fillType.colour);
 
-        Rectangle<int> r2 (r.translated (stateStack.getLast()->xOffset,  stateStack.getLast()->yOffset));
+        Rectangle<float> r2 (r.translated ((float) stateStack.getLast()->xOffset,
+                                           (float) stateStack.getLast()->yOffset));
 
         out << r2.getX() << ' ' << -r2.getBottom() << ' ' << r2.getWidth() << ' ' << r2.getHeight() << " rectfill\n";
     }
@@ -358,7 +357,11 @@ void LowLevelGraphicsPostScriptRenderer::fillRect (const Rectangle<int>& r, cons
         p.addRectangle (r);
         fillPath (p, AffineTransform::identity);
     }
+}
 
+void LowLevelGraphicsPostScriptRenderer::fillRectList (const RectangleList<float>& list)
+{
+    fillPath (list.toPath(), AffineTransform::identity);
 }
 
 //==============================================================================
@@ -473,13 +476,13 @@ void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, co
     writeTransform (transform.translated ((float) stateStack.getLast()->xOffset, (float) stateStack.getLast()->yOffset)
                              .scaled (1.0f, -1.0f));
 
-    RectangleList imageClip;
+    RectangleList<int> imageClip;
     sourceImage.createSolidAreaMask (imageClip, 0.5f);
 
     out << "newpath ";
     int itemsOnLine = 0;
 
-    for (RectangleList::Iterator i (imageClip); i.next();)
+    for (const Rectangle<int>* i = imageClip.begin(), * const e = imageClip.end(); i != e; ++i)
     {
         if (++itemsOnLine == 6)
         {
@@ -487,9 +490,7 @@ void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, co
             itemsOnLine = 0;
         }
 
-        const Rectangle<int>& r = *i.getRectangle();
-
-        out << r.getX() << ' ' << r.getY() << ' ' << r.getWidth() << ' ' << r.getHeight() << " pr ";
+        out << i->getX() << ' ' << i->getY() << ' ' << i->getWidth() << ' ' << i->getHeight() << " pr ";
     }
 
     out << " clip newpath\n";
@@ -510,16 +511,6 @@ void LowLevelGraphicsPostScriptRenderer::drawLine (const Line <float>& line)
     Path p;
     p.addLineSegment (line, 1.0f);
     fillPath (p, AffineTransform::identity);
-}
-
-void LowLevelGraphicsPostScriptRenderer::drawVerticalLine (const int x, float top, float bottom)
-{
-    drawLine (Line<float> ((float) x, top, (float) x, bottom));
-}
-
-void LowLevelGraphicsPostScriptRenderer::drawHorizontalLine (const int y, float left, float right)
-{
-    drawLine (Line<float> (left, (float) y, right, (float) y));
 }
 
 //==============================================================================

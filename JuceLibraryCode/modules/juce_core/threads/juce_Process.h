@@ -1,32 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PROCESS_JUCEHEADER__
-#define __JUCE_PROCESS_JUCEHEADER__
-
-#include "../text/juce_String.h"
+#ifndef JUCE_PROCESS_H_INCLUDED
+#define JUCE_PROCESS_H_INCLUDED
 
 
 //==============================================================================
@@ -35,7 +36,7 @@
     This contains methods for controlling the current application at the
     process-level.
 
-    @see Thread, JUCEApplication
+    @see Thread, JUCEApplicationBase
 */
 class JUCE_API  Process
 {
@@ -54,7 +55,7 @@ public:
         @param priority     the process priority, where
                             0=low, 1=normal, 2=high, 3=realtime
     */
-    static void setPriority (const ProcessPriority priority);
+    static void JUCE_CALLTYPE setPriority (const ProcessPriority priority);
 
     /** Kills the current process immediately.
 
@@ -62,15 +63,23 @@ public:
         immediately - it's intended only for use only when something goes
         horribly wrong.
 
-        @see JUCEApplication::quit
+        @see JUCEApplicationBase::quit
     */
-    static void terminate();
+    static void JUCE_CALLTYPE terminate();
 
     //==============================================================================
     /** Returns true if this application process is the one that the user is
         currently using.
     */
-    static bool isForegroundProcess();
+    static bool JUCE_CALLTYPE isForegroundProcess();
+
+    /** Attempts to make the current process the active one.
+        (This is not possible on some platforms).
+    */
+    static void JUCE_CALLTYPE makeForegroundProcess();
+
+    /** Hides the application (on an OS that supports this, e.g. OSX) */
+    static void JUCE_CALLTYPE hide();
 
     //==============================================================================
     /** Raises the current process's privilege level.
@@ -78,30 +87,29 @@ public:
         Does nothing if this isn't supported by the current OS, or if process
         privilege level is fixed.
     */
-    static void raisePrivilege();
+    static void JUCE_CALLTYPE raisePrivilege();
 
     /** Lowers the current process's privilege level.
 
         Does nothing if this isn't supported by the current OS, or if process
         privilege level is fixed.
     */
-    static void lowerPrivilege();
+    static void JUCE_CALLTYPE lowerPrivilege();
 
     //==============================================================================
-    /** Returns true if this process is being hosted by a debugger.
-    */
+    /** Returns true if this process is being hosted by a debugger. */
     static bool JUCE_CALLTYPE isRunningUnderDebugger();
 
 
     //==============================================================================
     /** Tries to launch the OS's default reader application for a given file or URL. */
-    static bool openDocument (const String& documentURL, const String& parameters);
+    static bool JUCE_CALLTYPE openDocument (const String& documentURL, const String& parameters);
 
     /** Tries to launch the OS's default email application to let the user create a message. */
-    static bool openEmailWithAttachments (const String& targetEmailAddress,
-                                          const String& emailSubject,
-                                          const String& bodyText,
-                                          const StringArray& filesToAttach);
+    static bool JUCE_CALLTYPE openEmailWithAttachments (const String& targetEmailAddress,
+                                                        const String& emailSubject,
+                                                        const String& bodyText,
+                                                        const StringArray& filesToAttach);
 
    #if JUCE_WINDOWS || DOXYGEN
     //==============================================================================
@@ -128,17 +136,18 @@ public:
         @see getCurrentModuleInstanceHandle()
     */
     static void JUCE_CALLTYPE setCurrentModuleInstanceHandle (void* newHandle) noexcept;
+   #endif
 
-    /** WINDOWS ONLY - Gets the command-line params as a string.
-        This is needed to avoid unicode problems with the argc type params.
-    */
-    static String JUCE_CALLTYPE getCurrentCommandLineParams();
+   #if JUCE_MAC || DOXYGEN
+    //==============================================================================
+    /** OSX ONLY - Shows or hides the OSX dock icon for this app. */
+    static void setDockIconVisible (bool isVisible);
    #endif
 
 private:
     Process();
-    JUCE_DECLARE_NON_COPYABLE (Process);
+    JUCE_DECLARE_NON_COPYABLE (Process)
 };
 
 
-#endif   // __JUCE_PROCESS_JUCEHEADER__
+#endif   // JUCE_PROCESS_H_INCLUDED

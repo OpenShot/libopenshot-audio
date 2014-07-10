@@ -1,37 +1,40 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_NAMEDPIPE_JUCEHEADER__
-#define __JUCE_NAMEDPIPE_JUCEHEADER__
+#ifndef JUCE_NAMEDPIPE_H_INCLUDED
+#define JUCE_NAMEDPIPE_H_INCLUDED
 
 
 //==============================================================================
 /**
     A cross-process pipe that can have data written to and read from it.
 
-    Two or more processes can use these for inter-process communication.
+    Two processes can use NamedPipe objects to exchange blocks of data.
 
     @see InterprocessConnection
 */
@@ -45,16 +48,13 @@ public:
     /** Destructor. */
     ~NamedPipe();
 
-
     //==============================================================================
     /** Tries to open a pipe that already exists.
-
         Returns true if it succeeds.
     */
     bool openExisting (const String& pipeName);
 
     /** Tries to create a new pipe.
-
         Returns true if it succeeds.
     */
     bool createNewPipe (const String& pipeName);
@@ -81,31 +81,24 @@ public:
         If timeOutMilliseconds is less than zero, it will wait indefinitely, otherwise
         this is a maximum timeout for reading from the pipe.
     */
-    int read (void* destBuffer, int maxBytesToRead, int timeOutMilliseconds = 5000);
+    int read (void* destBuffer, int maxBytesToRead, int timeOutMilliseconds);
 
     /** Writes some data to the pipe.
-
-        If the operation fails, it returns -1, otherwise, it will return the number of
-        bytes written.
+        @returns the number of bytes written, or -1 on failure.
     */
-    int write (const void* sourceBuffer, int numBytesToWrite,
-               int timeOutMilliseconds = 2000);
-
-    /** If any threads are currently blocked on a read operation, this tells them to abort.
-    */
-    void cancelPendingReads();
+    int write (const void* sourceBuffer, int numBytesToWrite, int timeOutMilliseconds);
 
 private:
     //==============================================================================
-    class Pimpl;
+    JUCE_PUBLIC_IN_DLL_BUILD (class Pimpl)
     ScopedPointer<Pimpl> pimpl;
     String currentPipeName;
-    CriticalSection lock;
+    ReadWriteLock lock;
 
     bool openInternal (const String& pipeName, const bool createPipe);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NamedPipe);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NamedPipe)
 };
 
 
-#endif   // __JUCE_NAMEDPIPE_JUCEHEADER__
+#endif   // JUCE_NAMEDPIPE_H_INCLUDED

@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -31,6 +34,13 @@
 namespace zlibNamespace
 {
  #if JUCE_INCLUDE_ZLIB_CODE
+  #if JUCE_CLANG
+   #pragma clang diagnostic push
+   #pragma clang diagnostic ignored "-Wconversion"
+   #pragma clang diagnostic ignored "-Wshadow"
+   #pragma clang diagnostic ignored "-Wdeprecated-register"
+  #endif
+
   #undef OS_CODE
   #undef fdopen
   #define ZLIB_INTERNAL
@@ -55,6 +65,16 @@ namespace zlibNamespace
   #include "zlib/trees.c"
   #include "zlib/zutil.c"
   #undef Byte
+  #undef fdopen
+  #undef local
+  #undef Freq
+  #undef Code
+  #undef Dad
+  #undef Len
+
+  #if JUCE_CLANG
+   #pragma clang diagnostic pop
+  #endif
  #else
   #include JUCE_ZLIB_INCLUDE_PATH
  #endif
@@ -70,7 +90,7 @@ namespace zlibNamespace
 class GZIPDecompressorInputStream::GZIPDecompressHelper
 {
 public:
-    GZIPDecompressHelper (const bool noWrap)
+    GZIPDecompressHelper (const bool dontWrap)
         : finished (true),
           needsDictionary (false),
           error (true),
@@ -80,7 +100,7 @@ public:
     {
         using namespace zlibNamespace;
         zerostruct (stream);
-        streamIsValid = (inflateInit2 (&stream, noWrap ? -MAX_WBITS : MAX_WBITS) == Z_OK);
+        streamIsValid = (inflateInit2 (&stream, dontWrap ? -MAX_WBITS : MAX_WBITS) == Z_OK);
         finished = error = ! streamIsValid;
     }
 
@@ -99,7 +119,7 @@ public:
         dataSize = size;
     }
 
-    int doNextBlock (uint8* const dest, const int destSize)
+    int doNextBlock (uint8* const dest, const unsigned int destSize)
     {
         using namespace zlibNamespace;
         if (streamIsValid && data != nullptr && ! finished)
@@ -146,33 +166,33 @@ private:
     uint8* data;
     size_t dataSize;
 
-    JUCE_DECLARE_NON_COPYABLE (GZIPDecompressHelper);
+    JUCE_DECLARE_NON_COPYABLE (GZIPDecompressHelper)
 };
 
 //==============================================================================
-GZIPDecompressorInputStream::GZIPDecompressorInputStream (InputStream* const sourceStream_,
+GZIPDecompressorInputStream::GZIPDecompressorInputStream (InputStream* const source,
                                                           const bool deleteSourceWhenDestroyed,
                                                           const bool noWrap_,
                                                           const int64 uncompressedStreamLength_)
-  : sourceStream (sourceStream_, deleteSourceWhenDestroyed),
+  : sourceStream (source, deleteSourceWhenDestroyed),
     uncompressedStreamLength (uncompressedStreamLength_),
     noWrap (noWrap_),
     isEof (false),
     activeBufferSize (0),
-    originalSourcePos (sourceStream_->getPosition()),
+    originalSourcePos (source->getPosition()),
     currentPos (0),
     buffer ((size_t) GZIPDecompressHelper::gzipDecompBufferSize),
     helper (new GZIPDecompressHelper (noWrap_))
 {
 }
 
-GZIPDecompressorInputStream::GZIPDecompressorInputStream (InputStream& sourceStream_)
-  : sourceStream (&sourceStream_, false),
+GZIPDecompressorInputStream::GZIPDecompressorInputStream (InputStream& source)
+  : sourceStream (&source, false),
     uncompressedStreamLength (-1),
     noWrap (false),
     isEof (false),
     activeBufferSize (0),
-    originalSourcePos (sourceStream_.getPosition()),
+    originalSourcePos (source.getPosition()),
     currentPos (0),
     buffer ((size_t) GZIPDecompressHelper::gzipDecompBufferSize),
     helper (new GZIPDecompressHelper (false))
@@ -199,7 +219,7 @@ int GZIPDecompressorInputStream::read (void* destBuffer, int howMany)
 
         while (! helper->error)
         {
-            const int n = helper->doNextBlock (d, howMany);
+            const int n = helper->doNextBlock (d, (unsigned int) howMany);
             currentPos += n;
 
             if (n == 0)
@@ -265,11 +285,4 @@ bool GZIPDecompressorInputStream::setPosition (int64 newPos)
 
     skipNextBytes (newPos - currentPos);
     return true;
-}
-
-// (This is used as a way for the zip file code to use the crc32 function without including zlib)
-unsigned long juce_crc32 (unsigned long, const unsigned char*, unsigned);
-unsigned long juce_crc32 (unsigned long crc, const unsigned char* buf, unsigned len)
-{
-    return zlibNamespace::crc32 (crc, buf, len);
 }

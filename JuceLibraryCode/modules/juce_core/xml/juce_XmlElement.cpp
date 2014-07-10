@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -29,9 +32,8 @@ XmlElement::XmlAttributeNode::XmlAttributeNode (const XmlAttributeNode& other) n
 {
 }
 
-XmlElement::XmlAttributeNode::XmlAttributeNode (const String& name_, const String& value_) noexcept
-    : name (name_),
-      value (value_)
+XmlElement::XmlAttributeNode::XmlAttributeNode (const Identifier& n, const String& v) noexcept
+    : name (n), value (v)
 {
    #if JUCE_DEBUG
     // this checks whether the attribute name string contains any illegal characters..
@@ -40,20 +42,51 @@ XmlElement::XmlAttributeNode::XmlAttributeNode (const String& name_, const Strin
    #endif
 }
 
-inline bool XmlElement::XmlAttributeNode::hasName (const String& nameToMatch) const noexcept
+XmlElement::XmlAttributeNode::XmlAttributeNode (String::CharPointerType nameStart, String::CharPointerType nameEnd)
+    : name (nameStart, nameEnd)
 {
-    return name.equalsIgnoreCase (nameToMatch);
 }
 
 //==============================================================================
-XmlElement::XmlElement (const String& tagName_) noexcept
-    : tagName (tagName_)
+static void sanityCheckTagName (const String& tag)
 {
+    (void) tag;
+
     // the tag name mustn't be empty, or it'll look like a text element!
-    jassert (tagName_.containsNonWhitespaceChars())
+    jassert (tag.containsNonWhitespaceChars())
 
     // The tag can't contain spaces or other characters that would create invalid XML!
-    jassert (! tagName_.containsAnyOf (" <>/&"));
+    jassert (! tag.containsAnyOf (" <>/&(){}"));
+}
+
+XmlElement::XmlElement (const String& tag)
+    : tagName (StringPool::getGlobalPool().getPooledString (tag))
+{
+    sanityCheckTagName (tagName);
+}
+
+XmlElement::XmlElement (const char* tag)
+    : tagName (StringPool::getGlobalPool().getPooledString (tag))
+{
+    sanityCheckTagName (tagName);
+}
+
+XmlElement::XmlElement (StringRef tag)
+    : tagName (StringPool::getGlobalPool().getPooledString (tag))
+{
+    sanityCheckTagName (tagName);
+}
+
+XmlElement::XmlElement (const Identifier& tag)
+    : tagName (tag.toString())
+{
+    sanityCheckTagName (tagName);
+}
+
+XmlElement::XmlElement (String::CharPointerType tagNameStart, String::CharPointerType tagNameEnd)
+    : tagName (StringPool::getGlobalPool().getPooledString (tagNameStart, tagNameEnd))
+{
+    sanityCheckTagName (tagName);
 }
 
 XmlElement::XmlElement (int /*dummy*/) noexcept
@@ -72,9 +105,7 @@ XmlElement& XmlElement::operator= (const XmlElement& other)
     {
         removeAllAttributes();
         deleteAllChildElements();
-
         tagName = other.tagName;
-
         copyChildrenAndAttributesFrom (other);
     }
 
@@ -83,10 +114,10 @@ XmlElement& XmlElement::operator= (const XmlElement& other)
 
 #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
 XmlElement::XmlElement (XmlElement&& other) noexcept
-    : nextListItem      (static_cast <LinkedListPointer <XmlElement>&&> (other.nextListItem)),
-      firstChildElement (static_cast <LinkedListPointer <XmlElement>&&> (other.firstChildElement)),
-      attributes        (static_cast <LinkedListPointer <XmlAttributeNode>&&> (other.attributes)),
-      tagName           (static_cast <String&&> (other.tagName))
+    : nextListItem      (static_cast<LinkedListPointer<XmlElement>&&> (other.nextListItem)),
+      firstChildElement (static_cast<LinkedListPointer<XmlElement>&&> (other.firstChildElement)),
+      attributes        (static_cast<LinkedListPointer<XmlAttributeNode>&&> (other.attributes)),
+      tagName           (static_cast<String&&> (other.tagName))
 {
 }
 
@@ -97,10 +128,10 @@ XmlElement& XmlElement::operator= (XmlElement&& other) noexcept
     removeAllAttributes();
     deleteAllChildElements();
 
-    nextListItem      = static_cast <LinkedListPointer <XmlElement>&&> (other.nextListItem);
-    firstChildElement = static_cast <LinkedListPointer <XmlElement>&&> (other.firstChildElement);
-    attributes        = static_cast <LinkedListPointer <XmlAttributeNode>&&> (other.attributes);
-    tagName           = static_cast <String&&> (other.tagName);
+    nextListItem      = static_cast<LinkedListPointer<XmlElement>&&> (other.nextListItem);
+    firstChildElement = static_cast<LinkedListPointer<XmlElement>&&> (other.firstChildElement);
+    attributes        = static_cast<LinkedListPointer<XmlAttributeNode>&&> (other.attributes);
+    tagName           = static_cast<String&&> (other.tagName);
 
     return *this;
 }
@@ -161,8 +192,8 @@ namespace XmlOutputFunctions
 
     static bool isLegalXmlChar (const uint32 c) noexcept
     {
-        static const unsigned char legalChars[] = { 0, 0, 0, 0, 187, 255, 255, 175, 255, 255, 255, 191, 254, 255, 255, 127 };
-
+        static const unsigned char legalChars[] = { 0, 0, 0, 0, 187, 255, 255, 175, 255,
+                                                    255, 255, 191, 254, 255, 255, 127 };
         return c < sizeof (legalChars) * 8
                  && (legalChars [c >> 3] & (1 << (c & 7))) != 0;
     }
@@ -207,7 +238,7 @@ namespace XmlOutputFunctions
         }
     }
 
-    static void writeSpaces (OutputStream& out, const int numSpaces)
+    static void writeSpaces (OutputStream& out, const size_t numSpaces)
     {
         out.writeRepeatedByte (' ', numSpaces);
     }
@@ -220,7 +251,7 @@ void XmlElement::writeElementAsText (OutputStream& outputStream,
     using namespace XmlOutputFunctions;
 
     if (indentationLevel >= 0)
-        writeSpaces (outputStream, indentationLevel);
+        writeSpaces (outputStream, (size_t) indentationLevel);
 
     if (! isTextElement())
     {
@@ -228,7 +259,7 @@ void XmlElement::writeElementAsText (OutputStream& outputStream,
         outputStream << tagName;
 
         {
-            const int attIndent = indentationLevel + tagName.length() + 1;
+            const size_t attIndent = (size_t) (indentationLevel + tagName.length() + 1);
             int lineLen = 0;
 
             for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
@@ -254,7 +285,6 @@ void XmlElement::writeElementAsText (OutputStream& outputStream,
         {
             outputStream.writeByte ('>');
 
-
             bool lastWasTextNode = false;
 
             for (XmlElement* child = firstChildElement; child != nullptr; child = child->nextListItem)
@@ -278,7 +308,7 @@ void XmlElement::writeElementAsText (OutputStream& outputStream,
             if (indentationLevel >= 0 && ! lastWasTextNode)
             {
                 outputStream << newLine;
-                writeSpaces (outputStream, indentationLevel);
+                writeSpaces (outputStream, (size_t) indentationLevel);
             }
 
             outputStream.write ("</", 2);
@@ -296,10 +326,10 @@ void XmlElement::writeElementAsText (OutputStream& outputStream,
     }
 }
 
-String XmlElement::createDocument (const String& dtdToUse,
+String XmlElement::createDocument (StringRef dtdToUse,
                                    const bool allOnOneLine,
                                    const bool includeXmlHeader,
-                                   const String& encodingType,
+                                   StringRef encodingType,
                                    const int lineWrapLength) const
 {
     MemoryOutputStream mem (2048);
@@ -309,10 +339,10 @@ String XmlElement::createDocument (const String& dtdToUse,
 }
 
 void XmlElement::writeToStream (OutputStream& output,
-                                const String& dtdToUse,
+                                StringRef dtdToUse,
                                 const bool allOnOneLine,
                                 const bool includeXmlHeader,
-                                const String& encodingType,
+                                StringRef encodingType,
                                 const int lineWrapLength) const
 {
     using namespace XmlOutputFunctions;
@@ -344,49 +374,52 @@ void XmlElement::writeToStream (OutputStream& output,
 }
 
 bool XmlElement::writeToFile (const File& file,
-                              const String& dtdToUse,
-                              const String& encodingType,
+                              StringRef dtdToUse,
+                              StringRef encodingType,
                               const int lineWrapLength) const
 {
-    if (file.hasWriteAccess())
+    TemporaryFile tempFile (file);
+
     {
-        TemporaryFile tempFile (file);
-        ScopedPointer <FileOutputStream> out (tempFile.getFile().createOutputStream());
+        FileOutputStream out (tempFile.getFile());
 
-        if (out != nullptr)
-        {
-            writeToStream (*out, dtdToUse, false, true, encodingType, lineWrapLength);
-            out = nullptr;
+        if (! out.openedOk())
+            return false;
 
-            return tempFile.overwriteTargetFileWithTemporary();
-        }
+        writeToStream (out, dtdToUse, false, true, encodingType, lineWrapLength);
     }
 
-    return false;
+    return tempFile.overwriteTargetFileWithTemporary();
 }
 
 //==============================================================================
-bool XmlElement::hasTagName (const String& tagNameWanted) const noexcept
+bool XmlElement::hasTagName (StringRef possibleTagName) const noexcept
 {
-   #if JUCE_DEBUG
-    // if debugging, check that the case is actually the same, because
-    // valid xml is case-sensitive, and although this lets it pass, it's
-    // better not to..
-    if (tagName.equalsIgnoreCase (tagNameWanted))
-    {
-        jassert (tagName == tagNameWanted);
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-   #else
-    return tagName.equalsIgnoreCase (tagNameWanted);
-   #endif
+    const bool matches = tagName.equalsIgnoreCase (possibleTagName);
+
+    // XML tags should be case-sensitive, so although this method allows a
+    // case-insensitive match to pass, you should try to avoid this.
+    jassert ((! matches) || tagName == possibleTagName);
+
+    return matches;
 }
 
-XmlElement* XmlElement::getNextElementWithTagName (const String& requiredTagName) const
+String XmlElement::getNamespace() const
+{
+    return tagName.upToFirstOccurrenceOf (":", false, false);
+}
+
+String XmlElement::getTagNameWithoutNamespace() const
+{
+    return tagName.fromLastOccurrenceOf (":", false, false);
+}
+
+bool XmlElement::hasTagNameIgnoringNamespace (StringRef possibleTagName) const
+{
+    return hasTagName (possibleTagName) || getTagNameWithoutNamespace() == possibleTagName;
+}
+
+XmlElement* XmlElement::getNextElementWithTagName (StringRef requiredTagName) const
 {
     XmlElement* e = nextListItem;
 
@@ -404,98 +437,96 @@ int XmlElement::getNumAttributes() const noexcept
 
 const String& XmlElement::getAttributeName (const int index) const noexcept
 {
-    const XmlAttributeNode* const att = attributes [index];
-    return att != nullptr ? att->name : String::empty;
-}
-
-const String& XmlElement::getAttributeValue (const int index) const noexcept
-{
-    const XmlAttributeNode* const att = attributes [index];
-    return att != nullptr ? att->value : String::empty;
-}
-
-bool XmlElement::hasAttribute (const String& attributeName) const noexcept
-{
-    for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
-        if (att->hasName (attributeName))
-            return true;
-
-    return false;
-}
-
-//==============================================================================
-const String& XmlElement::getStringAttribute (const String& attributeName) const noexcept
-{
-    for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
-        if (att->hasName (attributeName))
-            return att->value;
+    if (const XmlAttributeNode* const att = attributes [index])
+        return att->name.toString();
 
     return String::empty;
 }
 
-String XmlElement::getStringAttribute (const String& attributeName, const String& defaultReturnValue) const
+const String& XmlElement::getAttributeValue (const int index) const noexcept
 {
-    for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
-        if (att->hasName (attributeName))
-            return att->value;
+    if (const XmlAttributeNode* const att = attributes [index])
+        return att->value;
+
+    return String::empty;
+}
+
+XmlElement::XmlAttributeNode* XmlElement::getAttribute (StringRef attributeName) const noexcept
+{
+    for (XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
+        if (att->name == attributeName)
+            return att;
+
+    return nullptr;
+}
+
+bool XmlElement::hasAttribute (StringRef attributeName) const noexcept
+{
+    return getAttribute (attributeName) != nullptr;
+}
+
+//==============================================================================
+const String& XmlElement::getStringAttribute (StringRef attributeName) const noexcept
+{
+    if (const XmlAttributeNode* att = getAttribute (attributeName))
+        return att->value;
+
+    return String::empty;
+}
+
+String XmlElement::getStringAttribute (StringRef attributeName, const String& defaultReturnValue) const
+{
+    if (const XmlAttributeNode* att = getAttribute (attributeName))
+        return att->value;
 
     return defaultReturnValue;
 }
 
-int XmlElement::getIntAttribute (const String& attributeName, const int defaultReturnValue) const
+int XmlElement::getIntAttribute (StringRef attributeName, const int defaultReturnValue) const
 {
-    for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
-        if (att->hasName (attributeName))
-            return att->value.getIntValue();
+    if (const XmlAttributeNode* att = getAttribute (attributeName))
+        return att->value.getIntValue();
 
     return defaultReturnValue;
 }
 
-double XmlElement::getDoubleAttribute (const String& attributeName, const double defaultReturnValue) const
+double XmlElement::getDoubleAttribute (StringRef attributeName, const double defaultReturnValue) const
 {
-    for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
-        if (att->hasName (attributeName))
-            return att->value.getDoubleValue();
+    if (const XmlAttributeNode* att = getAttribute (attributeName))
+        return att->value.getDoubleValue();
 
     return defaultReturnValue;
 }
 
-bool XmlElement::getBoolAttribute (const String& attributeName, const bool defaultReturnValue) const
+bool XmlElement::getBoolAttribute (StringRef attributeName, const bool defaultReturnValue) const
 {
-    for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
+    if (const XmlAttributeNode* att = getAttribute (attributeName))
     {
-        if (att->hasName (attributeName))
-        {
-            juce_wchar firstChar = att->value[0];
+        const juce_wchar firstChar = *(att->value.getCharPointer().findEndOfWhitespace());
 
-            if (CharacterFunctions::isWhitespace (firstChar))
-                firstChar = att->value.trimStart() [0];
-
-            return firstChar == '1'
-                || firstChar == 't'
-                || firstChar == 'y'
-                || firstChar == 'T'
-                || firstChar == 'Y';
-        }
+        return firstChar == '1'
+            || firstChar == 't'
+            || firstChar == 'y'
+            || firstChar == 'T'
+            || firstChar == 'Y';
     }
 
     return defaultReturnValue;
 }
 
-bool XmlElement::compareAttribute (const String& attributeName,
-                                   const String& stringToCompareAgainst,
+bool XmlElement::compareAttribute (StringRef attributeName,
+                                   StringRef stringToCompareAgainst,
                                    const bool ignoreCase) const noexcept
 {
-    for (const XmlAttributeNode* att = attributes; att != nullptr; att = att->nextListItem)
-        if (att->hasName (attributeName))
-            return ignoreCase ? att->value.equalsIgnoreCase (stringToCompareAgainst)
-                              : att->value == stringToCompareAgainst;
+    if (const XmlAttributeNode* att = getAttribute (attributeName))
+        return ignoreCase ? att->value.equalsIgnoreCase (stringToCompareAgainst)
+                          : att->value == stringToCompareAgainst;
 
     return false;
 }
 
 //==============================================================================
-void XmlElement::setAttribute (const String& attributeName, const String& value)
+void XmlElement::setAttribute (const Identifier& attributeName, const String& value)
 {
     if (attributes == nullptr)
     {
@@ -503,49 +534,44 @@ void XmlElement::setAttribute (const String& attributeName, const String& value)
     }
     else
     {
-        XmlAttributeNode* att = attributes;
-
-        for (;;)
+        for (XmlAttributeNode* att = attributes; ; att = att->nextListItem)
         {
-            if (att->hasName (attributeName))
+            if (att->name == attributeName)
             {
                 att->value = value;
                 break;
             }
-            else if (att->nextListItem == nullptr)
+
+            if (att->nextListItem == nullptr)
             {
                 att->nextListItem = new XmlAttributeNode (attributeName, value);
                 break;
             }
-
-            att = att->nextListItem;
         }
     }
 }
 
-void XmlElement::setAttribute (const String& attributeName, const int number)
+void XmlElement::setAttribute (const Identifier& attributeName, const int number)
 {
     setAttribute (attributeName, String (number));
 }
 
-void XmlElement::setAttribute (const String& attributeName, const double number)
+void XmlElement::setAttribute (const Identifier& attributeName, const double number)
 {
-    setAttribute (attributeName, String (number));
+    setAttribute (attributeName, String (number, 20));
 }
 
-void XmlElement::removeAttribute (const String& attributeName) noexcept
+void XmlElement::removeAttribute (const Identifier& attributeName) noexcept
 {
-    LinkedListPointer<XmlAttributeNode>* att = &attributes;
-
-    while (att->get() != nullptr)
+    for (LinkedListPointer<XmlAttributeNode>* att = &attributes;
+         att->get() != nullptr;
+         att = &(att->get()->nextListItem))
     {
-        if (att->get()->hasName (attributeName))
+        if (att->get()->name == attributeName)
         {
             delete att->removeNext();
             break;
         }
-
-        att = &(att->get()->nextListItem);
     }
 }
 
@@ -565,10 +591,23 @@ XmlElement* XmlElement::getChildElement (const int index) const noexcept
     return firstChildElement [index].get();
 }
 
-XmlElement* XmlElement::getChildByName (const String& childName) const noexcept
+XmlElement* XmlElement::getChildByName (StringRef childName) const noexcept
 {
+    jassert (! childName.isEmpty());
+
     for (XmlElement* child = firstChildElement; child != nullptr; child = child->nextListItem)
         if (child->hasTagName (childName))
+            return child;
+
+    return nullptr;
+}
+
+XmlElement* XmlElement::getChildByAttribute (StringRef attributeName, StringRef attributeValue) const noexcept
+{
+    jassert (! attributeName.isEmpty());
+
+    for (XmlElement* child = firstChildElement; child != nullptr; child = child->nextListItem)
+        if (child->compareAttribute (attributeName, attributeValue))
             return child;
 
     return nullptr;
@@ -577,20 +616,37 @@ XmlElement* XmlElement::getChildByName (const String& childName) const noexcept
 void XmlElement::addChildElement (XmlElement* const newNode) noexcept
 {
     if (newNode != nullptr)
+    {
+        // The element being added must not be a child of another node!
+        jassert (newNode->nextListItem == nullptr);
+
         firstChildElement.append (newNode);
+    }
 }
 
-void XmlElement::insertChildElement (XmlElement* const newNode,
-                                     int indexToInsertAt) noexcept
+void XmlElement::insertChildElement (XmlElement* const newNode, int indexToInsertAt) noexcept
 {
     if (newNode != nullptr)
     {
-        removeChildElement (newNode, false);
+        // The element being added must not be a child of another node!
+        jassert (newNode->nextListItem == nullptr);
+
         firstChildElement.insertAtIndex (indexToInsertAt, newNode);
     }
 }
 
-XmlElement* XmlElement::createNewChildElement (const String& childTagName)
+void XmlElement::prependChildElement (XmlElement* newNode) noexcept
+{
+    if (newNode != nullptr)
+    {
+        // The element being added must not be a child of another node!
+        jassert (newNode->nextListItem == nullptr);
+
+        firstChildElement.insertNext (newNode);
+    }
+}
+
+XmlElement* XmlElement::createNewChildElement (StringRef childTagName)
 {
     XmlElement* const newElement = new XmlElement (childTagName);
     addChildElement (newElement);
@@ -602,9 +658,7 @@ bool XmlElement::replaceChildElement (XmlElement* const currentChildElement,
 {
     if (newNode != nullptr)
     {
-        LinkedListPointer<XmlElement>* const p = firstChildElement.findPointerTo (currentChildElement);
-
-        if (p != nullptr)
+        if (LinkedListPointer<XmlElement>* const p = firstChildElement.findPointerTo (currentChildElement))
         {
             if (currentChildElement != newNode)
                 delete p->replaceNext (newNode);
@@ -706,11 +760,9 @@ void XmlElement::deleteAllChildElements() noexcept
     firstChildElement.deleteAll();
 }
 
-void XmlElement::deleteAllChildElementsWithTagName (const String& name) noexcept
+void XmlElement::deleteAllChildElementsWithTagName (StringRef name) noexcept
 {
-    XmlElement* child = firstChildElement;
-
-    while (child != nullptr)
+    for (XmlElement* child = firstChildElement; child != nullptr;)
     {
         XmlElement* const nextChild = child->nextListItem;
 
@@ -736,9 +788,7 @@ XmlElement* XmlElement::findParentElementOf (const XmlElement* const elementToLo
         if (elementToLookFor == child)
             return this;
 
-        XmlElement* const found = child->findParentElementOf (elementToLookFor);
-
-        if (found != nullptr)
+        if (XmlElement* const found = child->findParentElementOf (elementToLookFor))
             return found;
     }
 
@@ -793,20 +843,20 @@ String XmlElement::getAllSubText() const
     if (isTextElement())
         return getText();
 
+    if (getNumChildElements() == 1)
+        return firstChildElement.get()->getAllSubText();
+
     MemoryOutputStream mem (1024);
 
     for (const XmlElement* child = firstChildElement; child != nullptr; child = child->nextListItem)
         mem << child->getAllSubText();
 
-    return mem.toString();
+    return mem.toUTF8();
 }
 
-String XmlElement::getChildElementAllSubText (const String& childTagName,
-                                              const String& defaultReturnValue) const
+String XmlElement::getChildElementAllSubText (StringRef childTagName, const String& defaultReturnValue) const
 {
-    const XmlElement* const child = getChildByName (childTagName);
-
-    if (child != nullptr)
+    if (const XmlElement* const child = getChildByName (childTagName))
         return child->getAllSubText();
 
     return defaultReturnValue;
@@ -826,9 +876,7 @@ void XmlElement::addTextElement (const String& text)
 
 void XmlElement::deleteAllTextElements() noexcept
 {
-    XmlElement* child = firstChildElement;
-
-    while (child != nullptr)
+    for (XmlElement* child = firstChildElement; child != nullptr;)
     {
         XmlElement* const next = child->nextListItem;
 

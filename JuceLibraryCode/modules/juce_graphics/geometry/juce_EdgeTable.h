@@ -1,36 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_EDGETABLE_JUCEHEADER__
-#define __JUCE_EDGETABLE_JUCEHEADER__
-
-#include "../geometry/juce_AffineTransform.h"
-#include "../geometry/juce_Rectangle.h"
-#include "../geometry/juce_RectangleList.h"
-class Path;
-class Image;
+#ifndef JUCE_EDGETABLE_H_INCLUDED
+#define JUCE_EDGETABLE_H_INCLUDED
 
 
 //==============================================================================
@@ -60,16 +53,19 @@ public:
     explicit EdgeTable (const Rectangle<int>& rectangleToAdd);
 
     /** Creates an edge table containing a rectangle list. */
-    explicit EdgeTable (const RectangleList& rectanglesToAdd);
+    explicit EdgeTable (const RectangleList<int>& rectanglesToAdd);
+
+    /** Creates an edge table containing a rectangle list. */
+    explicit EdgeTable (const RectangleList<float>& rectanglesToAdd);
 
     /** Creates an edge table containing a rectangle. */
     explicit EdgeTable (const Rectangle<float>& rectangleToAdd);
 
     /** Creates a copy of another edge table. */
-    EdgeTable (const EdgeTable& other);
+    EdgeTable (const EdgeTable&);
 
     /** Copies from another edge table. */
-    EdgeTable& operator= (const EdgeTable& other);
+    EdgeTable& operator= (const EdgeTable&);
 
     /** Destructor. */
     ~EdgeTable();
@@ -77,11 +73,14 @@ public:
     //==============================================================================
     void clipToRectangle (const Rectangle<int>& r);
     void excludeRectangle (const Rectangle<int>& r);
-    void clipToEdgeTable (const EdgeTable& other);
+    void clipToEdgeTable (const EdgeTable&);
     void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels);
     bool isEmpty() noexcept;
     const Rectangle<int>& getMaximumBounds() const noexcept      { return bounds; }
     void translate (float dx, int dy) noexcept;
+
+    /** Scales all the alpha-levels in the table by the given multiplier. */
+    void multiplyLevels (float factor);
 
     /** Reduces the amount of space the table has allocated.
 
@@ -192,20 +191,30 @@ public:
 private:
     //==============================================================================
     // table line format: number of points; point0 x, point0 levelDelta, point1 x, point1 levelDelta, etc
+    struct LineItem
+    {
+        int x, level;
+
+        bool operator< (const LineItem& other) const noexcept   { return x < other.x; }
+    };
+
     HeapBlock<int> table;
     Rectangle<int> bounds;
     int maxEdgesPerLine, lineStrideElements;
-    bool needToCheckEmptinesss;
+    bool needToCheckEmptiness;
 
+    void allocate();
+    void clearLineSizes() noexcept;
     void addEdgePoint (int x, int y, int winding);
+    void addEdgePointPair (int x1, int x2, int y, int winding);
     void remapTableForNumEdges (int newNumEdgesPerLine);
     void intersectWithEdgeTableLine (int y, const int* otherLine);
     void clipEdgeTableLineToRange (int* line, int x1, int x2) noexcept;
     void sanitiseLevels (bool useNonZeroWinding) noexcept;
     static void copyEdgeTableData (int* dest, int destLineStride, const int* src, int srcLineStride, int numLines) noexcept;
 
-    JUCE_LEAK_DETECTOR (EdgeTable);
+    JUCE_LEAK_DETECTOR (EdgeTable)
 };
 
 
-#endif   // __JUCE_EDGETABLE_JUCEHEADER__
+#endif   // JUCE_EDGETABLE_H_INCLUDED

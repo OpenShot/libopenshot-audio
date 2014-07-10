@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -53,9 +56,9 @@ MemoryBlock::MemoryBlock (const MemoryBlock& other)
 }
 
 MemoryBlock::MemoryBlock (const void* const dataToInitialiseFrom, const size_t sizeInBytes)
-    : size (jmax ((size_t) 0, sizeInBytes))
+    : size (sizeInBytes)
 {
-    jassert (sizeInBytes >= 0);
+    jassert (((ssize_t) sizeInBytes) >= 0);
 
     if (size > 0)
     {
@@ -85,14 +88,14 @@ MemoryBlock& MemoryBlock::operator= (const MemoryBlock& other)
 
 #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
 MemoryBlock::MemoryBlock (MemoryBlock&& other) noexcept
-    : data (static_cast <HeapBlock <char>&&> (other.data)),
+    : data (static_cast <HeapBlock<char>&&> (other.data)),
       size (other.size)
 {
 }
 
 MemoryBlock& MemoryBlock::operator= (MemoryBlock&& other) noexcept
 {
-    data = static_cast <HeapBlock <char>&&> (other.data);
+    data = static_cast <HeapBlock<char>&&> (other.data);
     size = other.size;
     return *this;
 }
@@ -124,8 +127,7 @@ void MemoryBlock::setSize (const size_t newSize, const bool initialiseToZero)
     {
         if (newSize <= 0)
         {
-            data.free();
-            size = 0;
+            reset();
         }
         else
         {
@@ -144,6 +146,12 @@ void MemoryBlock::setSize (const size_t newSize, const bool initialiseToZero)
             size = newSize;
         }
     }
+}
+
+void MemoryBlock::reset()
+{
+    data.free();
+    size = 0;
 }
 
 void MemoryBlock::ensureSize (const size_t minimumSize, const bool initialiseToZero)
@@ -172,6 +180,16 @@ void MemoryBlock::append (const void* const srcData, const size_t numBytes)
         const size_t oldSize = size;
         setSize (size + numBytes);
         memcpy (data + oldSize, srcData, numBytes);
+    }
+}
+
+void MemoryBlock::replaceWith (const void* const srcData, const size_t numBytes)
+{
+    if (numBytes > 0)
+    {
+        jassert (srcData != nullptr); // this must not be null!
+        setSize (numBytes);
+        memcpy (data, srcData, numBytes);
     }
 }
 
@@ -216,12 +234,12 @@ void MemoryBlock::copyFrom (const void* const src, int offset, size_t num) noexc
     if (offset < 0)
     {
         d -= offset;
-        num -= offset;
+        num += (size_t) -offset;
         offset = 0;
     }
 
-    if (offset + num > size)
-        num = size - offset;
+    if ((size_t) offset + num > size)
+        num = size - (size_t) offset;
 
     if (num > 0)
         memcpy (data + offset, d, num);
@@ -235,14 +253,13 @@ void MemoryBlock::copyTo (void* const dst, int offset, size_t num) const noexcep
     {
         zeromem (d, (size_t) -offset);
         d -= offset;
-
-        num += offset;
+        num -= (size_t) -offset;
         offset = 0;
     }
 
-    if (offset + num > size)
+    if ((size_t) offset + num > size)
     {
-        const size_t newNum = size - offset;
+        const size_t newNum = size - (size_t) offset;
         zeromem (d + newNum, num - newNum);
         num = newNum;
     }
@@ -253,7 +270,7 @@ void MemoryBlock::copyTo (void* const dst, int offset, size_t num) const noexcep
 
 String MemoryBlock::toString() const
 {
-    return String (CharPointer_UTF8 (data), size);
+    return String::fromUTF8 (data, (int) size);
 }
 
 //==============================================================================
@@ -262,12 +279,12 @@ int MemoryBlock::getBitRange (const size_t bitRangeStart, size_t numBits) const 
     int res = 0;
 
     size_t byte = bitRangeStart >> 3;
-    int offsetInByte = (int) bitRangeStart & 7;
+    size_t offsetInByte = bitRangeStart & 7;
     size_t bitsSoFar = 0;
 
     while (numBits > 0 && (size_t) byte < size)
     {
-        const int bitsThisTime = jmin ((int) numBits, 8 - offsetInByte);
+        const size_t bitsThisTime = jmin (numBits, 8 - offsetInByte);
         const int mask = (0xff >> (8 - bitsThisTime)) << offsetInByte;
 
         res |= (((data[byte] & mask) >> offsetInByte) << bitsSoFar);
@@ -284,17 +301,17 @@ int MemoryBlock::getBitRange (const size_t bitRangeStart, size_t numBits) const 
 void MemoryBlock::setBitRange (const size_t bitRangeStart, size_t numBits, int bitsToSet) noexcept
 {
     size_t byte = bitRangeStart >> 3;
-    int offsetInByte = (int) bitRangeStart & 7;
-    unsigned int mask = ~((((unsigned int) 0xffffffff) << (32 - numBits)) >> (32 - numBits));
+    size_t offsetInByte = bitRangeStart & 7;
+    uint32 mask = ~((((uint32) 0xffffffff) << (32 - numBits)) >> (32 - numBits));
 
     while (numBits > 0 && (size_t) byte < size)
     {
-        const int bitsThisTime = jmin ((int) numBits, 8 - offsetInByte);
+        const size_t bitsThisTime = jmin (numBits, 8 - offsetInByte);
 
-        const unsigned int tempMask = (mask << offsetInByte) | ~((((unsigned int) 0xffffffff) >> offsetInByte) << offsetInByte);
-        const unsigned int tempBits = (unsigned int) bitsToSet << offsetInByte;
+        const uint32 tempMask = (mask << offsetInByte) | ~((((uint32) 0xffffffff) >> offsetInByte) << offsetInByte);
+        const uint32 tempBits = (uint32) bitsToSet << offsetInByte;
 
-        data[byte] = (char) ((data[byte] & tempMask) | tempBits);
+        data[byte] = (char) (((uint32) data[byte] & tempMask) | tempBits);
 
         ++byte;
         numBits -= bitsThisTime;
@@ -305,11 +322,11 @@ void MemoryBlock::setBitRange (const size_t bitRangeStart, size_t numBits, int b
 }
 
 //==============================================================================
-void MemoryBlock::loadFromHexString (const String& hex)
+void MemoryBlock::loadFromHexString (StringRef hex)
 {
     ensureSize ((size_t) hex.length() >> 1);
     char* dest = data;
-    String::CharPointerType t (hex.getCharPointer());
+    String::CharPointerType t (hex.text);
 
     for (;;)
     {
@@ -323,22 +340,11 @@ void MemoryBlock::loadFromHexString (const String& hex)
             {
                 const juce_wchar c = t.getAndAdvance();
 
-                if (c >= '0' && c <= '9')
-                {
-                    byte |= c - '0';
-                    break;
-                }
-                else if (c >= 'a' && c <= 'z')
-                {
-                    byte |= c - ('a' - 10);
-                    break;
-                }
-                else if (c >= 'A' && c <= 'Z')
-                {
-                    byte |= c - ('A' - 10);
-                    break;
-                }
-                else if (c == 0)
+                if (c >= '0' && c <= '9')    { byte |= c - '0';        break; }
+                if (c >= 'a' && c <= 'z')    { byte |= c - ('a' - 10); break; }
+                if (c >= 'A' && c <= 'Z')    { byte |= c - ('A' - 10); break; }
+
+                if (c == 0)
                 {
                     setSize (static_cast <size_t> (dest - data));
                     return;
@@ -351,7 +357,7 @@ void MemoryBlock::loadFromHexString (const String& hex)
 }
 
 //==============================================================================
-const char* const MemoryBlock::encodingTable = ".ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+";
+static const char base64EncodingTable[] = ".ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+";
 
 String MemoryBlock::toBase64Encoding() const
 {
@@ -359,50 +365,52 @@ String MemoryBlock::toBase64Encoding() const
 
     String destString ((unsigned int) size); // store the length, followed by a '.', and then the data.
     const int initialLen = destString.length();
-    destString.preallocateBytes (sizeof (String::CharPointerType::CharType) * (initialLen + 2 + numChars));
+    destString.preallocateBytes (sizeof (String::CharPointerType::CharType) * (size_t) initialLen + 2 + numChars);
 
     String::CharPointerType d (destString.getCharPointer());
     d += initialLen;
     d.write ('.');
 
     for (size_t i = 0; i < numChars; ++i)
-        d.write ((juce_wchar) (uint8) encodingTable [getBitRange (i * 6, 6)]);
+        d.write ((juce_wchar) (uint8) base64EncodingTable [getBitRange (i * 6, 6)]);
 
     d.writeNull();
     return destString;
 }
 
-bool MemoryBlock::fromBase64Encoding (const String& s)
+static const char base64DecodingTable[] =
 {
-    const int startPos = s.indexOfChar ('.') + 1;
+    63, 0, 0, 0, 0, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 0, 0, 0, 0, 0, 0, 0,
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+    0, 0, 0, 0, 0, 0, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52
+};
 
-    if (startPos <= 0)
+bool MemoryBlock::fromBase64Encoding (StringRef s)
+{
+    String::CharPointerType dot (CharacterFunctions::find (s.text, (juce_wchar) '.'));
+
+    if (dot.isEmpty())
         return false;
 
-    const int numBytesNeeded = s.substring (0, startPos - 1).getIntValue();
+    const int numBytesNeeded = String (s.text, dot).getIntValue();
 
     setSize ((size_t) numBytesNeeded, true);
 
-    const int numChars = s.length() - startPos;
-
-    String::CharPointerType srcChars (s.getCharPointer());
-    srcChars += startPos;
+    String::CharPointerType srcChars (dot + 1);
     int pos = 0;
 
-    for (int i = 0; i < numChars; ++i)
+    for (;;)
     {
-        const char c = (char) srcChars.getAndAdvance();
+        int c = (int) srcChars.getAndAdvance();
 
-        for (int j = 0; j < 64; ++j)
+        if (c == 0)
+            return true;
+
+        c -= 43;
+        if (isPositiveAndBelow (c, numElementsInArray (base64DecodingTable)))
         {
-            if (encodingTable[j] == c)
-            {
-                setBitRange ((size_t) pos, 6, j);
-                pos += 6;
-                break;
-            }
+            setBitRange ((size_t) pos, 6, base64DecodingTable [c]);
+            pos += 6;
         }
     }
-
-    return true;
 }

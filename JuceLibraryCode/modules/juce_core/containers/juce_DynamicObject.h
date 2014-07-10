@@ -1,33 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_DYNAMICOBJECT_JUCEHEADER__
-#define __JUCE_DYNAMICOBJECT_JUCEHEADER__
-
-#include "juce_NamedValueSet.h"
-#include "../memory/juce_ReferenceCountedObject.h"
+#ifndef JUCE_DYNAMICOBJECT_H_INCLUDED
+#define JUCE_DYNAMICOBJECT_H_INCLUDED
 
 
 //==============================================================================
@@ -46,9 +46,10 @@ class JUCE_API  DynamicObject  : public ReferenceCountedObject
 public:
     //==============================================================================
     DynamicObject();
+    DynamicObject (const DynamicObject&);
+    ~DynamicObject();
 
-    /** Destructor. */
-    virtual ~DynamicObject();
+    typedef ReferenceCountedObjectPtr<DynamicObject> Ptr;
 
     //==============================================================================
     /** Returns true if the object has a property with this name.
@@ -57,8 +58,7 @@ public:
     virtual bool hasProperty (const Identifier& propertyName) const;
 
     /** Returns a named property.
-
-        This returns a void if no such property exists.
+        This returns var::null if no such property exists.
     */
     virtual var getProperty (const Identifier& propertyName) const;
 
@@ -85,23 +85,16 @@ public:
         This method is virtual to allow more dynamic invocation to used for objects
         where the methods may not already be set as properies.
     */
-    virtual var invokeMethod (const Identifier& methodName,
-                              const var* parameters,
-                              int numParameters);
+    virtual var invokeMethod (Identifier methodName,
+                              const var::NativeFunctionArgs& args);
 
-    /** Sets up a method.
+    /** Adds a method to the class.
 
-        This is basically the same as calling setProperty (methodName, (var::MethodFunction) myFunction), but
+        This is basically the same as calling setProperty (methodName, (var::NativeFunction) myFunction), but
         helps to avoid accidentally invoking the wrong type of var constructor. It also makes
         the code easier to read,
-
-        The compiler will probably force you to use an explicit cast your method to a (var::MethodFunction), e.g.
-        @code
-        setMethod ("doSomething", (var::MethodFunction) &MyClass::doSomething);
-        @endcode
     */
-    void setMethod (const Identifier& methodName,
-                    var::MethodFunction methodFunction);
+    void setMethod (Identifier methodName, var::NativeFunction function);
 
     //==============================================================================
     /** Removes all properties and methods from the object. */
@@ -110,13 +103,37 @@ public:
     /** Returns the NamedValueSet that holds the object's properties. */
     NamedValueSet& getProperties() noexcept     { return properties; }
 
+    /** Calls var::clone() on all the properties that this object contains. */
+    void cloneAllProperties();
+
+    //==============================================================================
+    /** Returns a clone of this object.
+        The default implementation of this method just returns a new DynamicObject
+        with a (deep) copy of all of its properties. Subclasses can override this to
+        implement their own custom copy routines.
+    */
+    virtual Ptr clone();
+
+    //==============================================================================
+    /** Writes this object to a text stream in JSON format.
+        This method is used by JSON::toString and JSON::writeToStream, and you should
+        never need to call it directly, but it's virtual so that custom object types
+        can stringify themselves appropriately.
+    */
+    virtual void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine);
+
 private:
     //==============================================================================
     NamedValueSet properties;
 
-    JUCE_LEAK_DETECTOR (DynamicObject);
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+    // These methods have been deprecated - use var::invoke instead
+    virtual void invokeMethod (const Identifier&, const var*, int) {}
+   #endif
+
+    JUCE_LEAK_DETECTOR (DynamicObject)
 };
 
 
 
-#endif   // __JUCE_DYNAMICOBJECT_JUCEHEADER__
+#endif   // JUCE_DYNAMICOBJECT_H_INCLUDED

@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -31,15 +30,17 @@ Viewport::Viewport (const String& name)
     showHScrollbar (true),
     showVScrollbar (true),
     deleteContent (true),
+    allowScrollingWithoutScrollbarV (false),
+    allowScrollingWithoutScrollbarH (false),
     verticalScrollBar (true),
     horizontalScrollBar (false)
 {
     // content holder is used to clip the contents so they don't overlap the scrollbars
-    addAndMakeVisible (&contentHolder);
+    addAndMakeVisible (contentHolder);
     contentHolder.setInterceptsMouseClicks (false, true);
 
-    addChildComponent (&verticalScrollBar);
-    addChildComponent (&horizontalScrollBar);
+    addChildComponent (verticalScrollBar);
+    addChildComponent (horizontalScrollBar);
 
     verticalScrollBar.addListener (this);
     horizontalScrollBar.addListener (this);
@@ -98,7 +99,7 @@ void Viewport::setViewedComponent (Component* const newViewedComponent, const bo
 int Viewport::getMaximumVisibleWidth() const    { return contentHolder.getWidth(); }
 int Viewport::getMaximumVisibleHeight() const   { return contentHolder.getHeight(); }
 
-Point<int> Viewport::viewportPosToCompPos (const Point<int>& pos) const
+Point<int> Viewport::viewportPosToCompPos (Point<int> pos) const
 {
     jassert (contentComp != nullptr);
     return Point<int> (jmax (jmin (0, contentHolder.getWidth()  - contentComp->getWidth()),  jmin (0, -(pos.x))),
@@ -110,7 +111,7 @@ void Viewport::setViewPosition (const int xPixelsOffset, const int yPixelsOffset
     setViewPosition (Point<int> (xPixelsOffset, yPixelsOffset));
 }
 
-void Viewport::setViewPosition (const Point<int>& newPosition)
+void Viewport::setViewPosition (Point<int> newPosition)
 {
     if (contentComp != nullptr)
         contentComp->setTopLeftPosition (viewportPosToCompPos (newPosition));
@@ -235,31 +236,23 @@ void Viewport::updateVisibleArea()
 
     Point<int> visibleOrigin (-contentBounds.getPosition());
 
-    if (hBarVisible)
-    {
-        horizontalScrollBar.setBounds (0, contentArea.getHeight(), contentArea.getWidth(), scrollbarWidth);
-        horizontalScrollBar.setRangeLimits (0.0, contentBounds.getWidth());
-        horizontalScrollBar.setCurrentRange (visibleOrigin.x, contentArea.getWidth());
-        horizontalScrollBar.setSingleStepSize (singleStepX);
-        horizontalScrollBar.cancelPendingUpdate();
-    }
-    else if (canShowHBar)
-    {
-        visibleOrigin.setX (0);
-    }
+    horizontalScrollBar.setBounds (0, contentArea.getHeight(), contentArea.getWidth(), scrollbarWidth);
+    horizontalScrollBar.setRangeLimits (0.0, contentBounds.getWidth());
+    horizontalScrollBar.setCurrentRange (visibleOrigin.x, contentArea.getWidth());
+    horizontalScrollBar.setSingleStepSize (singleStepX);
+    horizontalScrollBar.cancelPendingUpdate();
 
-    if (vBarVisible)
-    {
-        verticalScrollBar.setBounds (contentArea.getWidth(), 0, scrollbarWidth, contentArea.getHeight());
-        verticalScrollBar.setRangeLimits (0.0, contentBounds.getHeight());
-        verticalScrollBar.setCurrentRange (visibleOrigin.y, contentArea.getHeight());
-        verticalScrollBar.setSingleStepSize (singleStepY);
-        verticalScrollBar.cancelPendingUpdate();
-    }
-    else if (canShowVBar)
-    {
+    if (canShowHBar && ! hBarVisible)
+        visibleOrigin.setX (0);
+
+    verticalScrollBar.setBounds (contentArea.getWidth(), 0, scrollbarWidth, contentArea.getHeight());
+    verticalScrollBar.setRangeLimits (0.0, contentBounds.getHeight());
+    verticalScrollBar.setCurrentRange (visibleOrigin.y, contentArea.getHeight());
+    verticalScrollBar.setSingleStepSize (singleStepY);
+    verticalScrollBar.cancelPendingUpdate();
+
+    if (canShowVBar && ! vBarVisible)
         visibleOrigin.setY (0);
-    }
 
     // Force the visibility *after* setting the ranges to avoid flicker caused by edge conditions in the numbers.
     horizontalScrollBar.setVisible (hBarVisible);
@@ -302,8 +295,13 @@ void Viewport::setSingleStepSizes (const int stepX, const int stepY)
 }
 
 void Viewport::setScrollBarsShown (const bool showVerticalScrollbarIfNeeded,
-                                   const bool showHorizontalScrollbarIfNeeded)
+                                   const bool showHorizontalScrollbarIfNeeded,
+                                   const bool allowVerticalScrollingWithoutScrollbar,
+                                   const bool allowHorizontalScrollingWithoutScrollbar)
 {
+    allowScrollingWithoutScrollbarV = allowVerticalScrollingWithoutScrollbar;
+    allowScrollingWithoutScrollbarH = allowHorizontalScrollingWithoutScrollbar;
+
     if (showVScrollbar != showVerticalScrollbarIfNeeded
          || showHScrollbar != showHorizontalScrollbarIfNeeded)
     {
@@ -328,12 +326,6 @@ int Viewport::getScrollBarThickness() const
                                   : getLookAndFeel().getDefaultScrollbarWidth();
 }
 
-void Viewport::setScrollBarButtonVisibility (const bool buttonsVisible)
-{
-    verticalScrollBar.setButtonVisibility (buttonsVisible);
-    horizontalScrollBar.setButtonVisibility (buttonsVisible);
-}
-
 void Viewport::scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
     const int newRangeStartInt = roundToInt (newRangeStart);
@@ -348,50 +340,50 @@ void Viewport::scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRange
     }
 }
 
-void Viewport::mouseWheelMove (const MouseEvent& e, const float wheelIncrementX, const float wheelIncrementY)
+void Viewport::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& wheel)
 {
-    if (! useMouseWheelMoveIfNeeded (e, wheelIncrementX, wheelIncrementY))
-        Component::mouseWheelMove (e, wheelIncrementX, wheelIncrementY);
+    if (! useMouseWheelMoveIfNeeded (e, wheel))
+        Component::mouseWheelMove (e, wheel);
 }
 
-bool Viewport::useMouseWheelMoveIfNeeded (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY)
+static float rescaleMouseWheelDistance (float distance, int singleStepSize) noexcept
 {
-    if (! (e.mods.isAltDown() || e.mods.isCtrlDown()))
+    if (distance == 0)
+        return 0;
+
+    distance *= 14.0f * singleStepSize;
+
+    return distance < 0 ? jmin (distance, -1.0f)
+                        : jmax (distance,  1.0f);
+}
+
+bool Viewport::useMouseWheelMoveIfNeeded (const MouseEvent& e, const MouseWheelDetails& wheel)
+{
+    if (! (e.mods.isAltDown() || e.mods.isCtrlDown() || e.mods.isCommandDown()))
     {
-        const bool hasVertBar = verticalScrollBar.isVisible();
-        const bool hasHorzBar = horizontalScrollBar.isVisible();
+        const bool canScrollVert = (allowScrollingWithoutScrollbarV || verticalScrollBar.isVisible());
+        const bool canScrollHorz = (allowScrollingWithoutScrollbarH || horizontalScrollBar.isVisible());
 
-        if (hasHorzBar || hasVertBar)
+        if (canScrollHorz || canScrollVert)
         {
-            if (wheelIncrementX != 0)
-            {
-                wheelIncrementX *= 14.0f * singleStepX;
-                wheelIncrementX = (wheelIncrementX < 0) ? jmin (wheelIncrementX, -1.0f)
-                                                        : jmax (wheelIncrementX, 1.0f);
-            }
-
-            if (wheelIncrementY != 0)
-            {
-                wheelIncrementY *= 14.0f * singleStepY;
-                wheelIncrementY = (wheelIncrementY < 0) ? jmin (wheelIncrementY, -1.0f)
-                                                        : jmax (wheelIncrementY, 1.0f);
-            }
+            float wheelIncrementX = rescaleMouseWheelDistance (wheel.deltaX, singleStepX);
+            float wheelIncrementY = rescaleMouseWheelDistance (wheel.deltaY, singleStepY);
 
             Point<int> pos (getViewPosition());
 
-            if (wheelIncrementX != 0 && wheelIncrementY != 0 && hasHorzBar && hasVertBar)
+            if (wheelIncrementX != 0 && wheelIncrementY != 0 && canScrollHorz && canScrollVert)
             {
                 pos.setX (pos.x - roundToInt (wheelIncrementX));
                 pos.setY (pos.y - roundToInt (wheelIncrementY));
             }
-            else if (hasHorzBar && (wheelIncrementX != 0 || e.mods.isShiftDown() || ! hasVertBar))
+            else if (canScrollHorz && (wheelIncrementX != 0 || e.mods.isShiftDown() || ! canScrollVert))
             {
-                if (wheelIncrementX == 0 && ! hasVertBar)
+                if (wheelIncrementX == 0 && ! canScrollVert)
                     wheelIncrementX = wheelIncrementY;
 
                 pos.setX (pos.x - roundToInt (wheelIncrementX));
             }
-            else if (hasVertBar && wheelIncrementY != 0)
+            else if (canScrollVert && wheelIncrementY != 0)
             {
                 pos.setY (pos.y - roundToInt (wheelIncrementY));
             }
@@ -407,20 +399,30 @@ bool Viewport::useMouseWheelMoveIfNeeded (const MouseEvent& e, float wheelIncrem
     return false;
 }
 
+static bool isUpDownKeyPress (const KeyPress& key)
+{
+    return key == KeyPress::upKey
+        || key == KeyPress::downKey
+        || key == KeyPress::pageUpKey
+        || key == KeyPress::pageDownKey
+        || key == KeyPress::homeKey
+        || key == KeyPress::endKey;
+}
+
+static bool isLeftRightKeyPress (const KeyPress& key)
+{
+    return key == KeyPress::leftKey
+        || key == KeyPress::rightKey;
+}
+
 bool Viewport::keyPressed (const KeyPress& key)
 {
-    const bool isUpDownKey = key.isKeyCode (KeyPress::upKey)
-                                || key.isKeyCode (KeyPress::downKey)
-                                || key.isKeyCode (KeyPress::pageUpKey)
-                                || key.isKeyCode (KeyPress::pageDownKey)
-                                || key.isKeyCode (KeyPress::homeKey)
-                                || key.isKeyCode (KeyPress::endKey);
+    const bool isUpDownKey = isUpDownKeyPress (key);
 
     if (verticalScrollBar.isVisible() && isUpDownKey)
         return verticalScrollBar.keyPressed (key);
 
-    const bool isLeftRightKey = key.isKeyCode (KeyPress::leftKey)
-                                 || key.isKeyCode (KeyPress::rightKey);
+    const bool isLeftRightKey = isLeftRightKeyPress (key);
 
     if (horizontalScrollBar.isVisible() && (isUpDownKey || isLeftRightKey))
         return horizontalScrollBar.keyPressed (key);
@@ -428,15 +430,7 @@ bool Viewport::keyPressed (const KeyPress& key)
     return false;
 }
 
-//==============================================================================
-const Identifier Viewport::Ids::showScrollBarV ("showScrollBarV");
-const Identifier Viewport::Ids::showScrollBarH ("showScrollBarH");
-const Identifier Viewport::Ids::scrollBarWidth ("scrollBarWidth");
-
-void Viewport::refreshFromValueTree (const ValueTree& state, ComponentBuilder&)
+bool Viewport::respondsToKey (const KeyPress& key)
 {
-    ComponentBuilder::refreshBasicComponentProperties (*this, state);
-
-    setScrollBarsShown (state [Ids::showScrollBarV], state [Ids::showScrollBarH]);
-    setScrollBarThickness (state [Ids::scrollBarWidth]);
+    return isUpDownKeyPress (key) || isLeftRightKeyPress (key);
 }

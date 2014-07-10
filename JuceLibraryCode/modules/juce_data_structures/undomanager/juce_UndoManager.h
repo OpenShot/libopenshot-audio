@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_UNDOMANAGER_JUCEHEADER__
-#define __JUCE_UNDOMANAGER_JUCEHEADER__
-
-#include "juce_UndoableAction.h"
+#ifndef JUCE_UNDOMANAGER_H_INCLUDED
+#define JUCE_UNDOMANAGER_H_INCLUDED
 
 
 //==============================================================================
@@ -77,7 +74,6 @@ public:
     void clearUndoHistory();
 
     /** Returns the current amount of space to use for storing UndoableAction objects.
-
         @see setMaxNumberOfStoredUnits
     */
     int getNumberOfUnitsTakenUpByStoredCommands() const;
@@ -111,7 +107,7 @@ public:
         @see beginNewTransaction
     */
     bool perform (UndoableAction* action,
-                  const String& actionName = String::empty);
+                  const String& actionName = String());
 
     /** Starts a new group of actions that together will be treated as a single transaction.
 
@@ -122,7 +118,7 @@ public:
         @param actionName   a description of the transaction that is about to be
                             performed
     */
-    void beginNewTransaction (const String& actionName = String::empty);
+    void beginNewTransaction (const String& actionName = String());
 
     /** Changes the name stored for the current transaction.
 
@@ -134,7 +130,6 @@ public:
 
     //==============================================================================
     /** Returns true if there's at least one action in the list to undo.
-
         @see getUndoDescription, undo, canRedo
     */
     bool canUndo() const;
@@ -149,7 +144,6 @@ public:
     String getUndoDescription() const;
 
     /** Tries to roll-back the last transaction.
-
         @returns    true if the transaction can be undone, and false if it fails, or
                     if there aren't any transactions to undo
     */
@@ -186,15 +180,23 @@ public:
     */
     int getNumActionsInCurrentTransaction() const;
 
+    /** Returns the time to which the state would be restored if undo() was to be called.
+        If an undo isn't currently possible, it'll return Time().
+    */
+    Time getTimeOfUndoTransaction() const;
+
+    /** Returns the time to which the state would be restored if redo() was to be called.
+        If a redo isn't currently possible, it'll return Time::getCurrentTime().
+    */
+    Time getTimeOfRedoTransaction() const;
+
     //==============================================================================
     /** Returns true if there's at least one action in the list to redo.
-
         @see getRedoDescription, redo, canUndo
     */
     bool canRedo() const;
 
     /** Returns the description of the transaction that would be next to get redone.
-
         The description returned is the one that was passed into beginNewTransaction
         before the set of actions was performed.
 
@@ -203,23 +205,26 @@ public:
     String getRedoDescription() const;
 
     /** Tries to redo the last transaction that was undone.
-
-        @returns    true if the transaction can be redone, and false if it fails, or
-                    if there aren't any transactions to redo
+        @returns   true if the transaction can be redone, and false if it fails, or
+                   if there aren't any transactions to redo
     */
     bool redo();
 
 
 private:
     //==============================================================================
-    OwnedArray <OwnedArray <UndoableAction> > transactions;
-    StringArray transactionNames;
+    struct ActionSet;
+    friend struct ContainerDeletePolicy<ActionSet>;
+    OwnedArray<ActionSet> transactions;
     String currentTransactionName;
     int totalUnitsStored, maxNumUnitsToKeep, minimumTransactionsToKeep, nextIndex;
     bool newTransaction, reentrancyCheck;
+    ActionSet* getCurrentSet() const noexcept;
+    ActionSet* getNextSet() const noexcept;
+    void clearFutureTransactions();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (UndoManager);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (UndoManager)
 };
 
 
-#endif   // __JUCE_UNDOMANAGER_JUCEHEADER__
+#endif   // JUCE_UNDOMANAGER_H_INCLUDED

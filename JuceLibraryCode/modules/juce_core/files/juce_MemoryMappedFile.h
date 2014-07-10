@@ -1,32 +1,34 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MEMORYMAPPEDFILE_JUCEHEADER__
-#define __JUCE_MEMORYMAPPEDFILE_JUCEHEADER__
+#ifndef JUCE_MEMORYMAPPEDFILE_H_INCLUDED
+#define JUCE_MEMORYMAPPEDFILE_H_INCLUDED
 
-#include "juce_File.h"
 
 //==============================================================================
 /**
@@ -57,6 +59,26 @@ public:
     */
     MemoryMappedFile (const File& file, AccessMode mode);
 
+    /** Opens a section of a file and maps it to an area of virtual memory.
+
+        The file should already exist, and should already be the size that you want to work with
+        when you call this. If the file is resized after being opened, the behaviour is undefined.
+
+        If the file exists and the operation succeeds, the getData() and getSize() methods will
+        return the location and size of the data that can be read or written. Note that the entire
+        file is not read into memory immediately - the OS simply creates a virtual mapping, which
+        will lazily pull the data into memory when blocks are accessed.
+
+        If the file can't be opened for some reason, the getData() method will return a null pointer.
+
+        NOTE: the start of the actual range used may be rounded-down to a multiple of the OS's page-size,
+        so do not assume that the mapped memory will begin at exactly the position you requested - always
+        use getRange() to check the actual range that is being used.
+    */
+    MemoryMappedFile (const File& file,
+                      const Range<int64>& fileRange,
+                      AccessMode mode);
+
     /** Destructor. */
     ~MemoryMappedFile();
 
@@ -68,13 +90,15 @@ public:
     /** Returns the number of bytes of data that are available for reading or writing.
         This will normally be the size of the file.
     */
-    size_t getSize() const noexcept             { return length; }
+    size_t getSize() const noexcept             { return (size_t) range.getLength(); }
 
+    /** Returns the section of the file at which the mapped memory represents. */
+    Range<int64> getRange() const noexcept      { return range; }
 
 private:
     //==============================================================================
     void* address;
-    size_t length;
+    Range<int64> range;
 
    #if JUCE_WINDOWS
     void* fileHandle;
@@ -82,8 +106,10 @@ private:
     int fileHandle;
    #endif
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MemoryMappedFile);
+    void openInternal (const File&, AccessMode);
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MemoryMappedFile)
 };
 
 
-#endif   // __JUCE_MEMORYMAPPEDFILE_JUCEHEADER__
+#endif   // JUCE_MEMORYMAPPEDFILE_H_INCLUDED

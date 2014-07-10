@@ -1,35 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_FILELISTCOMPONENT_JUCEHEADER__
-#define __JUCE_FILELISTCOMPONENT_JUCEHEADER__
-
-#include "juce_DirectoryContentsDisplayComponent.h"
-#include "juce_FileBrowserListener.h"
-#include "../widgets/juce_ListBox.h"
-#include "../widgets/juce_TreeView.h"
+#ifndef JUCE_FILELISTCOMPONENT_H_INCLUDED
+#define JUCE_FILELISTCOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -80,28 +74,23 @@ public:
         (and if the file isn't in the list, all other items will be deselected). */
     void setSelectedFile (const File&);
 
-    //==============================================================================
-    /** @internal */
-    void changeListenerCallback (ChangeBroadcaster*);
-    /** @internal */
-    int getNumRows();
-    /** @internal */
-    void paintListBoxItem (int, Graphics&, int, int, bool);
-    /** @internal */
-    Component* refreshComponentForRow (int rowNumber, bool isRowSelected, Component* existingComponentToUpdate);
-    /** @internal */
-    void selectedRowsChanged (int lastRowSelected);
-    /** @internal */
-    void deleteKeyPressed (int currentSelectedRow);
-    /** @internal */
-    void returnKeyPressed (int currentSelectedRow);
-
 private:
     //==============================================================================
     File lastDirectory;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListComponent);
+    class ItemComponent;
+
+    void changeListenerCallback (ChangeBroadcaster*) override;
+
+    int getNumRows() override;
+    void paintListBoxItem (int, Graphics&, int, int, bool) override;
+    Component* refreshComponentForRow (int rowNumber, bool isRowSelected, Component* existingComponentToUpdate) override;
+    void selectedRowsChanged (int lastRowSelected) override;
+    void deleteKeyPressed (int currentSelectedRow) override;
+    void returnKeyPressed (int currentSelectedRow) override;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListComponent)
 };
 
 
-#endif   // __JUCE_FILELISTCOMPONENT_JUCEHEADER__
+#endif   // JUCE_FILELISTCOMPONENT_H_INCLUDED

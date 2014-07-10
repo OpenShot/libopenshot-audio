@@ -1,30 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_TARGETPLATFORM_JUCEHEADER__
-#define __JUCE_TARGETPLATFORM_JUCEHEADER__
+#ifndef JUCE_TARGETPLATFORM_H_INCLUDED
+#define JUCE_TARGETPLATFORM_H_INCLUDED
 
 //==============================================================================
 /*  This file figures out which platform is being built, and defines some macros
@@ -61,6 +64,8 @@
   #else
     #define     JUCE_MAC 1
   #endif
+#elif defined (__FreeBSD__)
+  #define       JUCE_BSD 1
 #else
   #error "Unknown platform!"
 #endif
@@ -81,6 +86,11 @@
 
   #ifdef __MINGW32__
     #define JUCE_MINGW 1
+    #ifdef __MINGW64__
+      #define JUCE_64BIT 1
+    #else
+      #define JUCE_32BIT 1
+    #endif
   #endif
 
   /** If defined, this indicates that the processor is little-endian. */
@@ -105,15 +115,6 @@
   #else
     #define JUCE_BIG_ENDIAN 1
   #endif
-#endif
-
-#if JUCE_MAC
-
-  #if defined (__ppc__) || defined (__ppc64__)
-    #define JUCE_PPC 1
-  #else
-    #define JUCE_INTEL 1
-  #endif
 
   #ifdef __LP64__
     #define JUCE_64BIT 1
@@ -121,14 +122,21 @@
     #define JUCE_32BIT 1
   #endif
 
-  #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_4
+  #if defined (__ppc__) || defined (__ppc64__)
+    #define JUCE_PPC 1
+  #elif defined (__arm__) || defined (__arm64__)
+    #define JUCE_ARM 1
+  #else
+    #define JUCE_INTEL 1
+  #endif
+
+  #if JUCE_MAC && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_4
     #error "Building for OSX 10.3 is no longer supported!"
   #endif
 
-  #ifndef MAC_OS_X_VERSION_10_5
+  #if JUCE_MAC && ! defined (MAC_OS_X_VERSION_10_5)
     #error "To build with 10.4 compatibility, use a 10.5 or 10.6 SDK and set the deployment target to 10.4"
   #endif
-
 #endif
 
 //==============================================================================
@@ -153,7 +161,9 @@
     #define JUCE_32BIT 1
   #endif
 
-  #if __MMX__ || __SSE__ || __amd64__
+  #if defined (__arm__) || defined (__arm64__)
+    #define JUCE_ARM 1
+  #elif __MMX__ || __SSE__ || __amd64__
     #define JUCE_INTEL 1
   #endif
 #endif
@@ -161,7 +171,10 @@
 //==============================================================================
 // Compiler type macros.
 
-#ifdef __GNUC__
+#ifdef __clang__
+ #define JUCE_CLANG 1
+ #define JUCE_GCC 1
+#elif defined (__GNUC__)
   #define JUCE_GCC 1
 #elif defined (_MSC_VER)
   #define JUCE_MSVC 1
@@ -185,5 +198,4 @@
   #error unknown compiler
 #endif
 
-
-#endif   // __JUCE_TARGETPLATFORM_JUCEHEADER__
+#endif   // JUCE_TARGETPLATFORM_H_INCLUDED

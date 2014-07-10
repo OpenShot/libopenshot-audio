@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -27,7 +26,8 @@ PluginDescription::PluginDescription()
     : uid (0),
       isInstrument (false),
       numInputChannels (0),
-      numOutputChannels (0)
+      numOutputChannels (0),
+      hasSharedContainer (false)
 {
 }
 
@@ -47,7 +47,8 @@ PluginDescription::PluginDescription (const PluginDescription& other)
       uid (other.uid),
       isInstrument (other.isInstrument),
       numInputChannels (other.numInputChannels),
-      numOutputChannels (other.numOutputChannels)
+      numOutputChannels (other.numOutputChannels),
+      hasSharedContainer (other.hasSharedContainer)
 {
 }
 
@@ -65,6 +66,7 @@ PluginDescription& PluginDescription::operator= (const PluginDescription& other)
     lastFileModTime = other.lastFileModTime;
     numInputChannels = other.numInputChannels;
     numOutputChannels = other.numOutputChannels;
+    hasSharedContainer = other.hasSharedContainer;
 
     return *this;
 }
@@ -100,6 +102,7 @@ XmlElement* PluginDescription::createXml() const
     e->setAttribute ("fileTime", String::toHexString (lastFileModTime.toMilliseconds()));
     e->setAttribute ("numInputs", numInputChannels);
     e->setAttribute ("numOutputs", numOutputChannels);
+    e->setAttribute ("isShell", hasSharedContainer);
 
     return e;
 }
@@ -120,6 +123,7 @@ bool PluginDescription::loadFromXml (const XmlElement& xml)
         lastFileModTime     = Time (xml.getStringAttribute ("fileTime").getHexValue64());
         numInputChannels    = xml.getIntAttribute ("numInputs");
         numOutputChannels   = xml.getIntAttribute ("numOutputs");
+        hasSharedContainer  = xml.getBoolAttribute ("isShell", false);
 
         return true;
     }

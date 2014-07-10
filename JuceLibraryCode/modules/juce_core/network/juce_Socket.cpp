@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -34,8 +37,10 @@
 
 #if JUCE_WINDOWS
  typedef int       juce_socklen_t;
+ typedef SOCKET    SocketHandle;
 #else
  typedef socklen_t juce_socklen_t;
+ typedef int       SocketHandle;
 #endif
 
 //==============================================================================
@@ -57,7 +62,7 @@ namespace SocketHelpers
        #endif
     }
 
-    static bool resetSocketOptions (const int handle, const bool isDatagram, const bool allowBroadcast) noexcept
+    static bool resetSocketOptions (const SocketHandle handle, const bool isDatagram, const bool allowBroadcast) noexcept
     {
         const int sndBufSize = 65536;
         const int rcvBufSize = 65536;
@@ -70,12 +75,13 @@ namespace SocketHelpers
                                : (setsockopt (handle, IPPROTO_TCP, TCP_NODELAY, (const char*) &one, sizeof (one)) == 0));
     }
 
-    static bool bindSocketToPort (const int handle, const int port) noexcept
+    static bool bindSocketToPort (const SocketHandle handle, const int port) noexcept
     {
         if (handle <= 0 || port <= 0)
             return false;
 
-        struct sockaddr_in servTmpAddr = { 0 };
+        struct sockaddr_in servTmpAddr;
+        zerostruct (servTmpAddr); // (can't use "= { 0 }" on this object because it's typedef'ed as a C struct)
         servTmpAddr.sin_family = PF_INET;
         servTmpAddr.sin_addr.s_addr = htonl (INADDR_ANY);
         servTmpAddr.sin_port = htons ((uint16) port);
@@ -83,7 +89,7 @@ namespace SocketHelpers
         return bind (handle, (struct sockaddr*) &servTmpAddr, sizeof (struct sockaddr_in)) >= 0;
     }
 
-    static int readSocket (const int handle,
+    static int readSocket (const SocketHandle handle,
                            void* const destBuffer, const int maxBytesToRead,
                            bool volatile& connected,
                            const bool blockUntilSpecifiedAmountHasArrived) noexcept
@@ -97,7 +103,8 @@ namespace SocketHelpers
            #if JUCE_WINDOWS
             bytesThisTime = recv (handle, static_cast<char*> (destBuffer) + bytesRead, maxBytesToRead - bytesRead, 0);
            #else
-            while ((bytesThisTime = (int) ::read (handle, addBytesToPointer (destBuffer, bytesRead), maxBytesToRead - bytesRead)) < 0
+            while ((bytesThisTime = (int) ::read (handle, addBytesToPointer (destBuffer, bytesRead),
+                                                  (size_t) (maxBytesToRead - bytesRead))) < 0
                      && errno == EINTR
                      && connected)
             {
@@ -121,7 +128,7 @@ namespace SocketHelpers
         return bytesRead;
     }
 
-    static int waitForReadiness (const int handle, const bool forReading, const int timeoutMsecs) noexcept
+    static int waitForReadiness (const SocketHandle handle, const bool forReading, const int timeoutMsecs) noexcept
     {
         struct timeval timeout;
         struct timeval* timeoutp;
@@ -147,7 +154,7 @@ namespace SocketHelpers
         fd_set* const pwset = forReading ? nullptr : &wset;
 
        #if JUCE_WINDOWS
-        if (select (handle + 1, prset, pwset, 0, timeoutp) < 0)
+        if (select ((int) handle + 1, prset, pwset, 0, timeoutp) < 0)
             return -1;
        #else
         {
@@ -174,7 +181,7 @@ namespace SocketHelpers
         return FD_ISSET (handle, forReading ? &rset : &wset) ? 1 : 0;
     }
 
-    static bool setSocketBlockingState (const int handle, const bool shouldBlock) noexcept
+    static bool setSocketBlockingState (const SocketHandle handle, const bool shouldBlock) noexcept
     {
        #if JUCE_WINDOWS
         u_long nonBlocking = shouldBlock ? 0 : (u_long) 1;
@@ -201,7 +208,9 @@ namespace SocketHelpers
                                const int portNumber,
                                const int timeOutMillisecs) noexcept
     {
-        struct addrinfo hints = { 0 };
+        struct addrinfo hints;
+        zerostruct (hints);
+
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = isDatagram ? SOCK_DGRAM : SOCK_STREAM;
         hints.ai_flags = AI_NUMERICSERV;
@@ -230,7 +239,7 @@ namespace SocketHelpers
         }
 
         setSocketBlockingState (handle, false);
-        const int result = ::connect (handle, info->ai_addr, (int) info->ai_addrlen);
+        const int result = ::connect (handle, info->ai_addr, (socklen_t) info->ai_addrlen);
         freeaddrinfo (info);
 
         if (result < 0)
@@ -266,17 +275,15 @@ StreamingSocket::StreamingSocket()
     SocketHelpers::initSockets();
 }
 
-StreamingSocket::StreamingSocket (const String& hostName_,
-                                  const int portNumber_,
-                                  const int handle_)
-    : hostName (hostName_),
-      portNumber (portNumber_),
-      handle (handle_),
+StreamingSocket::StreamingSocket (const String& host, int portNum, int h)
+    : hostName (host),
+      portNumber (portNum),
+      handle (h),
       connected (true),
       isListener (false)
 {
     SocketHelpers::initSockets();
-    SocketHelpers::resetSocketOptions (handle_, false, false);
+    SocketHelpers::resetSocketOptions (h, false, false);
 }
 
 StreamingSocket::~StreamingSocket()
@@ -285,9 +292,11 @@ StreamingSocket::~StreamingSocket()
 }
 
 //==============================================================================
-int StreamingSocket::read (void* destBuffer, const int maxBytesToRead, const bool blockUntilSpecifiedAmountHasArrived)
+int StreamingSocket::read (void* destBuffer, const int maxBytesToRead,
+                           const bool blockUntilSpecifiedAmountHasArrived)
 {
-    return (connected && ! isListener) ? SocketHelpers::readSocket (handle, destBuffer, maxBytesToRead, connected, blockUntilSpecifiedAmountHasArrived)
+    return (connected && ! isListener) ? SocketHelpers::readSocket (handle, destBuffer, maxBytesToRead,
+                                                                    connected, blockUntilSpecifiedAmountHasArrived)
                                        : -1;
 }
 
@@ -301,7 +310,7 @@ int StreamingSocket::write (const void* sourceBuffer, const int numBytesToWrite)
    #else
     int result;
 
-    while ((result = (int) ::write (handle, sourceBuffer, numBytesToWrite)) < 0
+    while ((result = (int) ::write (handle, sourceBuffer, (size_t) numBytesToWrite)) < 0
             && errno == EINTR)
     {
     }
@@ -377,7 +386,7 @@ void StreamingSocket::close()
         ::close (handle);
    #endif
 
-    hostName = String::empty;
+    hostName.clear();
     portNumber = 0;
     handle = -1;
     isListener = false;
@@ -393,7 +402,9 @@ bool StreamingSocket::createListener (const int newPortNumber, const String& loc
     portNumber = newPortNumber;
     isListener = true;
 
-    struct sockaddr_in servTmpAddr = { 0 };
+    struct sockaddr_in servTmpAddr;
+    zerostruct (servTmpAddr);
+
     servTmpAddr.sin_family = PF_INET;
     servTmpAddr.sin_addr.s_addr = htonl (INADDR_ANY);
 
@@ -423,8 +434,9 @@ bool StreamingSocket::createListener (const int newPortNumber, const String& loc
 
 StreamingSocket* StreamingSocket::waitForNextConnection() const
 {
-    jassert (isListener || ! connected); // to call this method, you first have to use createListener() to
-                                         // prepare this socket as a listener.
+    // To call this method, you first have to use createListener() to
+    // prepare this socket as a listener.
+    jassert (isListener || ! connected);
 
     if (connected && isListener)
     {
@@ -448,11 +460,11 @@ bool StreamingSocket::isLocal() const noexcept
 
 //==============================================================================
 //==============================================================================
-DatagramSocket::DatagramSocket (const int localPortNumber, const bool allowBroadcast_)
+DatagramSocket::DatagramSocket (const int localPortNumber, const bool canBroadcast)
     : portNumber (0),
       handle (-1),
       connected (true),
-      allowBroadcast (allowBroadcast_),
+      allowBroadcast (canBroadcast),
       serverAddress (nullptr)
 {
     SocketHelpers::initSockets();
@@ -461,18 +473,18 @@ DatagramSocket::DatagramSocket (const int localPortNumber, const bool allowBroad
     bindToPort (localPortNumber);
 }
 
-DatagramSocket::DatagramSocket (const String& hostName_, const int portNumber_,
-                                const int handle_, const int localPortNumber)
-    : hostName (hostName_),
-      portNumber (portNumber_),
-      handle (handle_),
+DatagramSocket::DatagramSocket (const String& host, const int portNum,
+                                const int h, const int localPortNumber)
+    : hostName (host),
+      portNumber (portNum),
+      handle (h),
       connected (true),
       allowBroadcast (false),
       serverAddress (nullptr)
 {
     SocketHelpers::initSockets();
 
-    SocketHelpers::resetSocketOptions (handle_, true, allowBroadcast);
+    SocketHelpers::resetSocketOptions (h, true, allowBroadcast);
     bindToPort (localPortNumber);
 }
 
@@ -494,7 +506,7 @@ void DatagramSocket::close()
     ::close (handle);
    #endif
 
-    hostName = String::empty;
+    hostName.clear();
     portNumber = 0;
     handle = -1;
 }
@@ -554,7 +566,8 @@ int DatagramSocket::waitUntilReady (const bool readyForReading,
 
 int DatagramSocket::read (void* destBuffer, const int maxBytesToRead, const bool blockUntilSpecifiedAmountHasArrived)
 {
-    return connected ? SocketHelpers::readSocket (handle, destBuffer, maxBytesToRead, connected, blockUntilSpecifiedAmountHasArrived)
+    return connected ? SocketHelpers::readSocket (handle, destBuffer, maxBytesToRead,
+                                                  connected, blockUntilSpecifiedAmountHasArrived)
                      : -1;
 }
 
@@ -564,9 +577,9 @@ int DatagramSocket::write (const void* sourceBuffer, const int numBytesToWrite)
     jassert (serverAddress != nullptr && connected);
 
     return connected ? (int) sendto (handle, (const char*) sourceBuffer,
-                                     numBytesToWrite, 0,
+                                     (size_t) numBytesToWrite, 0,
                                      static_cast <const struct addrinfo*> (serverAddress)->ai_addr,
-                                     static_cast <const struct addrinfo*> (serverAddress)->ai_addrlen)
+                                     (juce_socklen_t) static_cast <const struct addrinfo*> (serverAddress)->ai_addrlen)
                      : -1;
 }
 

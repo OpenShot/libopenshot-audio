@@ -1,34 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_ARRAY_JUCEHEADER__
-#define __JUCE_ARRAY_JUCEHEADER__
-
-#include "juce_ArrayAllocationBase.h"
-#include "juce_ElementComparator.h"
-#include "../threads/juce_CriticalSection.h"
+#ifndef JUCE_ARRAY_H_INCLUDED
+#define JUCE_ARRAY_H_INCLUDED
 
 
 //==============================================================================
@@ -41,9 +40,9 @@
     do so, the class must fulfil these requirements:
     - it must have a copy constructor and assignment operator
     - it must be able to be relocated in memory by a memcpy without this causing any problems - so
-      objects whose functionality relies on external pointers or references to themselves can be used.
+      objects whose functionality relies on external pointers or references to themselves can not be used.
 
-    You can of course have an array of pointers to any kind of object, e.g. Array <MyClass*>, but if
+    You can of course have an array of pointers to any kind of object, e.g. Array<MyClass*>, but if
     you do this, the array doesn't take any ownership of the objects - see the OwnedArray class or the
     ReferenceCountedArray class for more powerful ways of holding lists of objects.
 
@@ -56,7 +55,8 @@
     @see OwnedArray, ReferenceCountedArray, StringArray, CriticalSection
 */
 template <typename ElementType,
-          typename TypeOfCriticalSectionToUse = DummyCriticalSection>
+          typename TypeOfCriticalSectionToUse = DummyCriticalSection,
+          int minimumAllocatedSize = 0>
 class Array
 {
 private:
@@ -85,7 +85,7 @@ public:
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
     Array (Array<ElementType, TypeOfCriticalSectionToUse>&& other) noexcept
-        : data (static_cast <ArrayAllocationBase<ElementType, TypeOfCriticalSectionToUse>&&> (other.data)),
+        : data (static_cast<ArrayAllocationBase<ElementType, TypeOfCriticalSectionToUse>&&> (other.data)),
           numUsed (other.numUsed)
     {
         other.numUsed = 0;
@@ -133,7 +133,7 @@ public:
         if (this != &other)
         {
             Array<ElementType, TypeOfCriticalSectionToUse> otherCopy (other);
-            swapWithArray (otherCopy);
+            swapWith (otherCopy);
         }
 
         return *this;
@@ -142,7 +142,9 @@ public:
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
     Array& operator= (Array&& other) noexcept
     {
-        data = static_cast <ArrayAllocationBase<ElementType, TypeOfCriticalSectionToUse>&&> (other.data);
+        const ScopedLockType lock (getLock());
+        deleteAllElements();
+        data = static_cast<ArrayAllocationBase<ElementType, TypeOfCriticalSectionToUse>&&> (other.data);
         numUsed = other.numUsed;
         other.numUsed = 0;
         return *this;
@@ -199,7 +201,6 @@ public:
     }
 
     /** Removes all elements from the array without freeing the array's allocated storage.
-
         @see clear
     */
     void clearQuick()
@@ -219,7 +220,7 @@ public:
 
     /** Returns one of the elements in the array.
         If the index passed in is beyond the range of valid elements, this
-        will return zero.
+        will return a default value.
 
         If you're certain that the index will always be a valid element, you
         can call getUnchecked() instead, which is faster.
@@ -230,8 +231,14 @@ public:
     ElementType operator[] (const int index) const
     {
         const ScopedLockType lock (getLock());
-        return isPositiveAndBelow (index, numUsed) ? data.elements [index]
-                                                   : ElementType();
+
+        if (isPositiveAndBelow (index, numUsed))
+        {
+            jassert (data.elements != nullptr);
+            return data.elements [index];
+        }
+
+        return ElementType();
     }
 
     /** Returns one of the elements in the array, without checking the index passed in.
@@ -246,7 +253,7 @@ public:
     inline ElementType getUnchecked (const int index) const
     {
         const ScopedLockType lock (getLock());
-        jassert (isPositiveAndBelow (index, numUsed));
+        jassert (isPositiveAndBelow (index, numUsed) && data.elements != nullptr);
         return data.elements [index];
     }
 
@@ -262,30 +269,42 @@ public:
     inline ElementType& getReference (const int index) const noexcept
     {
         const ScopedLockType lock (getLock());
-        jassert (isPositiveAndBelow (index, numUsed));
+        jassert (isPositiveAndBelow (index, numUsed) && data.elements != nullptr);
         return data.elements [index];
     }
 
-    /** Returns the first element in the array, or 0 if the array is empty.
+    /** Returns the first element in the array, or a default value if the array is empty.
 
         @see operator[], getUnchecked, getLast
     */
     inline ElementType getFirst() const
     {
         const ScopedLockType lock (getLock());
-        return (numUsed > 0) ? data.elements [0]
-                             : ElementType();
+
+        if (numUsed > 0)
+        {
+            jassert (data.elements != nullptr);
+            return data.elements[0];
+        }
+
+        return ElementType();
     }
 
-    /** Returns the last element in the array, or 0 if the array is empty.
+    /** Returns the last element in the array, or a default value if the array is empty.
 
         @see operator[], getUnchecked, getFirst
     */
     inline ElementType getLast() const
     {
         const ScopedLockType lock (getLock());
-        return (numUsed > 0) ? data.elements [numUsed - 1]
-                             : ElementType();
+
+        if (numUsed > 0)
+        {
+            jassert (data.elements != nullptr);
+            return data.elements[numUsed - 1];
+        }
+
+        return ElementType();
     }
 
     /** Returns a pointer to the actual array data.
@@ -311,6 +330,11 @@ public:
     */
     inline ElementType* end() const noexcept
     {
+       #if JUCE_DEBUG
+        if (data.elements == nullptr || numUsed <= 0) // (to keep static analysers happy)
+            return data.elements;
+       #endif
+
         return data.elements + numUsed;
     }
 
@@ -360,12 +384,26 @@ public:
         @param newElement       the new object to add to the array
         @see set, insert, addIfNotAlreadyThere, addSorted, addUsingDefaultSort, addArray
     */
-    void add (ParameterType newElement)
+    void add (const ElementType& newElement)
     {
         const ScopedLockType lock (getLock());
         data.ensureAllocatedSize (numUsed + 1);
         new (data.elements + numUsed++) ElementType (newElement);
     }
+
+   #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
+    /** Appends a new element at the end of the array.
+
+        @param newElement       the new object to add to the array
+        @see set, insert, addIfNotAlreadyThere, addSorted, addUsingDefaultSort, addArray
+    */
+    void add (ElementType&& newElement)
+    {
+        const ScopedLockType lock (getLock());
+        data.ensureAllocatedSize (numUsed + 1);
+        new (data.elements + numUsed++) ElementType (static_cast<ElementType&&> (newElement));
+    }
+   #endif
 
     /** Inserts a new element into the array at a given position.
 
@@ -383,6 +421,7 @@ public:
     {
         const ScopedLockType lock (getLock());
         data.ensureAllocatedSize (numUsed + 1);
+        jassert (data.elements != nullptr);
 
         if (isPositiveAndBelow (indexToInsertAt, numUsed))
         {
@@ -460,17 +499,17 @@ public:
         {
             const ScopedLockType lock (getLock());
             data.ensureAllocatedSize (numUsed + numberOfElements);
-            ElementType* insertPos;
+            ElementType* insertPos = data.elements;
 
             if (isPositiveAndBelow (indexToInsertAt, numUsed))
             {
-                insertPos = data.elements + indexToInsertAt;
+                insertPos += indexToInsertAt;
                 const int numberToMove = numUsed - indexToInsertAt;
                 memmove (insertPos + numberOfElements, insertPos, numberToMove * sizeof (ElementType));
             }
             else
             {
-                insertPos = data.elements + numUsed;
+                insertPos += numUsed;
             }
 
             numUsed += numberOfElements;
@@ -512,6 +551,7 @@ public:
 
         if (isPositiveAndBelow (indexToChange, numUsed))
         {
+            jassert (data.elements != nullptr);
             data.elements [indexToChange] = newValue;
         }
         else if (indexToChange >= 0)
@@ -539,11 +579,13 @@ public:
 
     /** Adds elements from an array to the end of this array.
 
-        @param elementsToAdd        the array of elements to add
+        @param elementsToAdd        an array of some kind of object from which elements
+                                    can be constructed.
         @param numElementsToAdd     how many elements are in this other array
         @see add
     */
-    void addArray (const ElementType* elementsToAdd, int numElementsToAdd)
+    template <typename Type>
+    void addArray (const Type* elementsToAdd, int numElementsToAdd)
     {
         const ScopedLockType lock (getLock());
 
@@ -559,18 +601,34 @@ public:
         }
     }
 
+    /** Adds elements from a null-terminated array of pointers to the end of this array.
+
+        @param elementsToAdd    an array of pointers to some kind of object from which elements
+                                can be constructed. This array must be terminated by a nullptr
+        @see addArray
+    */
+    template <typename Type>
+    void addNullTerminatedArray (const Type* const* elementsToAdd)
+    {
+        int num = 0;
+        for (const Type* const* e = elementsToAdd; *e != nullptr; ++e)
+            ++num;
+
+        addArray (elementsToAdd, num);
+    }
+
     /** This swaps the contents of this array with those of another array.
 
         If you need to exchange two arrays, this is vastly quicker than using copy-by-value
         because it just swaps their internal pointers.
     */
-    void swapWithArray (Array& otherArray) noexcept
+    template <class OtherArrayType>
+    void swapWith (OtherArrayType& otherArray) noexcept
     {
         const ScopedLockType lock1 (getLock());
-        const ScopedLockType lock2 (otherArray.getLock());
-
+        const typename OtherArrayType::ScopedLockType lock2 (otherArray.getLock());
         data.swapWith (otherArray.data);
-        swapVariables (numUsed, otherArray.numUsed);
+        std::swap (numUsed, otherArray.numUsed);
     }
 
     /** Adds elements from another array to the end of this array.
@@ -672,37 +730,30 @@ public:
         @returns                    the index of the element, or -1 if it's not found
         @see addSorted, sort
     */
-    template <class ElementComparator>
-    int indexOfSorted (ElementComparator& comparator, ParameterType elementToLookFor) const
+    template <typename ElementComparator, typename TargetValueType>
+    int indexOfSorted (ElementComparator& comparator, TargetValueType elementToLookFor) const
     {
         (void) comparator;  // if you pass in an object with a static compareElements() method, this
                             // avoids getting warning messages about the parameter being unused
 
         const ScopedLockType lock (getLock());
-        int start = 0;
-        int end_ = numUsed;
 
-        for (;;)
+        for (int s = 0, e = numUsed;;)
         {
-            if (start >= end_)
-            {
+            if (s >= e)
                 return -1;
-            }
-            else if (comparator.compareElements (elementToLookFor, data.elements [start]) == 0)
-            {
-                return start;
-            }
-            else
-            {
-                const int halfway = (start + end_) >> 1;
 
-                if (halfway == start)
-                    return -1;
-                else if (comparator.compareElements (elementToLookFor, data.elements [halfway]) >= 0)
-                    start = halfway;
-                else
-                    end_ = halfway;
-            }
+            if (comparator.compareElements (elementToLookFor, data.elements [s]) == 0)
+                return s;
+
+            const int halfway = (s + e) / 2;
+            if (halfway == s)
+                return -1;
+
+            if (comparator.compareElements (elementToLookFor, data.elements [halfway]) >= 0)
+                s = halfway;
+            else
+                e = halfway;
         }
     }
 
@@ -715,7 +766,7 @@ public:
 
         @param indexToRemove    the index of the element to remove
         @returns                the element that has been removed
-        @see removeValue, removeRange
+        @see removeFirstMatchingValue, removeAllInstancesOf, removeRange
     */
     ElementType remove (const int indexToRemove)
     {
@@ -723,24 +774,35 @@ public:
 
         if (isPositiveAndBelow (indexToRemove, numUsed))
         {
-            --numUsed;
-
-            ElementType* const e = data.elements + indexToRemove;
-            ElementType removed (*e);
-            e->~ElementType();
-            const int numberToShift = numUsed - indexToRemove;
-
-            if (numberToShift > 0)
-                memmove (e, e + 1, ((size_t) numberToShift) * sizeof (ElementType));
-
-            if ((numUsed << 1) < data.numAllocated)
-                minimiseStorageOverheads();
-
+            jassert (data.elements != nullptr);
+            ElementType removed (data.elements[indexToRemove]);
+            removeInternal (indexToRemove);
             return removed;
         }
-        else
+
+        return ElementType();
+    }
+
+    /** Removes an item from the array.
+
+        This will remove the first occurrence of the given element from the array.
+        If the item isn't found, no action is taken.
+
+        @param valueToRemove   the object to try to remove
+        @see remove, removeRange
+    */
+    void removeFirstMatchingValue (ParameterType valueToRemove)
+    {
+        const ScopedLockType lock (getLock());
+        ElementType* const e = data.elements;
+
+        for (int i = 0; i < numUsed; ++i)
         {
-            return ElementType();
+            if (valueToRemove == e[i])
+            {
+                removeInternal (i);
+                break;
+            }
         }
     }
 
@@ -752,19 +814,13 @@ public:
         @param valueToRemove   the object to try to remove
         @see remove, removeRange
     */
-    void removeValue (ParameterType valueToRemove)
+    void removeAllInstancesOf (ParameterType valueToRemove)
     {
         const ScopedLockType lock (getLock());
-        ElementType* const e = data.elements;
 
-        for (int i = 0; i < numUsed; ++i)
-        {
-            if (valueToRemove == e[i])
-            {
-                remove (i);
-                break;
-            }
-        }
+        for (int i = numUsed; --i >= 0;)
+            if (valueToRemove == data.elements[i])
+                removeInternal (i);
     }
 
     /** Removes a range of elements from the array.
@@ -777,7 +833,7 @@ public:
 
         @param startIndex       the index of the first element to remove
         @param numberToRemove   how many elements should be removed
-        @see remove, removeValue
+        @see remove, removeFirstMatchingValue, removeAllInstancesOf
     */
     void removeRange (int startIndex, int numberToRemove)
     {
@@ -798,16 +854,14 @@ public:
                 memmove (e, e + numberToRemove, ((size_t) numToShift) * sizeof (ElementType));
 
             numUsed -= numberToRemove;
-
-            if ((numUsed << 1) < data.numAllocated)
-                minimiseStorageOverheads();
+            minimiseStorageAfterRemoval();
         }
     }
 
     /** Removes the last n elements from the array.
 
         @param howManyToRemove   how many elements to remove from the end of the array
-        @see remove, removeValue, removeRange
+        @see remove, removeFirstMatchingValue, removeAllInstancesOf, removeRange
     */
     void removeLast (int howManyToRemove = 1)
     {
@@ -820,15 +874,13 @@ public:
             data.elements [numUsed - i].~ElementType();
 
         numUsed -= howManyToRemove;
-
-        if ((numUsed << 1) < data.numAllocated)
-            minimiseStorageOverheads();
+        minimiseStorageAfterRemoval();
     }
 
     /** Removes any elements which are also in another array.
 
         @param otherArray   the other array in which to look for elements to remove
-        @see removeValuesNotIn, remove, removeValue, removeRange
+        @see removeValuesNotIn, remove, removeFirstMatchingValue, removeAllInstancesOf, removeRange
     */
     template <class OtherArrayType>
     void removeValuesIn (const OtherArrayType& otherArray)
@@ -846,7 +898,7 @@ public:
             {
                 for (int i = numUsed; --i >= 0;)
                     if (otherArray.contains (data.elements [i]))
-                        remove (i);
+                        removeInternal (i);
             }
         }
     }
@@ -856,7 +908,7 @@ public:
         Only elements which occur in this other array will be retained.
 
         @param otherArray    the array in which to look for elements NOT to remove
-        @see removeValuesIn, remove, removeValue, removeRange
+        @see removeValuesIn, remove, removeFirstMatchingValue, removeAllInstancesOf, removeRange
     */
     template <class OtherArrayType>
     void removeValuesNotIn (const OtherArrayType& otherArray)
@@ -874,7 +926,7 @@ public:
             {
                 for (int i = numUsed; --i >= 0;)
                     if (! otherArray.contains (data.elements [i]))
-                        remove (i);
+                        removeInternal (i);
             }
         }
     }
@@ -895,8 +947,8 @@ public:
         if (isPositiveAndBelow (index1, numUsed)
              && isPositiveAndBelow (index2, numUsed))
         {
-            swapVariables (data.elements [index1],
-                           data.elements [index2]);
+            std::swap (data.elements [index1],
+                       data.elements [index2]);
         }
     }
 
@@ -1019,17 +1071,43 @@ public:
     typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
 
+    //==============================================================================
+   #ifndef DOXYGEN
+    // Note that the swapWithArray method has been replaced by a more flexible templated version,
+    // and renamed "swapWith" to be more consistent with the names used in other classes.
+    JUCE_DEPRECATED_WITH_BODY (void swapWithArray (Array& other) noexcept, { swapWith (other); })
+   #endif
+
 private:
     //==============================================================================
     ArrayAllocationBase <ElementType, TypeOfCriticalSectionToUse> data;
     int numUsed;
+
+    void removeInternal (const int indexToRemove)
+    {
+        --numUsed;
+        ElementType* const e = data.elements + indexToRemove;
+        e->~ElementType();
+        const int numberToShift = numUsed - indexToRemove;
+
+        if (numberToShift > 0)
+            memmove (e, e + 1, ((size_t) numberToShift) * sizeof (ElementType));
+
+        minimiseStorageAfterRemoval();
+    }
 
     inline void deleteAllElements() noexcept
     {
         for (int i = 0; i < numUsed; ++i)
             data.elements[i].~ElementType();
     }
+
+    void minimiseStorageAfterRemoval()
+    {
+        if (data.numAllocated > jmax (minimumAllocatedSize, numUsed * 2))
+            data.shrinkToNoMoreThan (jmax (numUsed, jmax (minimumAllocatedSize, 64 / (int) sizeof (ElementType))));
+    }
 };
 
 
-#endif   // __JUCE_ARRAY_JUCEHEADER__
+#endif   // JUCE_ARRAY_H_INCLUDED

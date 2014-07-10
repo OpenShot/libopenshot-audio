@@ -1,48 +1,47 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-MouseEvent::MouseEvent (MouseInputSource& source_,
-                        const Point<int>& position,
-                        const ModifierKeys& mods_,
-                        Component* const eventComponent_,
+MouseEvent::MouseEvent (MouseInputSource inputSource,
+                        Point<int> position,
+                        ModifierKeys modKeys,
+                        Component* const eventComp,
                         Component* const originator,
-                        const Time& eventTime_,
-                        const Point<int> mouseDownPos_,
-                        const Time& mouseDownTime_,
-                        const int numberOfClicks_,
+                        Time time,
+                        Point<int> downPos,
+                        Time downTime,
+                        const int numClicks,
                         const bool mouseWasDragged) noexcept
     : x (position.x),
       y (position.y),
-      mods (mods_),
-      eventComponent (eventComponent_),
+      mods (modKeys),
+      eventComponent (eventComp),
       originalComponent (originator),
-      eventTime (eventTime_),
-      source (source_),
-      mouseDownPos (mouseDownPos_),
-      mouseDownTime (mouseDownTime_),
-      numberOfClicks ((uint8) numberOfClicks_),
+      eventTime (time),
+      mouseDownTime (downTime),
+      source (inputSource),
+      mouseDownPos (downPos),
+      numberOfClicks ((uint8) numClicks),
       wasMovedSinceMouseDown ((uint8) (mouseWasDragged ? 1 : 0))
 {
 }
@@ -62,7 +61,7 @@ MouseEvent MouseEvent::getEventRelativeTo (Component* const otherComponent) cons
                        mouseDownTime, numberOfClicks, wasMovedSinceMouseDown != 0);
 }
 
-MouseEvent MouseEvent::withNewPosition (const Point<int>& newPosition) const noexcept
+MouseEvent MouseEvent::withNewPosition (Point<int> newPosition) const noexcept
 {
     return MouseEvent (source, newPosition, mods, eventComponent, originalComponent,
                        eventTime, mouseDownPos, mouseDownTime,

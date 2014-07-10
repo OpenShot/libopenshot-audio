@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -78,8 +77,8 @@ public:
           numClientInputChannels (0), numDeviceInputChannels (0), numDeviceInputChannelsAvailable (2),
           numClientOutputChannels (0), numDeviceOutputChannels (0),
           actualBufferSize (0), isRunning (false),
-          outputChannelBuffer (1, 1),
-          inputChannelBuffer (1, 1)
+          inputChannelBuffer (1, 1),
+          outputChannelBuffer (1, 1)
     {
         JNIEnv* env = getEnv();
         sampleRate = env->CallStaticIntMethod (AudioTrack, AudioTrack.getNativeOutputSampleRate, MODE_STREAM);
@@ -106,7 +105,7 @@ public:
         close();
     }
 
-    StringArray getOutputChannelNames()
+    StringArray getOutputChannelNames() override
     {
         StringArray s;
         s.add ("Left");
@@ -114,7 +113,7 @@ public:
         return s;
     }
 
-    StringArray getInputChannelNames()
+    StringArray getInputChannelNames() override
     {
         StringArray s;
 
@@ -131,36 +130,43 @@ public:
         return s;
     }
 
-    int getNumSampleRates()             { return 1;}
-    double getSampleRate (int index)    { return sampleRate; }
-
-    int getDefaultBufferSize()          { return 2048; }
-    int getNumBufferSizesAvailable()    { return 50; }
-
-    int getBufferSizeSamples (int index)
+    Array<double> getAvailableSampleRates() override
     {
+        Array<double> r;
+        r.add ((double) sampleRate);
+        return r;
+    }
+
+    Array<int> getAvailableBufferSizes() override
+    {
+        Array<int> b;
         int n = 16;
-        for (int i = 0; i < index; ++i)
+
+        for (int i = 0; i < 50; ++i)
+        {
+            b.add (n);
             n += n < 64 ? 16
                         : (n < 512 ? 32
                                    : (n < 1024 ? 64
                                                : (n < 2048 ? 128 : 256)));
+        }
 
-        return n;
+        return b;
     }
 
+    int getDefaultBufferSize() override                 { return 2048; }
 
     String open (const BigInteger& inputChannels,
                  const BigInteger& outputChannels,
                  double requestedSampleRate,
-                 int bufferSize)
+                 int bufferSize) override
     {
         close();
 
         if (sampleRate != (int) requestedSampleRate)
             return "Sample rate not allowed";
 
-        lastError = String::empty;
+        lastError.clear();
         int preferredBufferSize = (bufferSize <= 0) ? getDefaultBufferSize() : bufferSize;
 
         numDeviceInputChannels = 0;
@@ -228,7 +234,7 @@ public:
         return lastError;
     }
 
-    void close()
+    void close() override
     {
         if (isRunning)
         {
@@ -238,18 +244,18 @@ public:
         }
     }
 
-    int getOutputLatencyInSamples()                     { return (minBufferSizeOut * 3) / 4; }
-    int getInputLatencyInSamples()                      { return (minBufferSizeIn * 3) / 4; }
-    bool isOpen()                                       { return isRunning; }
-    int getCurrentBufferSizeSamples()                   { return actualBufferSize; }
-    int getCurrentBitDepth()                            { return 16; }
-    double getCurrentSampleRate()                       { return sampleRate; }
-    BigInteger getActiveOutputChannels() const          { return activeOutputChans; }
-    BigInteger getActiveInputChannels() const           { return activeInputChans; }
-    String getLastError()                               { return lastError; }
-    bool isPlaying()                                    { return isRunning && callback != 0; }
+    int getOutputLatencyInSamples() override             { return (minBufferSizeOut * 3) / 4; }
+    int getInputLatencyInSamples() override              { return (minBufferSizeIn * 3) / 4; }
+    bool isOpen() override                               { return isRunning; }
+    int getCurrentBufferSizeSamples() override           { return actualBufferSize; }
+    int getCurrentBitDepth() override                    { return 16; }
+    double getCurrentSampleRate() override               { return sampleRate; }
+    BigInteger getActiveOutputChannels() const override  { return activeOutputChans; }
+    BigInteger getActiveInputChannels() const override   { return activeInputChans; }
+    String getLastError() override                       { return lastError; }
+    bool isPlaying() override                            { return isRunning && callback != 0; }
 
-    void start (AudioIODeviceCallback* newCallback)
+    void start (AudioIODeviceCallback* newCallback) override
     {
         if (isRunning && callback != newCallback)
         {
@@ -261,7 +267,7 @@ public:
         }
     }
 
-    void stop()
+    void stop() override
     {
         if (isRunning)
         {
@@ -278,7 +284,7 @@ public:
         }
     }
 
-    void run()
+    void run() override
     {
         JNIEnv* env = getEnv();
         jshortArray audioBuffer = env->NewShortArray (actualBufferSize * jmax (numDeviceOutputChannels, numDeviceInputChannels));
@@ -298,7 +304,7 @@ public:
 
                 for (int chan = 0; chan < inputChannelBuffer.getNumChannels(); ++chan)
                 {
-                    AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst> d (inputChannelBuffer.getSampleData (chan));
+                    AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst> d (inputChannelBuffer.getWritePointer (chan));
 
                     if (chan < numDeviceInputChannels)
                     {
@@ -322,8 +328,8 @@ public:
 
                 if (callback != nullptr)
                 {
-                    callback->audioDeviceIOCallback ((const float**) inputChannelBuffer.getArrayOfChannels(), numClientInputChannels,
-                                                     outputChannelBuffer.getArrayOfChannels(), numClientOutputChannels,
+                    callback->audioDeviceIOCallback (inputChannelBuffer.getArrayOfReadPointers(), numClientInputChannels,
+                                                     outputChannelBuffer.getArrayOfWritePointers(), numClientOutputChannels,
                                                      actualBufferSize);
                 }
                 else
@@ -343,7 +349,7 @@ public:
                 {
                     AudioData::Pointer <AudioData::Int16, AudioData::NativeEndian, AudioData::Interleaved, AudioData::NonConst> d (dest + chan, numDeviceOutputChannels);
 
-                    const float* const sourceChanData = outputChannelBuffer.getSampleData (jmin (chan, outputChannelBuffer.getNumChannels() - 1));
+                    const float* const sourceChanData = outputChannelBuffer.getReadPointer (jmin (chan, outputChannelBuffer.getNumChannels() - 1));
                     AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::Const> s (sourceChanData);
                     d.convertSamples (s, actualBufferSize);
                 }
@@ -392,7 +398,7 @@ private:
         }
     }
 
-    JUCE_DECLARE_NON_COPYABLE (AndroidAudioIODevice);
+    JUCE_DECLARE_NON_COPYABLE (AndroidAudioIODevice)
 };
 
 //==============================================================================
@@ -426,7 +432,7 @@ public:
     }
 
 private:
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AndroidAudioIODeviceType);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AndroidAudioIODeviceType)
 };
 
 

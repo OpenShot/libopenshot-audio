@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_SAMPLER_JUCEHEADER__
-#define __JUCE_SAMPLER_JUCEHEADER__
+#ifndef JUCE_SAMPLER_H_INCLUDED
+#define JUCE_SAMPLER_H_INCLUDED
 
 
 //==============================================================================
@@ -74,17 +73,17 @@ public:
 
     //==============================================================================
     /** Returns the sample's name */
-    const String& getName() const                           { return name; }
+    const String& getName() const noexcept                  { return name; }
 
     /** Returns the audio sample data.
-        This could be 0 if there was a problem loading it.
+        This could return nullptr if there was a problem loading the data.
     */
-    AudioSampleBuffer* getAudioData() const                 { return data; }
+    AudioSampleBuffer* getAudioData() const noexcept        { return data; }
 
 
     //==============================================================================
-    bool appliesToNote (const int midiNoteNumber);
-    bool appliesToChannel (const int midiChannel);
+    bool appliesToNote (const int midiNoteNumber) override;
+    bool appliesToChannel (const int midiChannel) override;
 
 
 private:
@@ -92,13 +91,13 @@ private:
     friend class SamplerVoice;
 
     String name;
-    ScopedPointer <AudioSampleBuffer> data;
+    ScopedPointer<AudioSampleBuffer> data;
     double sourceSampleRate;
     BigInteger midiNotes;
     int length, attackSamples, releaseSamples;
     int midiRootNote;
 
-    JUCE_LEAK_DETECTOR (SamplerSound);
+    JUCE_LEAK_DETECTOR (SamplerSound)
 };
 
 
@@ -115,29 +114,22 @@ class JUCE_API  SamplerVoice    : public SynthesiserVoice
 {
 public:
     //==============================================================================
-    /** Creates a SamplerVoice.
-    */
+    /** Creates a SamplerVoice. */
     SamplerVoice();
 
     /** Destructor. */
     ~SamplerVoice();
 
-
     //==============================================================================
-    bool canPlaySound (SynthesiserSound* sound);
+    bool canPlaySound (SynthesiserSound*) override;
 
-    void startNote (const int midiNoteNumber,
-                    const float velocity,
-                    SynthesiserSound* sound,
-                    const int currentPitchWheelPosition);
+    void startNote (int midiNoteNumber, float velocity, SynthesiserSound*, int pitchWheel) override;
+    void stopNote (bool allowTailOff) override;
 
-    void stopNote (const bool allowTailOff);
+    void pitchWheelMoved (int newValue);
+    void controllerMoved (int controllerNumber, int newValue) override;
 
-    void pitchWheelMoved (const int newValue);
-    void controllerMoved (const int controllerNumber,
-                          const int newValue);
-
-    void renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples);
+    void renderNextBlock (AudioSampleBuffer&, int startSample, int numSamples) override;
 
 
 private:
@@ -147,8 +139,8 @@ private:
     float lgain, rgain, attackReleaseLevel, attackDelta, releaseDelta;
     bool isInAttack, isInRelease;
 
-    JUCE_LEAK_DETECTOR (SamplerVoice);
+    JUCE_LEAK_DETECTOR (SamplerVoice)
 };
 
 
-#endif   // __JUCE_SAMPLER_JUCEHEADER__
+#endif   // JUCE_SAMPLER_H_INCLUDED

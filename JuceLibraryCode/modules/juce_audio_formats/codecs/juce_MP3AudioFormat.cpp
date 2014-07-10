@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -437,17 +436,15 @@ struct VBRTagData
         vbrScale = -1;
 
         if (flags & 8)
-        {
-            vbrScale = ByteOrder::bigEndianInt (data);
-            data += 4;
-        }
+            vbrScale = (int) ByteOrder::bigEndianInt (data);
 
         headersize = ((type + 1) * 72000 * bitrate) / sampleRate;
         return true;
     }
 
     uint8 toc[100];
-    int sampleRate, flags, frames, bytes, vbrScale, headersize;
+    int sampleRate, vbrScale, headersize;
+    unsigned int flags, frames, bytes;
 
 private:
     static bool isVbrTag (const uint8* const d) noexcept
@@ -496,7 +493,7 @@ struct MP3Frame
         mpeg25              = (header & (1 << 20)) == 0;
         lsf                 = mpeg25 ? 1 : ((header & (1 << 19)) ? 0 : 1);
         layer               = 4 - ((header >> 17) & 3);
-        sampleRateIndex     = mpeg25 ? (6 + ((header >> 10) & 3)) : (((header >> 10) & 3) + (lsf * 3));
+        sampleRateIndex     = mpeg25 ? (6 + ((header >> 10) & 3)) : ((int) ((header >> 10) & 3) + (lsf * 3));
         crc16FollowsHeader  = ((header >> 16) & 1) == 0;
         bitrateIndex        = (header >> 12) & 15;
         padding             = (header >> 9) & 1;
@@ -519,12 +516,21 @@ struct MP3Frame
               { 0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160 } }
         };
 
-        switch (layer)
+        if (bitrateIndex == 0)
         {
-            case 1: frameSize = (((frameSizes[lsf][0][bitrateIndex] * 12000) / getFrequency() + padding) * 4) - 4; break;
-            case 2: frameSize = (frameSizes[lsf][1][bitrateIndex] * 144000)  / getFrequency() + (padding - 4); break;
-            case 3: frameSize = (bitrateIndex == 0) ? 0 : ((frameSizes[lsf][2][bitrateIndex] * 144000) / (getFrequency() << lsf) + (padding - 4)); break;
-            default: break;
+            jassertfalse; // This means the file is using "free format". Apparently very few decoders
+                          // support this mode, and this one certainly doesn't handle it correctly!
+            frameSize = 0;
+        }
+        else
+        {
+            switch (layer)
+            {
+                case 1: frameSize = (((frameSizes[lsf][0][bitrateIndex] * 12000) / getFrequency() + padding) * 4) - 4; break;
+                case 2: frameSize = (frameSizes[lsf][1][bitrateIndex] * 144000)  / getFrequency() + (padding - 4); break;
+                case 3: frameSize = (bitrateIndex == 0) ? 0 : ((frameSizes[lsf][2][bitrateIndex] * 144000) / (getFrequency() << lsf) + (padding - 4)); break;
+                default: break;
+            }
         }
     }
 
@@ -549,13 +555,13 @@ struct Constants
         initLayer3Tables();
     }
 
-    const uint8* getGroupTable (const int16 d1, const int index) const noexcept
+    const uint8* getGroupTable (const int16 d1, const uint32 index) const noexcept
     {
         switch (d1)
         {
-            case 3:   return &group3tab [3 * jmin (index, 3 * 3 * 3)];
-            case 5:   return &group5tab [3 * jmin (index, 5 * 5 * 5)];
-            case 9:   return &group9tab [3 * jmin (index, 9 * 9 * 9)];
+            case 3:   return &group3tab [3 * jmin (index, 3u * 3u * 3u)];
+            case 5:   return &group5tab [3 * jmin (index, 5u * 5u * 5u)];
+            case 9:   return &group9tab [3 * jmin (index, 9u * 9u * 9u)];
             default:  break;
         }
 
@@ -671,38 +677,38 @@ private:
     {
         int i, j;
         for (i = -256; i < 118 + 4; ++i)
-            powToGains[i + 256] = pow (2.0, -0.25 * (i + 210));
+            powToGains[i + 256] = (float) pow (2.0, -0.25 * (i + 210));
 
         for (i = 0; i < 8207; ++i)
-            nToThe4Over3[i] = pow ((double) i, 4.0 / 3.0);
+            nToThe4Over3[i] = (float) pow ((double) i, 4.0 / 3.0);
 
         for (i = 0; i < 8; ++i)
         {
             static double Ci[] = { -0.6, -0.535, -0.33, -0.185, -0.095, -0.041, -0.0142, -0.0037 };
             const double sq = sqrt (1.0 + Ci[i] * Ci[i]);
-            antiAliasingCs[i] = 1.0 / sq;
-            antiAliasingCa[i] = Ci[i] / sq;
+            antiAliasingCs[i] = (float) (1.0 / sq);
+            antiAliasingCa[i] = (float) (Ci[i] / sq);
         }
 
         for (i = 0; i < 18; ++i)
         {
-            win[0][i] = win[1][i] = 0.5 * sin (double_Pi / 72.0 * (2 * i + 1)) / cos (double_Pi * (2 * i + 19) / 72.0);
-            win[0][i + 18] = win[3][i + 18] = 0.5 * sin (double_Pi / 72.0 * (2 * (i + 18) + 1)) / cos (double_Pi * (2 * (i + 18) + 19) / 72.0);
+            win[0][i] = win[1][i] = (float) (0.5 * sin (double_Pi / 72.0 * (2 * i + 1)) / cos (double_Pi * (2 * i + 19) / 72.0));
+            win[0][i + 18] = win[3][i + 18] = (float) (0.5 * sin (double_Pi / 72.0 * (2 * (i + 18) + 1)) / cos (double_Pi * (2 * (i + 18) + 19) / 72.0));
         }
 
         const double piOver72 = double_Pi;
 
         for (i = 0; i < 6; ++i)
         {
-            win[1][i + 18] = 0.5 / cos (piOver72 * (2 * (i + 18) + 19));
-            win[3][i + 12] = 0.5 / cos (piOver72 * (2 * (i + 12) + 19));
-            win[1][i + 24] = 0.5 * sin (double_Pi / 24.0 * (2 * i + 13)) / cos (piOver72 * (2 * (i + 24) + 19));
+            win[1][i + 18] = (float) (0.5 / cos (piOver72 * (2 * (i + 18) + 19)));
+            win[3][i + 12] = (float) (0.5 / cos (piOver72 * (2 * (i + 12) + 19)));
+            win[1][i + 24] = (float) (0.5 * sin (double_Pi / 24.0 * (2 * i + 13)) / cos (piOver72 * (2 * (i + 24) + 19)));
             win[1][i + 30] = win[3][i] = 0;
-            win[3][i + 6] = 0.5 * sin (double_Pi / 24.0 * (2 * i + 1)) / cos (piOver72 * (2 * (i + 6) + 19));
+            win[3][i + 6]  = (float) (0.5 * sin (double_Pi / 24.0 * (2 * i + 1)) / cos (piOver72 * (2 * (i + 6) + 19)));
         }
 
         for (i = 0; i < 12; ++i)
-            win[2][i] = 0.5 * sin (double_Pi / 24.0 * (2 * i + 1)) / cos (double_Pi * (2 * i + 7) / 24.0);
+            win[2][i] = (float) (0.5 * sin (double_Pi / 24.0 * (2 * i + 1)) / cos (double_Pi * (2 * i + 7) / 24.0));
 
         for (j = 0; j < 4; ++j)
         {
@@ -716,10 +722,10 @@ private:
         for (i = 0; i < 16; ++i)
         {
             const double t = tan (i * double_Pi / 12.0);
-            tan1_1[i] = t / (1.0 + t);
-            tan2_1[i] = 1.0 / (1.0 + t);
-            tan1_2[i] = sqrt2 * t / (1.0 + t);
-            tan2_2[i] = sqrt2 / (1.0 + t);
+            tan1_1[i] = (float) (t / (1.0 + t));
+            tan2_1[i] = (float) (1.0 / (1.0 + t));
+            tan1_2[i] = (float) (sqrt2 * t / (1.0 + t));
+            tan2_2[i] = (float) (sqrt2 / (1.0 + t));
 
             for (j = 0; j < 2; ++j)
             {
@@ -735,10 +741,10 @@ private:
                         p2 = pow (base, i * 0.5);
                 }
 
-                pow1_1[j][i] = p1;
-                pow2_1[j][i] = p2;
-                pow1_2[j][i] = sqrt2 * p1;
-                pow2_2[j][i] = sqrt2 * p2;
+                pow1_1[j][i] = (float) p1;
+                pow2_1[j][i] = (float) p2;
+                pow1_2[j][i] = (float) (sqrt2 * p1);
+                pow2_2[j][i] = (float) (sqrt2 * p2);
             }
         }
 
@@ -812,7 +818,7 @@ private:
                 for (int k = 0; k < 6; ++k)
                 {
                     const int n = k + j * 6 + i * 36;
-                    iLength2[n] = i | (j << 3) | (k << 6) | (3 << 12);
+                    iLength2[n] = (unsigned int) (i | (j << 3) | (k << 6) | (3 << 12));
                 }
 
         for (i = 0; i < 4; ++i)
@@ -820,15 +826,15 @@ private:
                 for (int k = 0; k < 4; ++k)
                 {
                     const int n = k + j * 4 + i * 16;
-                    iLength2[n + 180] = i | (j << 3) | (k << 6) | (4 << 12);
+                    iLength2[n + 180] = (unsigned int) (i | (j << 3) | (k << 6) | (4 << 12));
                 }
 
         for (i = 0; i < 4; ++i)
             for (j = 0; j < 3; ++j)
             {
                 const int n = j + i * 3;
-                iLength2[n + 244] = i | (j << 3) | (5 << 12);
-                nLength2[n + 500] = i | (j << 3) | (2 << 12) | (1 << 15);
+                iLength2[n + 244] = (unsigned int) (i | (j << 3) | (5 << 12));
+                nLength2[n + 500] = (unsigned int) (i | (j << 3) | (2 << 12) | (1 << 15));
             }
 
         for (i = 0; i < 5; ++i)
@@ -837,7 +843,7 @@ private:
                     for (int l = 0; l < 4; ++l)
                     {
                         const int n = l + k * 4 + j * 16 + i * 80;
-                        nLength2[n] = i | (j << 3) | (k << 6) | (l << 9) | (0 << 12);
+                        nLength2[n] = (unsigned int) (i | (j << 3) | (k << 6) | (l << 9) | (0 << 12));
                     }
 
         for (i = 0; i < 5; ++i)
@@ -845,7 +851,7 @@ private:
                 for (int k = 0; k < 4; ++k)
                 {
                     const int n = k + j * 4 + i * 20;
-                    nLength2[n + 400] = i | (j << 3) | (k << 6) | (1 << 12);
+                    nLength2[n + 400] = (unsigned int) (i | (j << 3) | (k << 6) | (1 << 12));
                 }
     }
 };
@@ -871,7 +877,7 @@ struct Layer3SideInfo
                 sb = 1;
             }
             else
-                sb = maxb - 1;
+                sb = (int) maxb - 1;
 
             for (; sb != 0; --sb, xr1 += 10)
             {
@@ -927,9 +933,9 @@ struct Layer3SideInfo
             {
                 bool doL = mixedBlockFlag != 0;
 
-                for (int lwin = 0; lwin < 3; ++lwin)
+                for (uint32 lwin = 0; lwin < 3; ++lwin)
                 {
-                    int sfb = maxBand[lwin];
+                    uint32 sfb = maxBand[lwin];
                     doL = doL && (sfb <= 3);
 
                     for (; sfb < 12; ++sfb)
@@ -940,7 +946,7 @@ struct Layer3SideInfo
                             const float t1 = tabl1[p];
                             const float t2 = tabl2[p];
                             int sb = bi.shortDiff[sfb];
-                            int index = sb + lwin;
+                            uint32 index = (uint32) sb + lwin;
 
                             for (; sb > 0; --sb, index += 3)
                             {
@@ -958,7 +964,7 @@ struct Layer3SideInfo
                         const float t1 = tabl1[p];
                         const float t2 = tabl2[p];
                         int sb = bi.shortDiff[12];
-                        int index = sb + lwin;
+                        uint32 index = (uint32) sb + lwin;
 
                         for (; sb > 0; --sb, index += 3)
                         {
@@ -973,7 +979,7 @@ struct Layer3SideInfo
                 {
                     int index = bi.longIndex[maxBandl];
 
-                    for (int sfb = maxBandl; sfb < 8; ++sfb)
+                    for (uint32 sfb = maxBandl; sfb < 8; ++sfb)
                     {
                         int sb = bi.longDiff[sfb];
                         const int p = scaleFactors[sfb];
@@ -999,7 +1005,7 @@ struct Layer3SideInfo
             {
                 int index = bi.longIndex[maxBandl];
 
-                for (int sfb = maxBandl; sfb < 21; ++sfb)
+                for (uint32 sfb = maxBandl; sfb < 21; ++sfb)
                 {
                     int sb = bi.longDiff[sfb];
                     const int p = scaleFactors[sfb];
@@ -1085,7 +1091,7 @@ namespace DCT
         dct36_0 (v, ts, out1, out2, wintab, tmp2a - tmp1a, (tmp2b - tmp1b) * cos36[v]);
     }
 
-    void dct36 (float* const in, float* const out1, float* const out2, const float* const wintab, float* const ts) noexcept
+    static void dct36 (float* const in, float* const out1, float* const out2, const float* const wintab, float* const ts) noexcept
     {
         in[17] += in[16]; in[16] += in[15]; in[15] += in[14]; in[14] += in[13]; in[13] += in[12];
         in[12] += in[11]; in[11] += in[10]; in[10] += in[9];  in[9]  += in[8];  in[8]  += in[7];
@@ -1167,7 +1173,7 @@ namespace DCT
         }
     };
 
-    void dct12 (const float* in, float* const out1, float* const out2, const float* wi, float* ts) noexcept
+    static void dct12 (const float* in, float* const out1, float* const out2, const float* wi, float* ts) noexcept
     {
         {
             ts[0] = out1[0];
@@ -1254,7 +1260,7 @@ namespace DCT
         }
     }
 
-    void dct64 (float* const out0, float* const out1, float* const b1, float* const b2, const float* const samples) noexcept
+    static void dct64 (float* const out0, float* const out1, float* const b1, float* const b2, const float* const samples) noexcept
     {
         {
             const float* const costab = constants.cosTables[0];
@@ -1380,7 +1386,7 @@ namespace DCT
         out1[0x10 * 13] = b1[0x17] + b1[0x1F];  out1[0x10 * 15] = b1[0x1F];
     }
 
-    void dct64 (float* const a, float* const b, const float* const c) noexcept
+    static void dct64 (float* const a, float* const b, const float* const c) noexcept
     {
         float temp[64];
         dct64 (a, b, temp, temp + 32, c);
@@ -1440,7 +1446,7 @@ struct MP3Stream
                 lastFrameSize += nextFrameOffset;
             }
 
-            frame.decodeHeader (stream.readIntBigEndian());
+            frame.decodeHeader ((uint32) stream.readIntBigEndian());
             headerParsed = true;
             frameSize = frame.frameSize;
             isFreeFormat = (frameSize == 0);
@@ -1454,7 +1460,7 @@ struct MP3Stream
             bufferPointer = bufferSpace[bufferSpaceIndex] + 512;
             bitIndex = 0;
 
-            if (lastFrameSize == -1)
+            if (lastFrameSize < 0)
                 return 1;
         }
 
@@ -1516,8 +1522,14 @@ struct MP3Stream
             else
             {
                 const int nextFrameOffset = scanForNextFrameHeader (true);
+
+                wasFreeFormat = isFreeFormat;
+
                 if (nextFrameOffset < 0)
+                {
+                    lastFrameSize = frameSize;
                     return result;
+                }
 
                 frameSize = nextFrameOffset + sideInfoSize + dataSize;
                 lastFrameSizeNoPadding = frameSize - frame.padding;
@@ -1562,7 +1574,8 @@ struct MP3Stream
 
             if (result < 0)
                 return false;
-            else if (result > 0)
+
+            if (result > 0)
                 break;
         }
 
@@ -1670,7 +1683,7 @@ private:
 
     uint32 getOneBit() noexcept
     {
-        const uint8 result = *bufferPointer << bitIndex;
+        const uint8 result = (uint8) (*bufferPointer << bitIndex);
         ++bitIndex;
         bufferPointer += (bitIndex >> 3);
         bitIndex &= 7;
@@ -1710,14 +1723,14 @@ private:
                 if (! checkTypeAgainstLastFrame)
                     break;
 
-                const bool mpeg25         = (header & (1 << 20)) == 0;
-                const int lsf             = mpeg25 ? 1 : ((header & (1 << 19)) ? 0 : 1);
-                const int sampleRateIndex = mpeg25 ? (6 + ((header >> 10) & 3)) : (((header >> 10) & 3) + (lsf * 3));
-                const int mode            = (header >> 6) & 3;
-                const int numChannels     = (mode == 3) ? 1 : 2;
+                const bool mpeg25            = (header & (1 << 20)) == 0;
+                const uint32 lsf             = mpeg25 ? 1 : ((header & (1 << 19)) ? 0 : 1);
+                const uint32 sampleRateIndex = mpeg25 ? (6 + ((header >> 10) & 3)) : (((header >> 10) & 3) + (lsf * 3));
+                const uint32 mode            = (header >> 6) & 3;
+                const uint32 numChannels     = (mode == 3) ? 1 : 2;
 
-                if (numChannels == frame.numChannels && lsf == frame.lsf
-                      && mpeg25 == frame.mpeg25 && sampleRateIndex == frame.sampleRateIndex)
+                if (numChannels == (uint32) frame.numChannels && lsf == (uint32) frame.lsf
+                      && mpeg25 == frame.mpeg25 && sampleRateIndex == (uint32) frame.sampleRateIndex)
                     break;
             }
 
@@ -1746,7 +1759,7 @@ private:
 
         if (vbrHeaderFound)
         {
-            numFrames = vbrTagData.frames;
+            numFrames = (int) vbrTagData.frames;
             oldPos += jmax (vbrTagData.headersize, 1);
         }
 
@@ -1917,7 +1930,7 @@ private:
             for (int ch = 0; ch < numChannels; ++ch)
                 databits += sideinfo.ch[ch].gr[gr].part2_3Length;
 
-        return databits - 8 * sideinfo.mainDataStart;
+        return databits - 8 * (int) sideinfo.mainDataStart;
     }
 
     void layer1Step1 (SideInfoLayer1& si) noexcept
@@ -1972,7 +1985,7 @@ private:
 
                 if (n > 0)
                 {
-                    const uint32 w = ((-1 << n) + getBitsUint16 (n + 1) + 1);
+                    const uint32 w = ((uint32) (-1 << n) + getBitsUint16 (n + 1) + 1);
                     fraction[0][i] = (float) (w * constants.muls[n + 1][si.scaleFactor[i][0]]);
                     fraction[1][i] = (float) (w * constants.muls[n + 1][si.scaleFactor[i][1]]);
                 }
@@ -2002,11 +2015,10 @@ private:
         const int jsbound = (frame.mode == 1) ? (frame.modeExt << 2) + 4 : frame.layer2SubBandLimit;
         const AllocationTable* allocTable = frame.allocationTable;
         uint8 scfsi[32][2];
-        int i;
 
         if (frame.numChannels == 2)
         {
-            for (i = 0; i < jsbound; ++i)
+            for (int i = 0; i < jsbound; ++i)
             {
                 const int16 step = allocTable->bits;
                 allocTable += (1 << step);
@@ -2014,7 +2026,7 @@ private:
                 si.allocation[i][1] = getBitsUint8 (step);
             }
 
-            for (i = jsbound; i < sblimit; ++i)
+            for (int i = jsbound; i < sblimit; ++i)
             {
                 const int16 step = allocTable->bits;
                 const uint8 b0 = getBitsUint8 (step);
@@ -2023,7 +2035,7 @@ private:
                 si.allocation[i][1] = b0;
             }
 
-            for (i = 0; i < sblimit; ++i)
+            for (int i = 0; i < sblimit; ++i)
             {
                 scfsi[i][0] = si.allocation[i][0] ? getBitsUint8 (2) : 0;
                 scfsi[i][1] = si.allocation[i][1] ? getBitsUint8 (2) : 0;
@@ -2031,18 +2043,18 @@ private:
         }
         else
         {
-            for (i = 0; i < sblimit; ++i)
+            for (int i = 0; i < sblimit; ++i)
             {
                 const int16 step = allocTable->bits;
                 allocTable += (1 << step);
                 si.allocation[i][0] = getBitsUint8 (step);
             }
 
-            for (i = 0; i < sblimit; ++i)
+            for (int i = 0; i < sblimit; ++i)
                 scfsi[i][0] = si.allocation[i][0] ? getBitsUint8 (2) : 0;
         }
 
-        for (i = 0; i < sblimit; ++i)
+        for (int i = 0; i < sblimit; ++i)
         {
             for (int ch = 0; ch < frame.numChannels; ++ch)
             {
@@ -2084,9 +2096,8 @@ private:
     {
         const AllocationTable* allocTable = frame.allocationTable;
         const int jsbound = (frame.mode == 1) ? (frame.modeExt << 2) + 4 : frame.layer2SubBandLimit;
-        int i;
 
-        for (i = 0; i < jsbound; ++i)
+        for (int i = 0; i < jsbound; ++i)
         {
             const int16 step = allocTable->bits;
 
@@ -2103,9 +2114,9 @@ private:
                     if (d1 < 0)
                     {
                         const double cm = constants.muls[k][x1];
-                        fraction[ch][0][i] = (float) ((getBits (k) + d1) * cm);
-                        fraction[ch][1][i] = (float) ((getBits (k) + d1) * cm);
-                        fraction[ch][2][i] = (float) ((getBits (k) + d1) * cm);
+                        fraction[ch][0][i] = (float) (((int) getBits (k) + d1) * cm);
+                        fraction[ch][1][i] = (float) (((int) getBits (k) + d1) * cm);
+                        fraction[ch][2][i] = (float) (((int) getBits (k) + d1) * cm);
                     }
                     else
                     {
@@ -2124,7 +2135,7 @@ private:
             allocTable += (1 << step);
         }
 
-        for (i = jsbound; i < frame.layer2SubBandLimit; ++i)
+        for (int i = jsbound; i < frame.layer2SubBandLimit; ++i)
         {
             const int16 step = allocTable->bits;
             const uint8 ba = si.allocation[i][0];
@@ -2138,9 +2149,9 @@ private:
 
                 if (d1 < 0)
                 {
-                    const int v0 = getBits (k);
-                    const int v1 = getBits (k);
-                    const int v2 = getBits (k);
+                    const int v0 = (int) getBits (k);
+                    const int v1 = (int) getBits (k);
+                    const int v2 = (int) getBits (k);
 
                     for (int ch = 0; ch < frame.numChannels; ++ch)
                     {
@@ -2176,7 +2187,7 @@ private:
         }
 
         for (int ch = 0; ch < frame.numChannels; ++ch)
-            for (i = frame.layer2SubBandLimit; i < 32; ++i)
+            for (int i = frame.layer2SubBandLimit; i < 32; ++i)
                 fraction[ch][0][i] = fraction[ch][1][i] = fraction[ch][2][i] = 0;
     }
 
@@ -2189,7 +2200,7 @@ private:
         for (int ch = 0; ch < stereo; ++ch)
         {
             sideinfo.ch[ch].gr[0].scfsi = -1;
-            sideinfo.ch[ch].gr[1].scfsi = getBitsUnchecked (4);
+            sideinfo.ch[ch].gr[1].scfsi = (int) getBitsUnchecked (4);
         }
 
         for (int gr = 0; gr < 2; ++gr)
@@ -2199,9 +2210,9 @@ private:
                 Layer3SideInfo::Info& granule = sideinfo.ch[ch].gr[gr];
 
                 granule.part2_3Length = getBits (12);
-                granule.bigValues = jmin (288, (int) getBitsUnchecked (9));
+                granule.bigValues = jmin (288u, getBitsUnchecked (9));
 
-                const int qss = getBitsUnchecked (8);
+                const int qss = (int) getBitsUnchecked (8);
                 granule.pow2gain = constants.powToGains + 256 - qss + powdiff;
 
                 if (msStereo)
@@ -2219,7 +2230,7 @@ private:
 
                     for (int i = 0; i < 3; ++i)
                     {
-                        const int sbg = (getBitsUnchecked (3) << 3);
+                        const uint32 sbg = (getBitsUnchecked (3) << 3);
                         granule.fullGain[i] = granule.pow2gain + sbg;
                     }
 
@@ -2231,13 +2242,13 @@ private:
                     for (int i = 0; i < 3; ++i)
                         granule.tableSelect[i] = getBitsUnchecked (5);
 
-                    const int r0c = getBitsUnchecked (4);
-                    const int r1c = getBitsUnchecked (3);
+                    const int r0c = (int) getBitsUnchecked (4);
+                    const int r1c = (int) getBitsUnchecked (3);
                     const int region0index = jmin (22, r0c + 1);
                     const int region1index = jmin (22, r0c + 1 + r1c + 1);
 
-                    granule.region1Start = bandInfo[sampleRate].longIndex[region0index] >> 1;
-                    granule.region2Start = bandInfo[sampleRate].longIndex[region1index] >> 1;
+                    granule.region1Start = (uint32) (bandInfo[sampleRate].longIndex[region0index] >> 1);
+                    granule.region2Start = (uint32) (bandInfo[sampleRate].longIndex[region1index] >> 1);
                     granule.blockType = 0;
                     granule.mixedBlockFlag = 0;
                 }
@@ -2260,7 +2271,7 @@ private:
             Layer3SideInfo::Info& granule = sideinfo.ch[ch].gr[0];
 
             granule.part2_3Length = getBits (12);
-            granule.bigValues = jmin (288, (int) getBitsUnchecked (9));
+            granule.bigValues = jmin (288u, getBitsUnchecked (9));
 
             const uint32 qss = getBitsUnchecked (8);
             granule.pow2gain = constants.powToGains + 256 - qss + powdiff;
@@ -2299,13 +2310,13 @@ private:
                 for (int i = 0; i < 3; ++i)
                     granule.tableSelect[i] = getBitsUnchecked (5);
 
-                const int r0c = getBitsUnchecked (4);
-                const int r1c = getBitsUnchecked (3);
+                const int r0c = (int) getBitsUnchecked (4);
+                const int r1c = (int) getBitsUnchecked (3);
                 const int region0index = jmin (22, r0c + 1);
                 const int region1index = jmin (22, r0c + 1 + r1c + 1);
 
-                granule.region1Start = bandInfo[sampleRate].longIndex[region0index] >> 1;
-                granule.region2Start = bandInfo[sampleRate].longIndex[region1index] >> 1;
+                granule.region1Start = (uint32) (bandInfo[sampleRate].longIndex[region0index] >> 1);
+                granule.region2Start = (uint32) (bandInfo[sampleRate].longIndex[region1index] >> 1);
                 granule.blockType = 0;
                 granule.mixedBlockFlag = 0;
             }
@@ -2333,13 +2344,13 @@ private:
 
             if (granule.mixedBlockFlag)
             {
-                for (int j = 8; --j >= 0;)  *scf++ = getBitsUnchecked (num0);
+                for (int j = 8; --j >= 0;)  *scf++ = (int) getBitsUnchecked (num0);
                 numBits -= num0;
                 i = 9;
             }
 
-            for (; --i >= 0;)       *scf++ = getBitsUnchecked (num0);
-            for (i = 18; --i >= 0;) *scf++ = getBitsUnchecked (num1);
+            for (; --i >= 0;)       *scf++ = (int) getBitsUnchecked (num0);
+            for (i = 18; --i >= 0;) *scf++ = (int) getBitsUnchecked (num1);
 
             *scf++ = 0;
             *scf++ = 0;
@@ -2351,8 +2362,8 @@ private:
 
             if (scfsi < 0)
             {
-                for (int i = 11; --i >= 0;)   *scf++ = getBitsUnchecked (num0);
-                for (int j = 10; --j >= 0;)   *scf++ = getBitsUnchecked (num1);
+                for (int i = 11; --i >= 0;)   *scf++ = (int) getBitsUnchecked (num0);
+                for (int j = 10; --j >= 0;)   *scf++ = (int) getBitsUnchecked (num1);
                 numBits = (num0 + num1) * 10 + num0;
             }
             else
@@ -2360,7 +2371,7 @@ private:
                 numBits = 0;
                 if ((scfsi & 8) == 0)
                 {
-                    for (int i = 6; --i >= 0;)  *scf++ = getBitsUnchecked (num0);
+                    for (int i = 6; --i >= 0;)  *scf++ = (int) getBitsUnchecked (num0);
                     numBits += num0 * 6;
                 }
                 else
@@ -2368,7 +2379,7 @@ private:
 
                 if ((scfsi & 4) == 0)
                 {
-                    for (int i = 5; --i >= 0;)  *scf++ = getBitsUnchecked (num0);
+                    for (int i = 5; --i >= 0;)  *scf++ = (int) getBitsUnchecked (num0);
                     numBits += num0 * 5;
                 }
                 else
@@ -2376,7 +2387,7 @@ private:
 
                 if ((scfsi & 2) == 0)
                 {
-                    for (int i = 5; --i >= 0;)  *scf++ = getBitsUnchecked (num1);
+                    for (int i = 5; --i >= 0;)  *scf++ = (int) getBitsUnchecked (num1);
                     numBits += num1 * 5;
                 }
                 else
@@ -2384,7 +2395,7 @@ private:
 
                 if ((scfsi & 1) == 0)
                 {
-                    for (int i = 5; --i >= 0;)  *scf++ = getBitsUnchecked (num1);
+                    for (int i = 5; --i >= 0;)  *scf++ = (int) getBitsUnchecked (num1);
                     numBits += num1 * 5;
                 }
                 else
@@ -2430,7 +2441,7 @@ private:
             if (num)
             {
                 for (int j = 0; j < (int) (data[i]); ++j)
-                    *scf++ = getBitsUnchecked (num);
+                    *scf++ = (int) getBitsUnchecked (num);
 
                 numBits += data[i] * num;
             }
@@ -2450,15 +2461,15 @@ private:
 
     bool layer3DequantizeSample (float xr[32][18], int* scf, Layer3SideInfo::Info& granule, int sampleRate, int part2bits) noexcept
     {
-        const int shift = 1 + granule.scaleFactorScale;
+        const uint32 shift = 1 + granule.scaleFactorScale;
         float* xrpnt = (float*) xr;
-        int i, part2remain = granule.part2_3Length - part2bits;
+        int part2remain = (int) granule.part2_3Length - part2bits;
 
-        zeromem (xrpnt, sizeof (float) * (&xr[32][0] - xrpnt));
+        zeromem (xrpnt, sizeof (float) * (size_t) (&xr[32][0] - xrpnt));
 
-        const int bv = granule.bigValues;
-        const int region1 = granule.region1Start;
-        const int region2 = granule.region2Start;
+        const int bv = (int) granule.bigValues;
+        const int region1 = (int) granule.region1Start;
+        const int region2 = (int) granule.region2Start;
         int l3 = ((576 >> 1) - bv) >> 1;
         int l[3];
 
@@ -2483,7 +2494,7 @@ private:
             }
         }
 
-        for (i = 0; i < 3; ++i)
+        for (int i = 0; i < 3; ++i)
             if (l[i] < 0)
                 l[i] = 0;
 
@@ -2509,7 +2520,7 @@ private:
                 mapEnd = constants.mapEnd [sampleRate][1];
             }
 
-            for (i = 0; i < 2; ++i)
+            for (int i = 0; i < 2; ++i)
             {
                 const BitsToTableMap* h = huffmanTables1 + granule.tableSelect[i];
 
@@ -2605,7 +2616,7 @@ private:
                         val -= a;
                 }
 
-                for (i = 0; i < 4; ++i)
+                for (int i = 0; i < 4; ++i)
                 {
                     if ((i & 1) == 0)
                     {
@@ -2662,14 +2673,14 @@ private:
                 *xrpnt = 0;  xrpnt += step;
             }
 
-            granule.maxBand[0] = max[0] + 1;
-            granule.maxBand[1] = max[1] + 1;
-            granule.maxBand[2] = max[2] + 1;
-            granule.maxBandl   = max[3] + 1;
+            granule.maxBand[0] = (uint32) (max[0] + 1);
+            granule.maxBand[1] = (uint32) (max[1] + 1);
+            granule.maxBand[2] = (uint32) (max[2] + 1);
+            granule.maxBandl   = (uint32) (max[3] + 1);
 
             const int rmax = jmax (max[0], max[1], max[3]) + 1;
-            granule.maxb = rmax ? constants.shortLimit[sampleRate][rmax]
-                                : constants.longLimit[sampleRate][max[3] + 1];
+            granule.maxb = rmax ? (uint32) constants.shortLimit[sampleRate][rmax]
+                                : (uint32) constants.longLimit[sampleRate][max[3] + 1];
         }
         else
         {
@@ -2677,11 +2688,11 @@ private:
             static const int pretab2[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
             const int* pretab = (const int*) (granule.preflag ? pretab1 : pretab2);
-            int i, max = -1, cb = 0, mc = 0;
+            int max = -1, cb = 0, mc = 0;
             int* map = constants.map [sampleRate][2];
             float v = 0;
 
-            for (i = 0; i < 3; ++i)
+            for (int i = 0; i < 3; ++i)
             {
                 const BitsToTableMap* h = huffmanTables1 + granule.tableSelect[i];
 
@@ -2759,7 +2770,7 @@ private:
                         values -= a;
                 }
 
-                for (i = 0; i < 4; ++i)
+                for (int i = 0; i < 4; ++i)
                 {
                     if ((i & 1) == 0)
                     {
@@ -2787,10 +2798,10 @@ private:
                 }
             }
 
-            zeromem (xrpnt, sizeof (float) * (&xr[32][0] - xrpnt));
+            zeromem (xrpnt, sizeof (float) * (size_t) (&xr[32][0] - xrpnt));
 
-            granule.maxBandl = max + 1;
-            granule.maxb = constants.longLimit[sampleRate][granule.maxBandl];
+            granule.maxBandl = (uint32) (max + 1);
+            granule.maxb = (uint32) constants.longLimit[sampleRate][granule.maxBandl];
         }
 
         while (part2remain > 16)
@@ -2831,7 +2842,7 @@ private:
             ts += 2;
         }
 
-        int bt = granule.blockType;
+        const uint32 bt = granule.blockType;
         if (bt == 2)
         {
             for (; sb < (int) granule.maxb; sb += 2, ts += 2, rawout1 += 36, rawout2 += 36)
@@ -2928,19 +2939,18 @@ private:
         samplesDone += 32;
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MP3Stream);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MP3Stream)
 };
 
 //==============================================================================
 static const char* const mp3FormatName = "MP3 file";
-static const char* const mp3Extensions[] = { ".mp3", nullptr };
 
 //==============================================================================
 class MP3Reader : public AudioFormatReader
 {
 public:
     MP3Reader (InputStream* const in)
-        : AudioFormatReader (in, TRANS (mp3FormatName)),
+        : AudioFormatReader (in, mp3FormatName),
           stream (*in), currentPosition (0),
           decodedStart (0), decodedEnd (0)
     {
@@ -2952,20 +2962,19 @@ public:
             bitsPerSample = 32;
             usesFloatingPointData = true;
             sampleRate = stream.frame.getFrequency();
-            numChannels = stream.frame.numChannels;
+            numChannels = (unsigned int) stream.frame.numChannels;
             lengthInSamples = findLength (streamPos);
         }
     }
 
-    //==============================================================================
     bool readSamples (int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
-                      int64 startSampleInFile, int numSamples)
+                      int64 startSampleInFile, int numSamples) override
     {
         jassert (destSamples != nullptr);
 
         if (currentPosition != startSampleInFile)
         {
-            if (! stream.seek (startSampleInFile / 1152 - 1))
+            if (! stream.seek ((int) (startSampleInFile / 1152 - 1)))
             {
                 currentPosition = -1;
                 createEmptyDecodedData();
@@ -2974,7 +2983,7 @@ public:
             {
                 decodedStart = decodedEnd = 0;
                 const int64 streamPos = stream.currentFrameIndex * 1152;
-                int toSkip = startSampleInFile - streamPos;
+                int toSkip = (int) (startSampleInFile - streamPos);
                 jassert (toSkip >= 0);
 
                 while (toSkip > 0)
@@ -3004,19 +3013,19 @@ public:
         {
             if (decodedEnd <= decodedStart && ! readNextBlock())
             {
-                for (int i = 2; --i >= 0;)
+                for (int i = numDestChannels; --i >= 0;)
                     if (destSamples[i] != nullptr)
-                        zeromem (destSamples[i] + startOffsetInDestBuffer, sizeof (float) * numSamples);
+                        zeromem (destSamples[i] + startOffsetInDestBuffer, sizeof (float) * (size_t) numSamples);
 
                 return false;
             }
 
             const int numToCopy = jmin (decodedEnd - decodedStart, numSamples);
             float* const* const dst = reinterpret_cast <float**> (destSamples);
-            memcpy (dst[0] + startOffsetInDestBuffer, decoded0 + decodedStart, sizeof (float) * numToCopy);
+            memcpy (dst[0] + startOffsetInDestBuffer, decoded0 + decodedStart, sizeof (float) * (size_t) numToCopy);
 
-            if (dst[1] != nullptr)
-                memcpy (dst[1] + startOffsetInDestBuffer, (numChannels < 2 ? decoded0 : decoded1) + decodedStart, sizeof (float) * numToCopy);
+            if (numDestChannels > 1 && dst[1] != nullptr)
+                memcpy (dst[1] + startOffsetInDestBuffer, (numChannels < 2 ? decoded0 : decoded1) + decodedStart, sizeof (float) * (size_t) numToCopy);
 
             startOffsetInDestBuffer += numToCopy;
             decodedStart += numToCopy;
@@ -3054,7 +3063,8 @@ private:
                 createEmptyDecodedData();
                 return true;
             }
-            else if (result <= 0)
+
+            if (result <= 0)
             {
                 decodedStart = 0;
                 decodedEnd = samplesDone;
@@ -3068,7 +3078,7 @@ private:
     void skipID3()
     {
         const int64 originalPosition = stream.stream.getPosition();
-        const uint32 firstWord = stream.stream.readInt();
+        const uint32 firstWord = (uint32) stream.stream.readInt();
 
         if ((firstWord & 0xffffff) == 0x334449)
         {
@@ -3078,10 +3088,10 @@ private:
                  && buffer[0] != 0xff
                  && ((buffer[2] | buffer[3] | buffer[4] | buffer[5]) & 0x80) == 0)
             {
-                const int length = (((uint32) buffer[2]) << 21)
-                                 | (((uint32) buffer[3]) << 14)
-                                 | (((uint32) buffer[4]) << 7)
-                                 |  ((uint32) buffer[5]);
+                const uint32 length = (((uint32) buffer[2]) << 21)
+                                    | (((uint32) buffer[3]) << 14)
+                                    | (((uint32) buffer[4]) << 7)
+                                    |  ((uint32) buffer[5]);
 
                 stream.stream.skipNextBytes (length);
                 return;
@@ -3100,22 +3110,26 @@ private:
             const int64 streamSize = stream.stream.getTotalLength();
 
             if (streamSize > 0)
-                numFrames = (streamSize - streamStartPos) / (stream.frame.frameSize);
+            {
+                const int bytesPerFrame = stream.frame.frameSize + 4;
+
+                if (bytesPerFrame == 417 || bytesPerFrame == 418)
+                    numFrames = roundToInt ((streamSize - streamStartPos) / 417.95918); // more accurate for 128k
+                else
+                    numFrames = (streamSize - streamStartPos) / bytesPerFrame;
+            }
         }
 
         return numFrames * 1152;
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MP3Reader);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MP3Reader)
 };
 
 }
 
 //==============================================================================
-MP3AudioFormat::MP3AudioFormat()
-    : AudioFormat (MP3Decoder::mp3FormatName, StringArray (MP3Decoder::mp3Extensions))
-{}
-
+MP3AudioFormat::MP3AudioFormat()  : AudioFormat (MP3Decoder::mp3FormatName, ".mp3") {}
 MP3AudioFormat::~MP3AudioFormat() {}
 
 Array<int> MP3AudioFormat::getPossibleSampleRates() { return Array<int>(); }

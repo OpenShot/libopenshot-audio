@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_BUBBLEMESSAGECOMPONENT_JUCEHEADER__
-#define __JUCE_BUBBLEMESSAGECOMPONENT_JUCEHEADER__
+#ifndef JUCE_BUBBLEMESSAGECOMPONENT_H_INCLUDED
+#define JUCE_BUBBLEMESSAGECOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -60,13 +59,12 @@ public:
     /** Shows a message bubble at a particular position.
 
         This shows the bubble with its stem pointing to the given location
-        (co-ordinates being relative to its parent component).
+        (coordinates being relative to its parent component).
 
         For details about exactly how it decides where to position itself, see
         BubbleComponent::updatePosition().
 
-        @param x                                the x co-ordinate of end of the bubble's tail
-        @param y                                the y co-ordinate of end of the bubble's tail
+        @param position                         the coords of the object to point to
         @param message                          the text to display
         @param numMillisecondsBeforeRemoving    how long to leave it on the screen before removing itself
                                                 from its parent compnent. If this is 0 or less, it
@@ -76,8 +74,8 @@ public:
         @param deleteSelfAfterUse               if true, then the component will delete itself after
                                                 it becomes invisible
     */
-    void showAt (int x, int y,
-                 const String& message,
+    void showAt (const Rectangle<int>& position,
+                 const AttributedString& message,
                  int numMillisecondsBeforeRemoving,
                  bool removeWhenMouseClicked = true,
                  bool deleteSelfAfterUse = false);
@@ -100,7 +98,7 @@ public:
                                                 it becomes invisible
     */
     void showAt (Component* component,
-                 const String& message,
+                 const AttributedString& message,
                  int numMillisecondsBeforeRemoving,
                  bool removeWhenMouseClicked = true,
                  bool deleteSelfAfterUse = false);
@@ -121,13 +119,14 @@ private:
     int64 expiryTime;
     bool deleteAfterUse;
 
-    void createLayout (const String&);
+    void createLayout (const AttributedString&);
     void init (int numMillisecondsBeforeRemoving,
                bool removeWhenMouseClicked,
                bool deleteSelfAfterUse);
+    void hide (bool fadeOut);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BubbleMessageComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BubbleMessageComponent)
 };
 
 
-#endif   // __JUCE_BUBBLEMESSAGECOMPONENT_JUCEHEADER__
+#endif   // JUCE_BUBBLEMESSAGECOMPONENT_H_INCLUDED

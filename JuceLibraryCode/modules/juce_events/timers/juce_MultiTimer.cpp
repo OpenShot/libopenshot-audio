@@ -1,56 +1,48 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-class MultiTimer::MultiTimerCallback    : public Timer
+struct MultiTimerCallback    : public Timer
 {
-public:
-    MultiTimerCallback (const int timerId_, MultiTimer& owner_)
-        : timerId (timerId_),
-          owner (owner_)
+    MultiTimerCallback (const int tid, MultiTimer& mt) noexcept
+        : owner (mt), timerID (tid)
     {
     }
 
-    void timerCallback()
+    void timerCallback() override
     {
-        owner.timerCallback (timerId);
+        owner.timerCallback (timerID);
     }
 
-    const int timerId;
-
-private:
     MultiTimer& owner;
+    const int timerID;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MultiTimerCallback)
 };
 
 //==============================================================================
-MultiTimer::MultiTimer() noexcept
-{
-}
-
-MultiTimer::MultiTimer (const MultiTimer&) noexcept
-{
-}
+MultiTimer::MultiTimer() noexcept {}
+MultiTimer::MultiTimer (const MultiTimer&) noexcept {}
 
 MultiTimer::~MultiTimer()
 {
@@ -59,63 +51,55 @@ MultiTimer::~MultiTimer()
 }
 
 //==============================================================================
-void MultiTimer::startTimer (const int timerId, const int intervalInMilliseconds) noexcept
+Timer* MultiTimer::getCallback (int timerID) const noexcept
 {
-    const SpinLock::ScopedLockType sl (timerListLock);
-
     for (int i = timers.size(); --i >= 0;)
     {
-        MultiTimerCallback* const t = timers.getUnchecked(i);
+        MultiTimerCallback* const t = static_cast<MultiTimerCallback*> (timers.getUnchecked(i));
 
-        if (t->timerId == timerId)
-        {
-            t->startTimer (intervalInMilliseconds);
-            return;
-        }
+        if (t->timerID == timerID)
+            return t;
     }
 
-    MultiTimerCallback* const newTimer = new MultiTimerCallback (timerId, *this);
-    timers.add (newTimer);
-    newTimer->startTimer (intervalInMilliseconds);
+    return nullptr;
 }
 
-void MultiTimer::stopTimer (const int timerId) noexcept
+void MultiTimer::startTimer (const int timerID, const int intervalInMilliseconds) noexcept
 {
     const SpinLock::ScopedLockType sl (timerListLock);
 
-    for (int i = timers.size(); --i >= 0;)
-    {
-        MultiTimerCallback* const t = timers.getUnchecked(i);
+    Timer* timer = getCallback (timerID);
 
-        if (t->timerId == timerId)
-            t->stopTimer();
-    }
+    if (timer == nullptr)
+        timers.add (timer = new MultiTimerCallback (timerID, *this));
+
+    timer->startTimer (intervalInMilliseconds);
 }
 
-bool MultiTimer::isTimerRunning (const int timerId) const noexcept
+void MultiTimer::stopTimer (const int timerID) noexcept
 {
     const SpinLock::ScopedLockType sl (timerListLock);
 
-    for (int i = timers.size(); --i >= 0;)
-    {
-        const MultiTimerCallback* const t = timers.getUnchecked(i);
-        if (t->timerId == timerId)
-            return t->isTimerRunning();
-    }
+    if (Timer* const t = getCallback (timerID))
+        t->stopTimer();
+}
+
+bool MultiTimer::isTimerRunning (const int timerID) const noexcept
+{
+    const SpinLock::ScopedLockType sl (timerListLock);
+
+    if (Timer* const t = getCallback (timerID))
+        return t->isTimerRunning();
 
     return false;
 }
 
-int MultiTimer::getTimerInterval (const int timerId) const noexcept
+int MultiTimer::getTimerInterval (const int timerID) const noexcept
 {
     const SpinLock::ScopedLockType sl (timerListLock);
 
-    for (int i = timers.size(); --i >= 0;)
-    {
-        const MultiTimerCallback* const t = timers.getUnchecked(i);
-        if (t->timerId == timerId)
-            return t->getTimerInterval();
-    }
+    if (Timer* const t = getCallback (timerID))
+        return t->getTimerInterval();
 
     return 0;
 }

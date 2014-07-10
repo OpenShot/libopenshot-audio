@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -34,21 +33,21 @@ public:
         jassert (comp != nullptr);
     }
 
-    void componentMovedOrResized (bool, bool) {}
+    void componentMovedOrResized (bool, bool) override {}
 
-    void componentPeerChanged()
+    void componentPeerChanged() override
     {
         if (! component->isShowing())
             cancel();
     }
 
-    void componentVisibilityChanged()
+    void componentVisibilityChanged() override
     {
         if (! component->isShowing())
             cancel();
     }
 
-    void componentBeingDeleted (Component& comp)
+    void componentBeingDeleted (Component& comp) override
     {
         ComponentMovementWatcher::componentBeingDeleted (comp);
 
@@ -64,7 +63,9 @@ public:
         if (isActive)
         {
             isActive = false;
-            ModalComponentManager::getInstance()->triggerAsyncUpdate();
+
+            if (ModalComponentManager* mcm = ModalComponentManager::getInstanceWithoutCreating())
+                mcm->triggerAsyncUpdate();
         }
     }
 
@@ -74,7 +75,7 @@ public:
     bool isActive, autoDelete;
 
 private:
-    JUCE_DECLARE_NON_COPYABLE (ModalItem);
+    JUCE_DECLARE_NON_COPYABLE (ModalItem)
 };
 
 //==============================================================================
@@ -84,6 +85,7 @@ ModalComponentManager::ModalComponentManager()
 
 ModalComponentManager::~ModalComponentManager()
 {
+    stack.clear();
     clearSingletonInstance();
 }
 
@@ -232,11 +234,22 @@ void ModalComponentManager::bringModalComponentsToFront (bool topOneShouldGrabFo
     }
 }
 
+bool ModalComponentManager::cancelAllModalComponents()
+{
+    const int numModal = getNumModalComponents();
+
+    for (int i = numModal; --i >= 0;)
+        if (Component* const c = getModalComponent(i))
+            c->exitModalState (0);
+
+    return numModal > 0;
+}
+
 #if JUCE_MODAL_LOOPS_PERMITTED
 class ModalComponentManager::ReturnValueRetriever     : public ModalComponentManager::Callback
 {
 public:
-    ReturnValueRetriever (int& value_, bool& finished_) : value (value_), finished (finished_) {}
+    ReturnValueRetriever (int& v, bool& done) : value (v), finished (done) {}
 
     void modalStateFinished (int returnValue)
     {
@@ -248,7 +261,7 @@ private:
     int& value;
     bool& finished;
 
-    JUCE_DECLARE_NON_COPYABLE (ReturnValueRetriever);
+    JUCE_DECLARE_NON_COPYABLE (ReturnValueRetriever)
 };
 
 int ModalComponentManager::runEventLoopForCurrentComponent()
@@ -256,29 +269,25 @@ int ModalComponentManager::runEventLoopForCurrentComponent()
     // This can only be run from the message thread!
     jassert (MessageManager::getInstance()->isThisTheMessageThread());
 
-    Component* currentlyModal = getModalComponent (0);
-
-    if (currentlyModal == nullptr)
-        return 0;
-
-    WeakReference<Component> prevFocused (Component::getCurrentlyFocusedComponent());
-
     int returnValue = 0;
-    bool finished = false;
-    attachCallback (currentlyModal, new ReturnValueRetriever (returnValue, finished));
 
-    JUCE_TRY
+    if (Component* currentlyModal = getModalComponent (0))
     {
-        while (! finished)
-        {
-            if  (! MessageManager::getInstance()->runDispatchLoopUntil (20))
-                break;
-        }
-    }
-    JUCE_CATCH_EXCEPTION
+        FocusRestorer focusRestorer;
 
-    if (prevFocused != nullptr)
-        prevFocused->grabKeyboardFocus();
+        bool finished = false;
+        attachCallback (currentlyModal, new ReturnValueRetriever (returnValue, finished));
+
+        JUCE_TRY
+        {
+            while (! finished)
+            {
+                if  (! MessageManager::getInstance()->runDispatchLoopUntil (20))
+                    break;
+            }
+        }
+        JUCE_CATCH_EXCEPTION
+    }
 
     return returnValue;
 }

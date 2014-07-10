@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MENUBARMODEL_JUCEHEADER__
-#define __JUCE_MENUBARMODEL_JUCEHEADER__
-
-#include "juce_PopupMenu.h"
+#ifndef JUCE_MENUBARMODEL_H_INCLUDED
+#define JUCE_MENUBARMODEL_H_INCLUDED
 
 
 //==============================================================================
@@ -111,15 +108,15 @@ public:
 
     //==============================================================================
     /** This method must return a list of the names of the menus. */
-    virtual const StringArray getMenuBarNames() = 0;
+    virtual StringArray getMenuBarNames() = 0;
 
     /** This should return the popup menu to display for a given top-level menu.
 
         @param topLevelMenuIndex    the index of the top-level menu to show
         @param menuName             the name of the top-level menu item to show
     */
-    virtual const PopupMenu getMenuForIndex (int topLevelMenuIndex,
-                                             const String& menuName) = 0;
+    virtual PopupMenu getMenuForIndex (int topLevelMenuIndex,
+                                       const String& menuName) = 0;
 
     /** This is called when a menu item has been clicked on.
 
@@ -146,33 +143,42 @@ public:
         menu bar model will be used to invoke it, and in the menuItemSelected() callback
         the topLevelMenuIndex parameter will be -1. If you pass in an extraAppleMenuItems
         object then newMenuBarModel must be non-null.
+
+        If the recentItemsMenuName parameter is non-empty, then any sub-menus with this
+        name will be replaced by OSX's special recent-files menu.
     */
     static void setMacMainMenu (MenuBarModel* newMenuBarModel,
-                                const PopupMenu* extraAppleMenuItems = nullptr);
+                                const PopupMenu* extraAppleMenuItems = nullptr,
+                                const String& recentItemsMenuName = String::empty);
 
     /** MAC ONLY - Returns the menu model that is currently being shown as
         the main menu bar.
     */
     static MenuBarModel* getMacMainMenu();
+
+    /** MAC ONLY - Returns the menu that was last passed as the extraAppleMenuItems
+        argument to setMacMainMenu(), or nullptr if none was specified.
+    */
+    static const PopupMenu* getMacExtraAppleItemsMenu();
    #endif
 
     //==============================================================================
     /** @internal */
-    void applicationCommandInvoked (const ApplicationCommandTarget::InvocationInfo& info);
+    void applicationCommandInvoked (const ApplicationCommandTarget::InvocationInfo& info) override;
     /** @internal */
-    void applicationCommandListChanged();
+    void applicationCommandListChanged() override;
     /** @internal */
-    void handleAsyncUpdate();
+    void handleAsyncUpdate() override;
 
 private:
     ApplicationCommandManager* manager;
     ListenerList <Listener> listeners;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MenuBarModel);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MenuBarModel)
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the MenuBarModel::Listener class directly. */
 typedef MenuBarModel::Listener MenuBarModelListener;
 
 
-#endif   // __JUCE_MENUBARMODEL_JUCEHEADER__
+#endif   // JUCE_MENUBARMODEL_H_INCLUDED

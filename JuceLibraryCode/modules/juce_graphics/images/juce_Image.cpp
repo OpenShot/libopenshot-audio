@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -32,6 +31,12 @@ ImagePixelData::ImagePixelData (const Image::PixelFormat format, const int w, co
 
 ImagePixelData::~ImagePixelData()
 {
+    listeners.call (&Listener::imageDataBeingDeleted, this);
+}
+
+void ImagePixelData::sendDataChangeMessage()
+{
+    listeners.call (&Listener::imageDataChanged, this);
 }
 
 //==============================================================================
@@ -51,18 +56,9 @@ Image ImageType::convert (const Image& source) const
     jassert (src.pixelStride == dest.pixelStride && src.pixelFormat == dest.pixelFormat);
 
     for (int y = 0; y < dest.height; ++y)
-        memcpy (dest.getLinePointer (y), src.getLinePointer (y), dest.lineStride);
+        memcpy (dest.getLinePointer (y), src.getLinePointer (y), (size_t) dest.lineStride);
 
     return newImage;
-}
-
-//==============================================================================
-NativeImageType::NativeImageType() {}
-NativeImageType::~NativeImageType() {}
-
-int NativeImageType::getTypeID() const
-{
-    return 1;
 }
 
 //==============================================================================
@@ -77,39 +73,43 @@ public:
         imageData.allocate ((size_t) (lineStride * jmax (1, h)), clearImage);
     }
 
-    LowLevelGraphicsContext* createLowLevelContext()
+    LowLevelGraphicsContext* createLowLevelContext() override
     {
+        sendDataChangeMessage();
         return new LowLevelGraphicsSoftwareRenderer (Image (this));
     }
 
-    void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode)
+    void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode mode) override
     {
         bitmap.data = imageData + x * pixelStride + y * lineStride;
         bitmap.pixelFormat = pixelFormat;
         bitmap.lineStride = lineStride;
         bitmap.pixelStride = pixelStride;
+
+        if (mode != Image::BitmapData::readOnly)
+            sendDataChangeMessage();
     }
 
-    ImagePixelData* clone()
+    ImagePixelData* clone() override
     {
         SoftwarePixelData* s = new SoftwarePixelData (pixelFormat, width, height, false);
         memcpy (s->imageData, imageData, (size_t) (lineStride * height));
         return s;
     }
 
-    ImageType* createType() const    { return new SoftwareImageType(); }
+    ImageType* createType() const override    { return new SoftwareImageType(); }
 
 private:
     HeapBlock<uint8> imageData;
     const int pixelStride, lineStride;
 
-    JUCE_LEAK_DETECTOR (SoftwarePixelData);
+    JUCE_LEAK_DETECTOR (SoftwarePixelData)
 };
 
 SoftwareImageType::SoftwareImageType() {}
 SoftwareImageType::~SoftwareImageType() {}
 
-ImagePixelData* SoftwareImageType::create (Image::PixelFormat format, int width, int height, bool clearImage) const
+ImagePixelData::Ptr SoftwareImageType::create (Image::PixelFormat format, int width, int height, bool clearImage) const
 {
     return new SoftwarePixelData (format, width, height, clearImage);
 }
@@ -120,29 +120,48 @@ int SoftwareImageType::getTypeID() const
 }
 
 //==============================================================================
+NativeImageType::NativeImageType() {}
+NativeImageType::~NativeImageType() {}
+
+int NativeImageType::getTypeID() const
+{
+    return 1;
+}
+
+#if JUCE_WINDOWS || JUCE_LINUX
+ImagePixelData::Ptr NativeImageType::create (Image::PixelFormat format, int width, int height, bool clearImage) const
+{
+    return new SoftwarePixelData (format, width, height, clearImage);
+}
+#endif
+
+//==============================================================================
 class SubsectionPixelData  : public ImagePixelData
 {
 public:
-    SubsectionPixelData (ImagePixelData* const image_, const Rectangle<int>& area_)
-        : ImagePixelData (image_->pixelFormat, area_.getWidth(), area_.getHeight()),
-          image (image_), area (area_)
+    SubsectionPixelData (ImagePixelData* const im, const Rectangle<int>& r)
+        : ImagePixelData (im->pixelFormat, r.getWidth(), r.getHeight()),
+          image (im), area (r)
     {
     }
 
-    LowLevelGraphicsContext* createLowLevelContext()
+    LowLevelGraphicsContext* createLowLevelContext() override
     {
         LowLevelGraphicsContext* g = image->createLowLevelContext();
         g->clipToRectangle (area);
-        g->setOrigin (area.getX(), area.getY());
+        g->setOrigin (area.getPosition());
         return g;
     }
 
-    void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode mode)
+    void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode mode) override
     {
         image->initialiseBitmapData (bitmap, x + area.getX(), y + area.getY(), mode);
+
+        if (mode != Image::BitmapData::readOnly)
+            sendDataChangeMessage();
     }
 
-    ImagePixelData* clone()
+    ImagePixelData* clone() override
     {
         jassert (getReferenceCount() > 0); // (This method can't be used on an unowned pointer, as it will end up self-deleting)
         const ScopedPointer<ImageType> type (image->createType());
@@ -151,20 +170,20 @@ public:
 
         {
             Graphics g (newImage);
-            g.drawImageAt (Image (this), -area.getX(), -area.getY());
+            g.drawImageAt (Image (this), 0, 0);
         }
 
         newImage.getPixelData()->incReferenceCount();
         return newImage.getPixelData();
     }
 
-    ImageType* createType() const    { return image->createType(); }
+    ImageType* createType() const override    { return image->createType(); }
 
 private:
-    const ReferenceCountedObjectPtr<ImagePixelData> image;
+    const ImagePixelData::Ptr image;
     const Rectangle<int> area;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SubsectionPixelData);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SubsectionPixelData)
 };
 
 Image Image::getClippedImage (const Rectangle<int>& area) const
@@ -210,13 +229,13 @@ Image& Image::operator= (const Image& other)
 
 #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
 Image::Image (Image&& other) noexcept
-    : image (static_cast <ReferenceCountedObjectPtr<ImagePixelData>&&> (other.image))
+    : image (static_cast <ImagePixelData::Ptr&&> (other.image))
 {
 }
 
 Image& Image::operator= (Image&& other) noexcept
 {
-    image = static_cast <ReferenceCountedObjectPtr<ImagePixelData>&&> (other.image);
+    image = static_cast <ImagePixelData::Ptr&&> (other.image);
     return *this;
 }
 #endif
@@ -250,7 +269,10 @@ void Image::duplicateIfShared()
 
 Image Image::createCopy() const
 {
-    return Image (image != nullptr ? image->clone() : nullptr);
+    if (image != nullptr)
+        return Image (image->clone());
+
+    return Image();
 }
 
 Image Image::rescaled (const int newWidth, const int newHeight, const Graphics::ResamplingQuality quality) const
@@ -263,8 +285,8 @@ Image Image::rescaled (const int newWidth, const int newHeight, const Graphics::
 
     Graphics g (newImage);
     g.setImageResamplingQuality (quality);
-    g.drawImage (*this, 0, 0, newWidth, newHeight, 0, 0, image->width, image->height, false);
-
+    g.drawImageTransformed (*this, AffineTransform::scale (newWidth  / (float) image->width,
+                                                           newHeight / (float) image->height), false);
     return newImage;
 }
 
@@ -331,38 +353,36 @@ NamedValueSet* Image::getProperties() const
 }
 
 //==============================================================================
-Image::BitmapData::BitmapData (Image& image, const int x, const int y, const int w, const int h, BitmapData::ReadWriteMode mode)
-    : width (w),
-      height (h)
+Image::BitmapData::BitmapData (Image& im, const int x, const int y, const int w, const int h, BitmapData::ReadWriteMode mode)
+    : width (w), height (h)
 {
     // The BitmapData class must be given a valid image, and a valid rectangle within it!
-    jassert (image.image != nullptr);
-    jassert (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= image.getWidth() && y + h <= image.getHeight());
+    jassert (im.image != nullptr);
+    jassert (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= im.getWidth() && y + h <= im.getHeight());
 
-    image.image->initialiseBitmapData (*this, x, y, mode);
+    im.image->initialiseBitmapData (*this, x, y, mode);
     jassert (data != nullptr && pixelStride > 0 && lineStride != 0);
 }
 
-Image::BitmapData::BitmapData (const Image& image, const int x, const int y, const int w, const int h)
-    : width (w),
-      height (h)
+Image::BitmapData::BitmapData (const Image& im, const int x, const int y, const int w, const int h)
+    : width (w), height (h)
 {
     // The BitmapData class must be given a valid image, and a valid rectangle within it!
-    jassert (image.image != nullptr);
-    jassert (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= image.getWidth() && y + h <= image.getHeight());
+    jassert (im.image != nullptr);
+    jassert (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= im.getWidth() && y + h <= im.getHeight());
 
-    image.image->initialiseBitmapData (*this, x, y, readOnly);
+    im.image->initialiseBitmapData (*this, x, y, readOnly);
     jassert (data != nullptr && pixelStride > 0 && lineStride != 0);
 }
 
-Image::BitmapData::BitmapData (const Image& image, BitmapData::ReadWriteMode mode)
-    : width (image.getWidth()),
-      height (image.getHeight())
+Image::BitmapData::BitmapData (const Image& im, BitmapData::ReadWriteMode mode)
+    : width (im.getWidth()),
+      height (im.getHeight())
 {
     // The BitmapData class must be given a valid image!
-    jassert (image.image != nullptr);
+    jassert (im.image != nullptr);
 
-    image.image->initialiseBitmapData (*this, 0, 0, mode);
+    im.image->initialiseBitmapData (*this, 0, 0, mode);
     jassert (data != nullptr && pixelStride > 0 && lineStride != 0);
 }
 
@@ -387,7 +407,7 @@ Colour Image::BitmapData::getPixelColour (const int x, const int y) const noexce
     return Colour();
 }
 
-void Image::BitmapData::setPixelColour (const int x, const int y, const Colour& colour) const noexcept
+void Image::BitmapData::setPixelColour (const int x, const int y, Colour colour) const noexcept
 {
     jassert (isPositiveAndBelow (x, width) && isPositiveAndBelow (y, height));
 
@@ -404,7 +424,7 @@ void Image::BitmapData::setPixelColour (const int x, const int y, const Colour& 
 }
 
 //==============================================================================
-void Image::clear (const Rectangle<int>& area, const Colour& colourToClearTo)
+void Image::clear (const Rectangle<int>& area, Colour colourToClearTo)
 {
     const ScopedPointer<LowLevelGraphicsContext> g (image->createLowLevelContext());
     g->setFill (colourToClearTo);
@@ -423,7 +443,7 @@ Colour Image::getPixelAt (const int x, const int y) const
     return Colour();
 }
 
-void Image::setPixelAt (const int x, const int y, const Colour& colour)
+void Image::setPixelAt (const int x, const int y, Colour colour)
 {
     if (isPositiveAndBelow (x, getWidth()) && isPositiveAndBelow (y, getHeight()))
     {
@@ -489,7 +509,7 @@ struct AlphaMultiplyOp
         pixel.multiplyAlpha (alpha);
     }
 
-    JUCE_DECLARE_NON_COPYABLE (AlphaMultiplyOp);
+    JUCE_DECLARE_NON_COPYABLE (AlphaMultiplyOp)
 };
 
 void Image::multiplyAllAlphas (const float amountToMultiplyBy)
@@ -518,7 +538,7 @@ void Image::desaturate()
     }
 }
 
-void Image::createSolidAreaMask (RectangleList& result, const float alphaThreshold) const
+void Image::createSolidAreaMask (RectangleList<int>& result, const float alphaThreshold) const
 {
     if (hasAlphaChannel())
     {

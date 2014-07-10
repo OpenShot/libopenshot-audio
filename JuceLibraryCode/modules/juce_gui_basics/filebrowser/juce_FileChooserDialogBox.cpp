@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -26,43 +25,43 @@
 class FileChooserDialogBox::ContentComponent  : public Component
 {
 public:
-    //==============================================================================
-    ContentComponent (const String& name, const String& instructions_, FileBrowserComponent& chooserComponent_)
+    ContentComponent (const String& name, const String& desc, FileBrowserComponent& chooser)
         : Component (name),
-          chooserComponent (chooserComponent_),
-          okButton (chooserComponent_.getActionVerb()),
+          chooserComponent (chooser),
+          okButton (chooser.getActionVerb()),
           cancelButton (TRANS ("Cancel")),
           newFolderButton (TRANS ("New Folder")),
-          instructions (instructions_)
+          instructions (desc)
     {
-        addAndMakeVisible (&chooserComponent);
+        addAndMakeVisible (chooserComponent);
 
-        addAndMakeVisible (&okButton);
-        okButton.addShortcut (KeyPress::returnKey);
+        addAndMakeVisible (okButton);
+        okButton.addShortcut (KeyPress (KeyPress::returnKey));
 
-        addAndMakeVisible (&cancelButton);
-        cancelButton.addShortcut (KeyPress::escapeKey);
+        addAndMakeVisible (cancelButton);
+        cancelButton.addShortcut (KeyPress (KeyPress::escapeKey));
 
-        addChildComponent (&newFolderButton);
+        addChildComponent (newFolderButton);
 
         setInterceptsMouseClicks (false, true);
     }
 
-    void paint (Graphics& g)
+    void paint (Graphics& g) override
     {
-        g.setColour (getLookAndFeel().findColour (FileChooserDialogBox::titleTextColourId));
-        text.draw (g);
+        text.draw (g, getLocalBounds().reduced (6)
+                        .removeFromTop ((int) text.getHeight()).toFloat());
     }
 
-    void resized()
+    void resized() override
     {
         const int buttonHeight = 26;
 
         Rectangle<int> area (getLocalBounds());
 
-        getLookAndFeel().createFileChooserHeaderText (getName(), instructions, text, getWidth());
-        const Rectangle<float> bb (text.getBoundingBox (0, text.getNumGlyphs(), false));
-        area.removeFromTop (roundToInt (bb.getBottom()) + 10);
+        text.createLayout (getLookAndFeel().createFileChooserHeaderText (getName(), instructions),
+                           getWidth() - 12.0f);
+
+        area.removeFromTop (roundToInt (text.getHeight()) + 10);
 
         chooserComponent.setBounds (area.removeFromTop (area.getHeight() - buttonHeight - 20));
         Rectangle<int> buttonArea (area.reduced (16, 10));
@@ -84,7 +83,7 @@ public:
 
 private:
     String instructions;
-    GlyphArrangement text;
+    TextLayout text;
 };
 
 //==============================================================================
@@ -92,7 +91,7 @@ FileChooserDialogBox::FileChooserDialogBox (const String& name,
                                             const String& instructions,
                                             FileBrowserComponent& chooserComponent,
                                             const bool warnAboutOverwritingExistingFiles_,
-                                            const Colour& backgroundColour)
+                                            Colour backgroundColour)
     : ResizableWindow (name, backgroundColour, true),
       warnAboutOverwritingExistingFiles (warnAboutOverwritingExistingFiles_)
 {
@@ -124,18 +123,8 @@ bool FileChooserDialogBox::show (int w, int h)
 
 bool FileChooserDialogBox::showAt (int x, int y, int w, int h)
 {
-    if (w <= 0)
-    {
-        Component* const previewComp = content->chooserComponent.getPreviewComponent();
-
-        if (previewComp != nullptr)
-            w = 400 + previewComp->getWidth();
-        else
-            w = 600;
-    }
-
-    if (h <= 0)
-        h = 500;
+    if (w <= 0)  w = getDefaultWidth();
+    if (h <= 0)  h = 500;
 
     if (x < 0 || y < 0)
         centreWithSize (w, h);
@@ -150,11 +139,15 @@ bool FileChooserDialogBox::showAt (int x, int y, int w, int h)
 
 void FileChooserDialogBox::centreWithDefaultSize (Component* componentToCentreAround)
 {
-    Component* const previewComp = content->chooserComponent.getPreviewComponent();
+    centreAroundComponent (componentToCentreAround, getDefaultWidth(), 500);
+}
 
-    centreAroundComponent (componentToCentreAround,
-                           previewComp != nullptr ? 400 + previewComp->getWidth() : 600,
-                           500);
+int FileChooserDialogBox::getDefaultWidth() const
+{
+    if (Component* const previewComp = content->chooserComponent.getPreviewComponent())
+        return 400 + previewComp->getWidth();
+
+    return 600;
 }
 
 //==============================================================================
@@ -209,12 +202,13 @@ void FileChooserDialogBox::okButtonPressed()
          && content->chooserComponent.getSelectedFile(0).exists())
     {
         AlertWindow::showOkCancelBox (AlertWindow::WarningIcon,
-                                         TRANS("File already exists"),
-                                         TRANS("There's already a file called:")
-                                           + "\n\n" + content->chooserComponent.getSelectedFile(0).getFullPathName()
-                                           + "\n\n" + TRANS("Are you sure you want to overwrite it?"),
-                                         TRANS("overwrite"),
-                                         TRANS("cancel"),
+                                      TRANS("File already exists"),
+                                      TRANS("There's already a file called: FLNM")
+                                         .replace ("FLNM", content->chooserComponent.getSelectedFile(0).getFullPathName())
+                                        + "\n\n"
+                                        + TRANS("Are you sure you want to overwrite it?"),
+                                      TRANS("Overwrite"),
+                                      TRANS("Cancel"),
                                       this,
                                       ModalCallbackFunction::forComponent (okToOverwriteFileCallback, this));
     }
@@ -230,7 +224,7 @@ void FileChooserDialogBox::createNewFolderCallback (int result, FileChooserDialo
     if (result != 0 && alert != nullptr && box != nullptr)
     {
         alert->setVisible (false);
-        box->createNewFolderConfirmed (alert->getTextEditorContents ("name"));
+        box->createNewFolderConfirmed (alert->getTextEditorContents ("Folder Name"));
     }
 }
 
@@ -244,9 +238,9 @@ void FileChooserDialogBox::createNewFolder()
                                            TRANS("Please enter the name for the folder"),
                                            AlertWindow::NoIcon, this);
 
-        aw->addTextEditor ("name", String::empty, String::empty, false);
-        aw->addButton (TRANS("ok"), 1, KeyPress::returnKey);
-        aw->addButton (TRANS("cancel"), KeyPress::escapeKey);
+        aw->addTextEditor ("Folder Name", String::empty, String::empty, false);
+        aw->addButton (TRANS("Create Folder"), 1, KeyPress (KeyPress::returnKey));
+        aw->addButton (TRANS("Cancel"),        0, KeyPress (KeyPress::escapeKey));
 
         aw->enterModalState (true,
                              ModalCallbackFunction::forComponent (createNewFolderCallback, this,

@@ -1,46 +1,47 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-PerformanceCounter::PerformanceCounter (const String& name_,
-                                        const int runsPerPrintout,
-                                        const File& loggingFile)
-    : name (name_),
-      numRuns (0),
-      runsPerPrint (runsPerPrintout),
-      totalTime (0),
-      outputFile (loggingFile)
+static void appendToFile (const File& f, const String& s)
 {
-    if (outputFile != File::nonexistent)
+    if (f.getFullPathName().isNotEmpty())
     {
-        String s ("**** Counter for \"");
-        s << name_ << "\" started at: "
-          << Time::getCurrentTime().toString (true, true)
-          << newLine;
+        FileOutputStream out (f);
 
-        outputFile.appendText (s, false, false);
+        if (! out.failedToOpen())
+            out << s << newLine;
     }
+}
+
+PerformanceCounter::PerformanceCounter (const String& name, int runsPerPrintout, const File& loggingFile)
+    : runsPerPrint (runsPerPrintout), startTime (0), outputFile (loggingFile)
+{
+    stats.name = name;
+    appendToFile (outputFile, "**** Counter for \"" + name + "\" started at: " + Time::getCurrentTime().toString (true, true));
 }
 
 PerformanceCounter::~PerformanceCounter()
@@ -48,45 +49,84 @@ PerformanceCounter::~PerformanceCounter()
     printStatistics();
 }
 
-void PerformanceCounter::start()
+PerformanceCounter::Statistics::Statistics() noexcept
+    : averageSeconds(), maximumSeconds(), minimumSeconds(), totalSeconds(), numRuns()
 {
-    started = Time::getHighResolutionTicks();
 }
 
-void PerformanceCounter::stop()
+void PerformanceCounter::Statistics::clear() noexcept
 {
-    const int64 now = Time::getHighResolutionTicks();
+    averageSeconds = maximumSeconds = minimumSeconds = totalSeconds = 0;
+    numRuns = 0;
+}
 
-    totalTime += 1000.0 * Time::highResolutionTicksToSeconds (now - started);
+void PerformanceCounter::Statistics::addResult (double elapsed) noexcept
+{
+    if (numRuns == 0)
+    {
+        maximumSeconds = elapsed;
+        minimumSeconds = elapsed;
+    }
+    else
+    {
+        maximumSeconds = jmax (maximumSeconds, elapsed);
+        minimumSeconds = jmin (minimumSeconds, elapsed);
+    }
 
-    if (++numRuns == runsPerPrint)
-        printStatistics();
+    ++numRuns;
+    totalSeconds += elapsed;
+}
+
+static String timeToString (double secs)
+{
+    return String ((int64) (secs * (secs < 0.01 ? 1000000.0 : 1000.0) + 0.5))
+                    + (secs < 0.01 ? " microsecs" : " millisecs");
+}
+
+String PerformanceCounter::Statistics::toString() const
+{
+    MemoryOutputStream s;
+
+    s << "Performance count for \"" << name << "\" over " << numRuns << " run(s)" << newLine
+      << "Average = "   << timeToString (averageSeconds)
+      << ", minimum = " << timeToString (minimumSeconds)
+      << ", maximum = " << timeToString (maximumSeconds)
+      << ", total = "   << timeToString (totalSeconds);
+
+    return s.toString();
+}
+
+void PerformanceCounter::start() noexcept
+{
+    startTime = Time::getHighResolutionTicks();
+}
+
+bool PerformanceCounter::stop()
+{
+    stats.addResult (Time::highResolutionTicksToSeconds (Time::getHighResolutionTicks() - startTime));
+
+    if (stats.numRuns < runsPerPrint)
+        return false;
+
+    printStatistics();
+    return true;
 }
 
 void PerformanceCounter::printStatistics()
 {
-    if (numRuns > 0)
-    {
-        String s ("Performance count for \"");
-        s << name << "\" - average over " << numRuns << " run(s) = ";
+    const String desc (getStatisticsAndReset().toString());
 
-        const int micros = (int) (totalTime * (1000.0 / numRuns));
+    Logger::outputDebugString (desc);
+    appendToFile (outputFile, desc);
+}
 
-        if (micros > 10000)
-            s << (micros/1000) << " millisecs";
-        else
-            s << micros << " microsecs";
+PerformanceCounter::Statistics PerformanceCounter::getStatisticsAndReset()
+{
+    Statistics s (stats);
+    stats.clear();
 
-        s << ", total = " << String (totalTime / 1000, 5) << " seconds";
+    if (s.numRuns > 0)
+        s.averageSeconds = s.totalSeconds / s.numRuns;
 
-        Logger::outputDebugString (s);
-
-        s << newLine;
-
-        if (outputFile != File::nonexistent)
-            outputFile.appendText (s, false, false);
-
-        numRuns = 0;
-        totalTime = 0;
-    }
+    return s;
 }

@@ -1,36 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_BUTTON_JUCEHEADER__
-#define __JUCE_BUTTON_JUCEHEADER__
-
-#include "../components/juce_Component.h"
-#include "../keyboard/juce_KeyListener.h"
-#include "../commands/juce_ApplicationCommandManager.h"
-#include "../windows/juce_TooltipWindow.h"
-#include "../layout/juce_ComponentBuilder.h"
+#ifndef JUCE_BUTTON_H_INCLUDED
+#define JUCE_BUTTON_H_INCLUDED
 
 
 //==============================================================================
@@ -44,18 +37,15 @@
     @see TextButton, DrawableButton, ToggleButton
 */
 class JUCE_API  Button  : public Component,
-                          public SettableTooltipClient,
-                          public ApplicationCommandManagerListener,
-                          public ValueListener,
-                          private KeyListener
+                          public SettableTooltipClient
 {
 protected:
     //==============================================================================
     /** Creates a button.
 
-        @param buttonName           the text to put in the button (the component's name is also
-                                    initially set to this string, but these can be changed later
-                                    using the setName() and setButtonText() methods)
+        @param buttonName   the text to put in the button (the component's name is also
+                            initially set to this string, but these can be changed later
+                            using the setName() and setButtonText() methods)
     */
     explicit Button (const String& buttonName);
 
@@ -65,28 +55,23 @@ public:
 
     //==============================================================================
     /** Changes the button's text.
-
         @see getButtonText
     */
     void setButtonText (const String& newText);
 
     /** Returns the text displayed in the button.
-
         @see setButtonText
     */
     const String& getButtonText() const               { return text; }
 
     //==============================================================================
-    /** Returns true if the button is currently being held down by the mouse.
-
+    /** Returns true if the button is currently being held down.
         @see isOver
     */
     bool isDown() const noexcept;
 
     /** Returns true if the mouse is currently over the button.
-
-        This will be also be true if the mouse is being held down.
-
+        This will be also be true if the button is being held down.
         @see isDown
     */
     bool isOver() const noexcept;
@@ -98,17 +83,16 @@ public:
         an action you won't change this. Toggle buttons, however will want to
         change their state when turned on or off.
 
-        @param shouldBeOn               whether to set the button's toggle state to be on or
-                                        off. If it's a member of a button group, this will
-                                        always try to turn it on, and to turn off any other
-                                        buttons in the group
-        @param sendChangeNotification   if true, a callback will be made to clicked(); if false
-                                        the button will be repainted but no notification will
-                                        be sent
+        @param shouldBeOn       whether to set the button's toggle state to be on or
+                                off. If it's a member of a button group, this will
+                                always try to turn it on, and to turn off any other
+                                buttons in the group
+        @param notification     determines the behaviour if the value changes - this
+                                can invoke a synchronous call to clicked(), but
+                                sendNotificationAsync is not supported
         @see getToggleState, setRadioGroupId
     */
-    void setToggleState (bool shouldBeOn,
-                         bool sendChangeNotification);
+    void setToggleState (bool shouldBeOn, NotificationType notification);
 
     /** Returns true if the button is 'on'.
 
@@ -126,7 +110,7 @@ public:
         your own Value object.
         @see getToggleState, Value
     */
-    Value& getToggleStateValue()                                { return isOn; }
+    Value& getToggleStateValue() noexcept                       { return isOn; }
 
     /** This tells the button to automatically flip the toggle state when
         the button is clicked.
@@ -134,10 +118,9 @@ public:
         If set to true, then before the clicked() callback occurs, the toggle-state
         of the button is flipped.
     */
-    void setClickingTogglesState (bool shouldToggle) noexcept;
+    void setClickingTogglesState (bool shouldAutoToggleOnClick) noexcept;
 
     /** Returns true if this button is set to be an automatic toggle-button.
-
         This returns the last value that was passed to setClickingTogglesState().
     */
     bool getClickingTogglesState() const noexcept;
@@ -158,12 +141,14 @@ public:
         Set the group ID back to zero if you want it to act as a normal toggle
         button again.
 
+        The notification argument lets you specify how other buttons should react
+        to being turned on or off in response to this call.
+
         @see getRadioGroupId
     */
-    void setRadioGroupId (int newGroupId);
+    void setRadioGroupId (int newGroupId, NotificationType notification = sendNotification);
 
     /** Returns the ID of the group to which this button belongs.
-
         (See setRadioGroupId() for an explanation of this).
     */
     int getRadioGroupId() const noexcept                        { return radioGroupId; }
@@ -178,13 +163,13 @@ public:
     {
     public:
         /** Destructor. */
-        virtual ~Listener()                                     {}
+        virtual ~Listener()  {}
 
         /** Called when the button is clicked. */
-        virtual void buttonClicked (Button* button) = 0;
+        virtual void buttonClicked (Button*) = 0;
 
         /** Called when the button's state changes. */
-        virtual void buttonStateChanged (Button*)               {}
+        virtual void buttonStateChanged (Button*)  {}
     };
 
     /** Registers a listener to receive events when this button's state changes.
@@ -216,7 +201,7 @@ public:
 
         Obviously be careful that the ApplicationCommandManager doesn't get deleted
         before this button is. To disable the command triggering, call this method and
-        pass 0 for the parameters.
+        pass nullptr as the command manager.
 
         If generateTooltip is true, then the button's tooltip will be automatically
         generated based on the name of this command and its current shortcut key.
@@ -224,12 +209,11 @@ public:
         @see addShortcut, getCommandID
     */
     void setCommandToTrigger (ApplicationCommandManager* commandManagerToUse,
-                              int commandID,
+                              CommandID commandID,
                               bool generateTooltip);
 
-    /** Returns the command ID that was set by setCommandToTrigger().
-    */
-    int getCommandID() const noexcept               { return commandID; }
+    /** Returns the command ID that was set by setCommandToTrigger(). */
+    CommandID getCommandID() const noexcept             { return commandID; }
 
     //==============================================================================
     /** Assigns a shortcut key to trigger the button.
@@ -241,19 +225,17 @@ public:
 
         @see clearShortcuts
     */
-    void addShortcut (const KeyPress& key);
+    void addShortcut (const KeyPress&);
 
     /** Removes all key shortcuts that had been set for this button.
-
         @see addShortcut
     */
     void clearShortcuts();
 
     /** Returns true if the given keypress is a shortcut for this button.
-
         @see addShortcut
     */
-    bool isRegisteredForShortcut (const KeyPress& key) const;
+    bool isRegisteredForShortcut (const KeyPress&) const;
 
     //==============================================================================
     /** Sets an auto-repeat speed for the button when it is held down.
@@ -291,18 +273,18 @@ public:
 
     //==============================================================================
     /** Sets the tooltip for this button.
-
         @see TooltipClient, TooltipWindow
     */
-    void setTooltip (const String& newTooltip);
+    void setTooltip (const String& newTooltip) override;
 
-    // (implementation of the TooltipClient method)
-    String getTooltip();
+    /** Returns the tooltip set by setTooltip(), or the description corresponding to
+        the currently mapped command if one is enabled (see setCommandToTrigger).
+    */
+    String getTooltip() override;
 
 
     //==============================================================================
-    /** A combination of these flags are used by setConnectedEdges().
-    */
+    /** A combination of these flags are used by setConnectedEdges(). */
     enum ConnectedEdgeFlags
     {
         ConnectedOnLeft = 1,
@@ -325,27 +307,27 @@ public:
     void setConnectedEdges (int connectedEdgeFlags);
 
     /** Returns the set of flags passed into setConnectedEdges(). */
-    int getConnectedEdgeFlags() const noexcept                  { return connectedEdgeFlags; }
+    int getConnectedEdgeFlags() const noexcept          { return connectedEdgeFlags; }
 
     /** Indicates whether the button adjoins another one on its left edge.
         @see setConnectedEdges
     */
-    bool isConnectedOnLeft() const noexcept                     { return (connectedEdgeFlags & ConnectedOnLeft) != 0; }
+    bool isConnectedOnLeft() const noexcept             { return (connectedEdgeFlags & ConnectedOnLeft) != 0; }
 
     /** Indicates whether the button adjoins another one on its right edge.
         @see setConnectedEdges
     */
-    bool isConnectedOnRight() const noexcept                    { return (connectedEdgeFlags & ConnectedOnRight) != 0; }
+    bool isConnectedOnRight() const noexcept            { return (connectedEdgeFlags & ConnectedOnRight) != 0; }
 
     /** Indicates whether the button adjoins another one on its top edge.
         @see setConnectedEdges
     */
-    bool isConnectedOnTop() const noexcept                      { return (connectedEdgeFlags & ConnectedOnTop) != 0; }
+    bool isConnectedOnTop() const noexcept              { return (connectedEdgeFlags & ConnectedOnTop) != 0; }
 
     /** Indicates whether the button adjoins another one on its bottom edge.
         @see setConnectedEdges
     */
-    bool isConnectedOnBottom() const noexcept                   { return (connectedEdgeFlags & ConnectedOnBottom) != 0; }
+    bool isConnectedOnBottom() const noexcept           { return (connectedEdgeFlags & ConnectedOnBottom) != 0; }
 
 
     //==============================================================================
@@ -365,23 +347,45 @@ public:
         The state that you set here will only last until it is automatically changed when the mouse
         enters or exits the button, or the mouse-button is pressed or released.
     */
-    void setState (const ButtonState newState);
+    void setState (ButtonState newState);
 
+    // This method's parameters have changed - see the new version.
+    JUCE_DEPRECATED (void setToggleState (bool, bool));
 
     //==============================================================================
-    struct Ids
+    /** This abstract base class is implemented by LookAndFeel classes to provide
+        button-drawing functionality.
+    */
+    struct JUCE_API  LookAndFeelMethods
     {
-        static const Identifier text, radioGroup,
-                                connectedLeft, connectedRight, connectedTop, connectedBottom;
+        virtual ~LookAndFeelMethods() {}
+
+        virtual void drawButtonBackground (Graphics&, Button&, const Colour& backgroundColour,
+                                           bool isMouseOverButton, bool isButtonDown) = 0;
+
+        virtual Font getTextButtonFont (TextButton&, int buttonHeight) = 0;
+        virtual int getTextButtonWidthToFitText (TextButton&, int buttonHeight) = 0;
+
+        /** Draws the text for a TextButton. */
+        virtual void drawButtonText (Graphics&, TextButton&, bool isMouseOverButton, bool isButtonDown) = 0;
+
+        /** Draws the contents of a standard ToggleButton. */
+        virtual void drawToggleButton (Graphics&, ToggleButton&, bool isMouseOverButton, bool isButtonDown) = 0;
+
+        virtual void changeToggleButtonWidthToFitText (ToggleButton&) = 0;
+
+        virtual void drawTickBox (Graphics&, Component&, float x, float y, float w, float h,
+                                  bool ticked, bool isEnabled, bool isMouseOverButton, bool isButtonDown) = 0;
+
+        virtual void drawDrawableButton (Graphics&, DrawableButton&, bool isMouseOverButton, bool isButtonDown) = 0;
+
+    private:
+       #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+        // These method have been deprecated: see their replacements above.
+        virtual int getTextButtonFont (TextButton&) { return 0; }
+        virtual int changeTextButtonWidthToFitText (TextButton&, int) { return 0; }
+       #endif
     };
-
-    void refreshFromValueTree (const ValueTree&, ComponentBuilder&);
-    static int getConnectedFlags (const ValueTree& state);
-
-    //==============================================================================
-    // These are deprecated - please use addListener() and removeListener() instead!
-    JUCE_DEPRECATED (void addButtonListener (Listener*));
-    JUCE_DEPRECATED (void removeButtonListener (Listener*));
 
 protected:
     //==============================================================================
@@ -431,83 +435,77 @@ protected:
 
     //==============================================================================
     /** @internal */
-    virtual void internalClickCallback (const ModifierKeys& modifiers);
+    virtual void internalClickCallback (const ModifierKeys&);
     /** @internal */
-    void handleCommandMessage (int commandId);
+    void handleCommandMessage (int commandId) override;
     /** @internal */
-    void mouseEnter (const MouseEvent& e);
+    void mouseEnter (const MouseEvent&) override;
     /** @internal */
-    void mouseExit (const MouseEvent& e);
+    void mouseExit (const MouseEvent&) override;
     /** @internal */
-    void mouseDown (const MouseEvent& e);
+    void mouseDown (const MouseEvent&) override;
     /** @internal */
-    void mouseDrag (const MouseEvent& e);
+    void mouseDrag (const MouseEvent&) override;
     /** @internal */
-    void mouseUp (const MouseEvent& e);
+    void mouseUp (const MouseEvent&) override;
     /** @internal */
-    bool keyPressed (const KeyPress& key);
+    bool keyPressed (const KeyPress&) override;
     /** @internal */
-    bool keyPressed (const KeyPress& key, Component* originatingComponent);
+    using Component::keyStateChanged;
     /** @internal */
-    bool keyStateChanged (bool isKeyDown, Component* originatingComponent);
+    void paint (Graphics&) override;
     /** @internal */
-    void paint (Graphics& g);
+    void parentHierarchyChanged() override;
     /** @internal */
-    void parentHierarchyChanged();
+    void visibilityChanged() override;
     /** @internal */
-    void visibilityChanged();
+    void focusGained (FocusChangeType) override;
     /** @internal */
-    void focusGained (FocusChangeType cause);
+    void focusLost (FocusChangeType) override;
     /** @internal */
-    void focusLost (FocusChangeType cause);
-    /** @internal */
-    void enablementChanged();
-    /** @internal */
-    void applicationCommandInvoked (const ApplicationCommandTarget::InvocationInfo&);
-    /** @internal */
-    void applicationCommandListChanged();
-    /** @internal */
-    void valueChanged (Value& value);
+    void enablementChanged() override;
 
 private:
     //==============================================================================
-    Array <KeyPress> shortcuts;
+    Array<KeyPress> shortcuts;
     WeakReference<Component> keySource;
     String text;
-    ListenerList <Listener> buttonListeners;
+    ListenerList<Listener> buttonListeners;
 
-    class RepeatTimer;
-    friend class RepeatTimer;
-    friend class ScopedPointer <RepeatTimer>;
-    ScopedPointer <RepeatTimer> repeatTimer;
+    class CallbackHelper;
+    friend class CallbackHelper;
+    friend struct ContainerDeletePolicy<CallbackHelper>;
+    ScopedPointer<CallbackHelper> callbackHelper;
     uint32 buttonPressTime, lastRepeatTime;
     ApplicationCommandManager* commandManagerToUse;
     int autoRepeatDelay, autoRepeatSpeed, autoRepeatMinimumDelay;
-    int radioGroupId, commandID, connectedEdgeFlags;
+    int radioGroupId, connectedEdgeFlags;
+    CommandID commandID;
     ButtonState buttonState;
 
     Value isOn;
-    bool lastToggleState : 1;
-    bool clickTogglesState : 1;
-    bool needsToRelease : 1;
-    bool needsRepainting : 1;
-    bool isKeyDown : 1;
-    bool triggerOnMouseDown : 1;
-    bool generateTooltip : 1;
+    bool lastToggleState;
+    bool clickTogglesState;
+    bool needsToRelease;
+    bool needsRepainting;
+    bool isKeyDown;
+    bool triggerOnMouseDown;
+    bool generateTooltip;
 
     void repeatTimerCallback();
-    RepeatTimer& getRepeatTimer();
+    bool keyStateChangedCallback();
+    void applicationCommandListChangeCallback();
 
     ButtonState updateState();
     ButtonState updateState (bool isOver, bool isDown);
     bool isShortcutPressed() const;
-    void turnOffOtherButtonsInGroup (bool sendChangeNotification);
+    void turnOffOtherButtonsInGroup (NotificationType);
 
     void flashButtonState();
-    void sendClickMessage (const ModifierKeys& modifiers);
+    void sendClickMessage (const ModifierKeys&);
     void sendStateMessage();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Button);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Button)
 };
 
 #ifndef DOXYGEN
@@ -515,4 +513,4 @@ private:
  typedef Button::Listener ButtonListener;
 #endif
 
-#endif   // __JUCE_BUTTON_JUCEHEADER__
+#endif   // JUCE_BUTTON_H_INCLUDED

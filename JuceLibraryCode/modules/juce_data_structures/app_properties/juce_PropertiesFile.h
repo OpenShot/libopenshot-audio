@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PROPERTIESFILE_JUCEHEADER__
-#define __JUCE_PROPERTIESFILE_JUCEHEADER__
+#ifndef JUCE_PROPERTIESFILE_H_INCLUDED
+#define JUCE_PROPERTIESFILE_H_INCLUDED
 
 
 //==============================================================================
@@ -58,7 +57,7 @@ public:
     struct JUCE_API  Options
     {
         /** Creates an empty Options structure.
-            You'll need to fill-in the data memebers appropriately before using this structure.
+            You'll need to fill-in the data members appropriately before using this structure.
         */
         Options();
 
@@ -86,7 +85,8 @@ public:
             Because older apps would be broken by a silent change in this class's behaviour, you must now
             explicitly set the osxLibrarySubFolder value to indicate which path you want to use.
 
-            In newer apps, you should always set this to "Application Support".
+            In newer apps, you should always set this to "Application Support" or
+            "Application Support/YourSubFolderName".
 
             If your app needs to load settings files that were created by older versions of juce and
             you want to maintain backwards-compatibility, then you can set this to "Preferences".
@@ -106,6 +106,9 @@ public:
             The default constructor initialises this value to false.
         */
         bool ignoreCaseOfKeyNames;
+
+        /** If set to true, this prevents the file from being written to disk. */
+        bool doNotSave;
 
         /** If this is zero or greater, then after a value is changed, the object will wait
             for this amount of time and then save the file. If this zero, the file will be
@@ -142,7 +145,7 @@ public:
             C:\\Documents and Settings\\username\\Application Data\\[folderName]\\[applicationName].[filenameSuffix]
 
             On Linux it'll return
-            ~/.[folderName]/[applicationName].[filenameSuffix]
+            ~/[folderName]/[applicationName].[filenameSuffix]
 
             If the folderName variable is empty, it'll use the app name for this (or omit the
             folder name on the Mac).
@@ -210,9 +213,12 @@ public:
     */
     void setNeedsToBeSaved (bool needsToBeSaved);
 
+    /** Attempts to reload the settings from the file. */
+    bool reload();
+
     //==============================================================================
     /** Returns the file that's being used. */
-    File getFile() const                              { return file; }
+    const File& getFile() const noexcept            { return file; }
 
 
 protected:
@@ -228,10 +234,14 @@ private:
     typedef const ScopedPointer<InterProcessLock::ScopedLockType> ProcessScopedLock;
     InterProcessLock::ScopedLockType* createProcessLock() const;
 
-    void timerCallback();
-    void initialise();
+    void timerCallback() override;
+    bool saveAsXml();
+    bool saveAsBinary();
+    bool loadAsXml();
+    bool loadAsBinary();
+    bool loadAsBinary (InputStream&);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertiesFile);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertiesFile)
 };
 
-#endif   // __JUCE_PROPERTIESFILE_JUCEHEADER__
+#endif   // JUCE_PROPERTIESFILE_H_INCLUDED

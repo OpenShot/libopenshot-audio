@@ -1,33 +1,30 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_RELATIVEPOINTPATH_JUCEHEADER__
-#define __JUCE_RELATIVEPOINTPATH_JUCEHEADER__
+#ifndef JUCE_RELATIVEPOINTPATH_H_INCLUDED
+#define JUCE_RELATIVEPOINTPATH_H_INCLUDED
 
-#include "juce_RelativePoint.h"
-class DrawablePath;
 
 //==============================================================================
 /**
@@ -43,12 +40,12 @@ class JUCE_API  RelativePointPath
 public:
     //==============================================================================
     RelativePointPath();
-    RelativePointPath (const RelativePointPath& other);
+    RelativePointPath (const RelativePointPath&);
     explicit RelativePointPath (const Path& path);
     ~RelativePointPath();
 
-    bool operator== (const RelativePointPath& other) const noexcept;
-    bool operator!= (const RelativePointPath& other) const noexcept;
+    bool operator== (const RelativePointPath&) const noexcept;
+    bool operator!= (const RelativePointPath&) const noexcept;
 
     //==============================================================================
     /** Resolves this points in this path and adds them to a normal Path object. */
@@ -58,7 +55,7 @@ public:
     bool containsAnyDynamicPoints() const;
 
     /** Quickly swaps the contents of this path with another. */
-    void swapWith (RelativePointPath& other) noexcept;
+    void swapWith (RelativePointPath&) noexcept;
 
     //==============================================================================
     /** The types of element that may be contained in this path.
@@ -91,7 +88,7 @@ public:
         const ElementType type;
 
     private:
-        JUCE_DECLARE_NON_COPYABLE (ElementBase);
+        JUCE_DECLARE_NON_COPYABLE (ElementBase)
     };
 
     //==============================================================================
@@ -107,7 +104,7 @@ public:
         RelativePoint startPos;
 
     private:
-        JUCE_DECLARE_NON_COPYABLE (StartSubPath);
+        JUCE_DECLARE_NON_COPYABLE (StartSubPath)
     };
 
     //==============================================================================
@@ -121,7 +118,7 @@ public:
         ElementBase* clone() const;
 
     private:
-        JUCE_DECLARE_NON_COPYABLE (CloseSubPath);
+        JUCE_DECLARE_NON_COPYABLE (CloseSubPath)
     };
 
     //==============================================================================
@@ -137,7 +134,7 @@ public:
         RelativePoint endPoint;
 
     private:
-        JUCE_DECLARE_NON_COPYABLE (LineTo);
+        JUCE_DECLARE_NON_COPYABLE (LineTo)
     };
 
     //==============================================================================
@@ -153,7 +150,7 @@ public:
         RelativePoint controlPoints[2];
 
     private:
-        JUCE_DECLARE_NON_COPYABLE (QuadraticTo);
+        JUCE_DECLARE_NON_COPYABLE (QuadraticTo)
     };
 
     //==============================================================================
@@ -169,7 +166,7 @@ public:
         RelativePoint controlPoints[3];
 
     private:
-        JUCE_DECLARE_NON_COPYABLE (CubicTo);
+        JUCE_DECLARE_NON_COPYABLE (CubicTo)
     };
 
     //==============================================================================
@@ -187,8 +184,8 @@ private:
     void applyTo (DrawablePath& path) const;
 
     RelativePointPath& operator= (const RelativePointPath&);
-    JUCE_LEAK_DETECTOR (RelativePointPath);
+    JUCE_LEAK_DETECTOR (RelativePointPath)
 };
 
 
-#endif   // __JUCE_RELATIVEPOINTPATH_JUCEHEADER__
+#endif   // JUCE_RELATIVEPOINTPATH_H_INCLUDED

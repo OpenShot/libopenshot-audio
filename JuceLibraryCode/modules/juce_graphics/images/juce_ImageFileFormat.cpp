@@ -1,53 +1,72 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
+struct DefaultImageFormats
+{
+    static ImageFileFormat** get()
+    {
+        static DefaultImageFormats formats;
+        return formats.formats;
+    }
+
+private:
+    DefaultImageFormats() noexcept
+    {
+        formats[0] = &png;
+        formats[1] = &jpg;
+        formats[2] = &gif;
+        formats[3] = nullptr;
+    }
+
+    PNGImageFormat  png;
+    JPEGImageFormat jpg;
+    GIFImageFormat  gif;
+
+    ImageFileFormat* formats[4];
+};
+
 ImageFileFormat* ImageFileFormat::findImageFormatForStream (InputStream& input)
 {
-    struct DefaultImageFormats
-    {
-        PNGImageFormat  png;
-        JPEGImageFormat jpg;
-        GIFImageFormat  gif;
-    };
-
-    static DefaultImageFormats defaultImageFormats;
-
-    ImageFileFormat* formats[] = { &defaultImageFormats.png,
-                                   &defaultImageFormats.jpg,
-                                   &defaultImageFormats.gif };
-
     const int64 streamPos = input.getPosition();
 
-    for (int i = 0; i < numElementsInArray (formats); ++i)
+    for (ImageFileFormat** i = DefaultImageFormats::get(); *i != nullptr; ++i)
     {
-        const bool found = formats[i]->canUnderstand (input);
+        const bool found = (*i)->canUnderstand (input);
         input.setPosition (streamPos);
 
         if (found)
-            return formats[i];
+            return *i;
     }
+
+    return nullptr;
+}
+
+ImageFileFormat* ImageFileFormat::findImageFormatForFileExtension (const File& file)
+{
+    for (ImageFileFormat** i = DefaultImageFormats::get(); *i != nullptr; ++i)
+        if ((*i)->usesFileExtension (file))
+            return *i;
 
     return nullptr;
 }

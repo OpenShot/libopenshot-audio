@@ -1,54 +1,41 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-namespace
-{
-    int64 getRandomSeedFromMACAddresses()
-    {
-        Array<MACAddress> result;
-        MACAddress::findAllAddresses (result);
-
-        Random r;
-        for (int i = 0; i < result.size(); ++i)
-            r.combineSeed (result[i].toInt64());
-
-        return r.nextInt64();
-    }
-}
-
-//==============================================================================
 Uuid::Uuid()
 {
-    // The normal random seeding is pretty good, but we'll throw some MAC addresses
-    // into the mix too, to make it very very unlikely that two UUIDs will ever be the same..
-
-    static Random r1 (getRandomSeedFromMACAddresses());
-    Random r2;
+    Random r;
 
     for (size_t i = 0; i < sizeof (uuid); ++i)
-        uuid[i] = (uint8) (r1.nextInt() ^ r2.nextInt());
+        uuid[i] = (uint8) (r.nextInt (256));
+
+    // To make it RFC 4122 compliant, need to force a few bits...
+    uuid[6] = (uuid[6] & 0x0f) | 0x40;
+    uuid[8] = (uuid[8] & 0x3f) | 0x80;
 }
 
 Uuid::~Uuid() noexcept {}
@@ -67,6 +54,11 @@ Uuid& Uuid::operator= (const Uuid& other) noexcept
 bool Uuid::operator== (const Uuid& other) const noexcept    { return memcmp (uuid, other.uuid, sizeof (uuid)) == 0; }
 bool Uuid::operator!= (const Uuid& other) const noexcept    { return ! operator== (other); }
 
+Uuid Uuid::null() noexcept
+{
+    return Uuid ((const uint8*) nullptr);
+}
+
 bool Uuid::isNull() const noexcept
 {
     for (size_t i = 0; i < sizeof (uuid); ++i)
@@ -76,9 +68,23 @@ bool Uuid::isNull() const noexcept
     return true;
 }
 
+String Uuid::getHexRegion (int start, int length) const
+{
+    return String::toHexString (uuid + start, length, 0);
+}
+
 String Uuid::toString() const
 {
-    return String::toHexString (uuid, sizeof (uuid), 0);
+    return getHexRegion (0, 16);
+}
+
+String Uuid::toDashedString() const
+{
+    return getHexRegion (0, 4)
+            + "-" + getHexRegion (4, 2)
+            + "-" + getHexRegion (6, 2)
+            + "-" + getHexRegion (8, 2)
+            + "-" + getHexRegion (10, 6);
 }
 
 Uuid::Uuid (const String& uuidString)
@@ -95,7 +101,7 @@ Uuid& Uuid::operator= (const String& uuidString)
     return *this;
 }
 
-Uuid::Uuid (const uint8* const rawData)
+Uuid::Uuid (const uint8* const rawData) noexcept
 {
     operator= (rawData);
 }

@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_LISTBOX_JUCEHEADER__
-#define __JUCE_LISTBOX_JUCEHEADER__
-
-#include "../layout/juce_Viewport.h"
+#ifndef JUCE_LISTBOX_H_INCLUDED
+#define JUCE_LISTBOX_H_INCLUDED
 
 
 //==============================================================================
@@ -44,13 +41,11 @@ public:
 
     //==============================================================================
     /** This has to return the number of items in the list.
-
         @see ListBox::getNumRows()
     */
     virtual int getNumRows() = 0;
 
-    /** This method must be implemented to draw a row of the list.
-    */
+    /** This method must be implemented to draw a row of the list. */
     virtual void paintListBoxItem (int rowNumber,
                                    Graphics& g,
                                    int width, int height,
@@ -64,7 +59,9 @@ public:
         This method will be called whenever a custom component might need to be updated - e.g.
         when the table is changed, or TableListBox::updateContent() is called.
 
-        If you don't need a custom component for the specified row, then return 0.
+        If you don't need a custom component for the specified row, then return nullptr.
+        (Bear in mind that even if you're not creating a new component, you may still need to
+        delete existingComponentToUpdate if it's non-null).
 
         If you do want a custom component, and the existingComponentToUpdate is null, then
         this method must create a suitable new component and return it.
@@ -75,25 +72,27 @@ public:
         delete this component and return a new one.
 
         The component that your method returns will be deleted by the ListBox when it is no longer needed.
+
+        Bear in mind that if you put a custom component inside the row but still want the
+        listbox to automatically handle clicking, selection, etc, then you'll need to make sure
+        your custom component doesn't intercept all the mouse events that land on it, e.g by
+        using Component::setInterceptsMouseClicks().
     */
     virtual Component* refreshComponentForRow (int rowNumber, bool isRowSelected,
                                                Component* existingComponentToUpdate);
 
     /** This can be overridden to react to the user clicking on a row.
-
         @see listBoxItemDoubleClicked
     */
     virtual void listBoxItemClicked (int row, const MouseEvent& e);
 
     /** This can be overridden to react to the user double-clicking on a row.
-
         @see listBoxItemClicked
     */
     virtual void listBoxItemDoubleClicked (int row, const MouseEvent& e);
 
-    /** This can be overridden to react to the user double-clicking on a part of the list where
+    /** This can be overridden to react to the user clicking on a part of the list where
         there are no rows.
-
         @see listBoxItemClicked
     */
     virtual void backgroundClicked();
@@ -150,6 +149,9 @@ public:
         @see TooltipClient
     */
     virtual String getTooltipForRow (int row);
+
+    /** You can override this to return a custom mouse cursor for each row. */
+    virtual MouseCursor getMouseCursorForRow (int row);
 };
 
 
@@ -247,21 +249,17 @@ public:
                             int lastRow);
 
     /** Deselects a row.
-
         If it's not currently selected, this will do nothing.
-
         @see selectRow, deselectAllRows
     */
     void deselectRow (int rowNumber);
 
     /** Deselects any currently selected rows.
-
         @see deselectRow
     */
     void deselectAllRows();
 
     /** Selects or deselects a row.
-
         If the row's currently selected, this deselects it, and vice-versa.
     */
     void flipRowSelection (int rowNumber);
@@ -279,14 +277,13 @@ public:
         @see getSelectedRows
     */
     void setSelectedRows (const SparseSet<int>& setOfRowsToBeSelected,
-                          bool sendNotificationEventToModel = true);
+                          NotificationType sendNotificationEventToModel = sendNotification);
 
     /** Checks whether a row is selected.
     */
     bool isRowSelected (int rowNumber) const;
 
     /** Returns the number of rows that are currently selected.
-
         @see getSelectedRow, isRowSelected, getLastRowSelected
     */
     int getNumSelectedRows() const;
@@ -326,7 +323,7 @@ public:
         @see selectRow
     */
     void selectRowsBasedOnModifierKeys (int rowThatWasClickedOn,
-                                        const ModifierKeys& modifiers,
+                                        ModifierKeys modifiers,
                                         bool isMouseUpEvent);
 
     //==============================================================================
@@ -351,8 +348,7 @@ public:
     */
     double getVerticalPosition() const;
 
-    /** Scrolls if necessary to make sure that a particular row is visible.
-    */
+    /** Scrolls if necessary to make sure that a particular row is visible. */
     void scrollToEnsureRowIsOnscreen (int row);
 
     /** Returns a pointer to the vertical scrollbar. */
@@ -519,58 +515,53 @@ public:
     Viewport* getViewport() const noexcept;
 
     //==============================================================================
-    struct Ids
-    {
-        static const Identifier rowHeight, borderThickness;
-    };
-
-    void refreshFromValueTree (const ValueTree&, ComponentBuilder&);
-
-    //==============================================================================
     /** @internal */
-    bool keyPressed (const KeyPress&);
+    bool keyPressed (const KeyPress&) override;
     /** @internal */
-    bool keyStateChanged (bool isKeyDown);
+    bool keyStateChanged (bool isKeyDown) override;
     /** @internal */
-    void paint (Graphics&);
+    void paint (Graphics&) override;
     /** @internal */
-    void paintOverChildren (Graphics&);
+    void paintOverChildren (Graphics&) override;
     /** @internal */
-    void resized();
+    void resized() override;
     /** @internal */
-    void visibilityChanged();
+    void visibilityChanged() override;
     /** @internal */
-    void mouseWheelMove (const MouseEvent&, float wheelIncrementX, float wheelIncrementY);
+    void mouseWheelMove (const MouseEvent&, const MouseWheelDetails&) override;
     /** @internal */
-    void mouseMove (const MouseEvent&);
+    void mouseUp (const MouseEvent&) override;
     /** @internal */
-    void mouseExit (const MouseEvent&);
-    /** @internal */
-    void mouseUp (const MouseEvent&);
-    /** @internal */
-    void colourChanged();
+    void colourChanged() override;
     /** @internal */
     void startDragAndDrop (const MouseEvent&, const var& dragDescription, bool allowDraggingToOtherWindows);
 
 private:
     //==============================================================================
-    class ListViewport;
+    JUCE_PUBLIC_IN_DLL_BUILD (class ListViewport)
+    JUCE_PUBLIC_IN_DLL_BUILD (class RowComponent)
     friend class ListViewport;
     friend class TableListBox;
     ListBoxModel* model;
     ScopedPointer<ListViewport> viewport;
     ScopedPointer<Component> headerComponent;
+    ScopedPointer<MouseListener> mouseMoveSelector;
     int totalItems, rowHeight, minimumRowWidth;
     int outlineThickness;
     int lastRowSelected;
-    bool mouseMoveSelects, multipleSelection, hasDoneInitialUpdate;
-    SparseSet <int> selected;
+    bool multipleSelection, hasDoneInitialUpdate;
+    SparseSet<int> selected;
 
     void selectRowInternal (int rowNumber, bool dontScrollToShowThisRow,
                             bool deselectOthersFirst, bool isMouseClick);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ListBox);
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+    // This method's bool parameter has changed: see the new method signature.
+    JUCE_DEPRECATED (void setSelectedRows (const SparseSet<int>&, bool));
+   #endif
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ListBox)
 };
 
 
-#endif   // __JUCE_LISTBOX_JUCEHEADER__
+#endif   // JUCE_LISTBOX_H_INCLUDED

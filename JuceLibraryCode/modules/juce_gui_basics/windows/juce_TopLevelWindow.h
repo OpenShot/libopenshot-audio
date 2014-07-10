@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_TOPLEVELWINDOW_JUCEHEADER__
-#define __JUCE_TOPLEVELWINDOW_JUCEHEADER__
-
-#include "../components/juce_Component.h"
-#include "../misc/juce_DropShadower.h"
+#ifndef JUCE_TOPLEVELWINDOW_H_INCLUDED
+#define JUCE_TOPLEVELWINDOW_H_INCLUDED
 
 
 //==============================================================================
@@ -76,7 +72,7 @@ public:
 
         @see activeWindowStatusChanged
     */
-    bool isActiveWindow() const noexcept                    { return windowIsActive_; }
+    bool isActiveWindow() const noexcept                    { return isCurrentlyActive; }
 
     //==============================================================================
     /** This will set the bounds of the window so that it's centred in front of another
@@ -101,45 +97,41 @@ public:
     bool isDropShadowEnabled() const noexcept               { return useDropShadow; }
 
     /** Sets whether an OS-native title bar will be used, or a Juce one.
-
         @see isUsingNativeTitleBar
     */
     void setUsingNativeTitleBar (bool useNativeTitleBar);
 
     /** Returns true if the window is currently using an OS-native title bar.
-
         @see setUsingNativeTitleBar
     */
-    bool isUsingNativeTitleBar() const noexcept             { return useNativeTitleBar && isOnDesktop(); }
+    bool isUsingNativeTitleBar() const noexcept;
 
     //==============================================================================
     /** Returns the number of TopLevelWindow objects currently in use.
-
         @see getTopLevelWindow
     */
     static int getNumTopLevelWindows() noexcept;
 
     /** Returns one of the TopLevelWindow objects currently in use.
-
         The index is 0 to (getNumTopLevelWindows() - 1).
     */
     static TopLevelWindow* getTopLevelWindow (int index) noexcept;
 
     /** Returns the currently-active top level window.
-
-        There might not be one, of course, so this can return 0.
+        There might not be one, of course, so this can return nullptr.
     */
     static TopLevelWindow* getActiveTopLevelWindow() noexcept;
 
+    /** Adds the window to the desktop using the default flags. */
+    void addToDesktop();
 
     //==============================================================================
     /** @internal */
-    virtual void addToDesktop (int windowStyleFlags, void* nativeWindowToAttachTo = nullptr);
+    virtual void addToDesktop (int windowStyleFlags, void* nativeWindowToAttachTo = nullptr) override;
 
 protected:
     //==============================================================================
     /** This callback happens when this window becomes active or inactive.
-
         @see isActiveWindow
     */
     virtual void activeWindowStatusChanged();
@@ -147,25 +139,26 @@ protected:
 
     //==============================================================================
     /** @internal */
-    void focusOfChildComponentChanged (FocusChangeType cause);
+    void focusOfChildComponentChanged (FocusChangeType) override;
     /** @internal */
-    void parentHierarchyChanged();
+    void parentHierarchyChanged() override;
     /** @internal */
     virtual int getDesktopWindowStyleFlags() const;
     /** @internal */
     void recreateDesktopWindow();
     /** @internal */
-    void visibilityChanged();
+    void visibilityChanged() override;
 
 private:
     friend class TopLevelWindowManager;
-    bool useDropShadow, useNativeTitleBar, windowIsActive_;
-    ScopedPointer <DropShadower> shadower;
+    friend class ResizableWindow;
+    bool useDropShadow, useNativeTitleBar, isCurrentlyActive;
+    ScopedPointer<DropShadower> shadower;
 
-    void setWindowActive (bool isNowActive);
+    void setWindowActive (bool);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TopLevelWindow);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TopLevelWindow)
 };
 
 
-#endif   // __JUCE_TOPLEVELWINDOW_JUCEHEADER__
+#endif   // JUCE_TOPLEVELWINDOW_H_INCLUDED

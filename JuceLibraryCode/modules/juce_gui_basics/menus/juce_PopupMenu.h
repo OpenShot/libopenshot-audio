@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_POPUPMENU_JUCEHEADER__
-#define __JUCE_POPUPMENU_JUCEHEADER__
+#ifndef JUCE_POPUPMENU_H_INCLUDED
+#define JUCE_POPUPMENU_H_INCLUDED
 
 
 //==============================================================================
@@ -105,25 +104,59 @@ public:
 
     /** Appends a new text item for this menu to show.
 
-        @param itemResultId     the number that will be returned from the show() method
+        @param itemResultID     the number that will be returned from the show() method
                                 if the user picks this item. The value should never be
                                 zero, because that's used to indicate that the user didn't
                                 select anything.
         @param itemText         the text to show.
         @param isEnabled        if false, the item will be shown 'greyed-out' and can't be picked
         @param isTicked         if true, the item will be shown with a tick next to it
-        @param iconToUse        if this is non-zero, it should be an image that will be
-                                displayed to the left of the item. This method will take its
-                                own copy of the image passed-in, so there's no need to keep
-                                it hanging around.
 
         @see addSeparator, addColouredItem, addCustomItem, addSubMenu
     */
-    void addItem (int itemResultId,
+    void addItem (int itemResultID,
                   const String& itemText,
                   bool isEnabled = true,
-                  bool isTicked = false,
-                  const Image& iconToUse = Image::null);
+                  bool isTicked = false);
+
+    /** Appends a new item with an icon.
+
+        @param itemResultID     the number that will be returned from the show() method
+                                if the user picks this item. The value should never be
+                                zero, because that's used to indicate that the user didn't
+                                select anything.
+        @param itemText         the text to show.
+        @param isEnabled        if false, the item will be shown 'greyed-out' and can't be picked
+        @param isTicked         if true, the item will be shown with a tick next to it
+        @param iconToUse        if this is a valid image, it will be displayed to the left of the item.
+
+        @see addSeparator, addColouredItem, addCustomItem, addSubMenu
+    */
+    void addItem (int itemResultID,
+                  const String& itemText,
+                  bool isEnabled,
+                  bool isTicked,
+                  const Image& iconToUse);
+
+    /** Appends a new item with an icon.
+
+        @param itemResultID     the number that will be returned from the show() method
+                                if the user picks this item. The value should never be
+                                zero, because that's used to indicate that the user didn't
+                                select anything.
+        @param itemText         the text to show.
+        @param isEnabled        if false, the item will be shown 'greyed-out' and can't be picked
+        @param isTicked         if true, the item will be shown with a tick next to it
+        @param iconToUse        a Drawable object to use as the icon to the left of the item.
+                                The menu will take ownership of this drawable object and will
+                                delete it later when no longer needed
+        @see addSeparator, addColouredItem, addCustomItem, addSubMenu
+    */
+    void addItem (int itemResultID,
+                  const String& itemText,
+                  bool isEnabled,
+                  bool isTicked,
+                  Drawable* iconToUse);
 
     /** Adds an item that represents one of the commands in a command manager object.
 
@@ -134,7 +167,7 @@ public:
                                     the command's registered name
     */
     void addCommandItem (ApplicationCommandManager* commandManager,
-                         int commandID,
+                         CommandID commandID,
                          const String& displayName = String::empty);
 
 
@@ -144,42 +177,71 @@ public:
         text, which will override the default colours that are used by the
         current look-and-feel. See addItem() for a description of the parameters.
     */
-    void addColouredItem (int itemResultId,
+    void addColouredItem (int itemResultID,
                           const String& itemText,
-                          const Colour& itemTextColour,
+                          Colour itemTextColour,
                           bool isEnabled = true,
                           bool isTicked = false,
                           const Image& iconToUse = Image::null);
 
     /** Appends a custom menu item that can't be used to trigger a result.
 
-        This will add a user-defined component to use as a menu item. Unlike the
-        addCustomItem() method that takes a PopupMenu::CustomComponent, this version
-        can't trigger a result from it, so doesn't take a menu ID. It also doesn't
-        delete the component when it's finished, so it's the caller's responsibility
-        to manage the component that is passed-in.
+        This will add a user-defined component to use as a menu item.
+        It's the caller's responsibility to delete the component that is passed-in
+        when it's no longer needed after the menu has been hidden.
 
-        if triggerMenuItemAutomaticallyWhenClicked is true, the menu itself will handle
+        If triggerMenuItemAutomaticallyWhenClicked is true, the menu itself will handle
         detection of a mouse-click on your component, and use that to trigger the
-        menu ID specified in itemResultId. If this is false, the menu item can't
-        be triggered, so itemResultId is not used.
+        menu ID specified in itemResultID. If this is false, the menu item can't
+        be triggered, so itemResultID is not used.
 
         @see CustomComponent
     */
-    void addCustomItem (int itemResultId,
+    void addCustomItem (int itemResultID,
                         Component* customComponent,
                         int idealWidth, int idealHeight,
-                        bool triggerMenuItemAutomaticallyWhenClicked);
+                        bool triggerMenuItemAutomaticallyWhenClicked,
+                        const PopupMenu* optionalSubMenu = nullptr);
 
     /** Appends a sub-menu.
 
         If the menu that's passed in is empty, it will appear as an inactive item.
+        If the itemResultID argument is non-zero, then the sub-menu item itself can be
+        clicked to trigger it as a command.
     */
     void addSubMenu (const String& subMenuName,
                      const PopupMenu& subMenu,
-                     bool isEnabled = true,
-                     const Image& iconToUse = Image::null,
-                     bool isTicked = false);
+                     bool isEnabled = true);
+
+    /** Appends a sub-menu with an icon.
+
+        If the menu that's passed in is empty, it will appear as an inactive item.
+        If the itemResultID argument is non-zero, then the sub-menu item itself can be
+        clicked to trigger it as a command.
+    */
+    void addSubMenu (const String& subMenuName,
+                     const PopupMenu& subMenu,
+                     bool isEnabled,
+                     const Image& iconToUse,
+                     bool isTicked = false,
+                     int itemResultID = 0);
+
+    /** Appends a sub-menu with an icon.
+
+        If the menu that's passed in is empty, it will appear as an inactive item.
+        If the itemResultID argument is non-zero, then the sub-menu item itself can be
+        clicked to trigger it as a command.
+
+        The iconToUse parameter is a Drawable object to use as the icon to the left of
+        the item. The menu will take ownership of this drawable object and will delete it
+        later when no longer needed
+    */
+    void addSubMenu (const String& subMenuName,
+                     const PopupMenu& subMenu,
+                     bool isEnabled,
+                     Drawable* iconToUse,
+                     bool isTicked = false,
+                     int itemResultID = 0);
 
     /** Appends a separator to the menu, to help break it up into sections.
 
@@ -216,7 +278,7 @@ public:
         E.g. @code
         PopupMenu menu;
         ...
-        menu.showMenu (PopupMenu::Options().withMaximumWidth (100),
+        menu.showMenu (PopupMenu::Options().withMinimumWidth (100)
                                            .withMaximumNumColumns (3)
                                            .withTargetComponent (myComp));
         @endcode
@@ -254,7 +316,7 @@ public:
         on where this point is on the screen, the menu will appear above, below or
         to the side of the point.
 
-        @param itemIdThatMustBeVisible  if you set this to the ID of one of the menu items,
+        @param itemIDThatMustBeVisible  if you set this to the ID of one of the menu items,
                                         then when the menu first appears, it will make sure
                                         that this item is visible. So if the menu has too many
                                         items to fit on the screen, it will be scrolled to a
@@ -276,7 +338,7 @@ public:
                                         pointers that it uses are safely within scope.
         @see showAt
     */
-    int show (int itemIdThatMustBeVisible = 0,
+    int show (int itemIDThatMustBeVisible = 0,
               int minimumWidth = 0,
               int maximumNumColumns = 0,
               int standardItemHeight = 0,
@@ -286,7 +348,7 @@ public:
     /** Displays the menu at a specific location.
 
         This is the same as show(), but uses a specific location (in global screen
-        co-ordinates) rather than the current mouse position.
+        coordinates) rather than the current mouse position.
 
         The screenAreaToAttachTo parameter indicates a screen area to which the menu
         will be adjacent. Depending on where this is, the menu will decide which edge to
@@ -297,7 +359,7 @@ public:
         @see show()
     */
     int showAt (const Rectangle<int>& screenAreaToAttachTo,
-                int itemIdThatMustBeVisible = 0,
+                int itemIDThatMustBeVisible = 0,
                 int minimumWidth = 0,
                 int maximumNumColumns = 0,
                 int standardItemHeight = 0,
@@ -310,7 +372,7 @@ public:
         things like buttons that trigger a pop-up menu.
     */
     int showAt (Component* componentToAttachTo,
-                int itemIdThatMustBeVisible = 0,
+                int itemIDThatMustBeVisible = 0,
                 int minimumWidth = 0,
                 int maximumNumColumns = 0,
                 int standardItemHeight = 0,
@@ -394,6 +456,9 @@ public:
         */
         bool next();
 
+        /** Adds an item to the target menu which has all the properties of this item. */
+        void addItemTo (PopupMenu& targetMenu);
+
         //==============================================================================
         String itemName;
         const PopupMenu* subMenu;
@@ -404,7 +469,7 @@ public:
         bool isCustomComponent;
         bool isSectionHeader;
         const Colour* customColour;
-        Image customImage;
+        const Drawable* icon;
         ApplicationCommandManager* commandManager;
 
     private:
@@ -412,11 +477,12 @@ public:
         const PopupMenu& menu;
         int index;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MenuItemIterator);
+        MenuItemIterator& operator= (const MenuItemIterator&);
+        JUCE_LEAK_DETECTOR (MenuItemIterator)
     };
 
     //==============================================================================
-    /** A user-defined copmonent that can be used as an item in a popup menu.
+    /** A user-defined component that can be used as an item in a popup menu.
         @see PopupMenu::addCustomItem
     */
     class JUCE_API  CustomComponent  : public Component,
@@ -462,7 +528,7 @@ public:
         //==============================================================================
         bool isHighlighted, triggeredAutomatically;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomComponent);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomComponent)
     };
 
     /** Appends a custom menu item.
@@ -472,29 +538,84 @@ public:
 
         @see CustomComponent
     */
-    void addCustomItem (int itemResultId, CustomComponent* customComponent);
+    void addCustomItem (int itemResultID, CustomComponent* customComponent,
+                        const PopupMenu* optionalSubMenu = nullptr);
+
+
+    //==============================================================================
+    /** This abstract base class is implemented by LookAndFeel classes to provide
+        menu drawing functionality.
+    */
+    struct JUCE_API  LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {}
+
+        /** Fills the background of a popup menu component. */
+        virtual void drawPopupMenuBackground (Graphics&, int width, int height) = 0;
+
+        /** Draws one of the items in a popup menu. */
+        virtual void drawPopupMenuItem (Graphics&, const Rectangle<int>& area,
+                                        bool isSeparator, bool isActive, bool isHighlighted,
+                                        bool isTicked, bool hasSubMenu,
+                                        const String& text,
+                                        const String& shortcutKeyText,
+                                        const Drawable* icon,
+                                        const Colour* textColour) = 0;
+
+        /** Returns the size and style of font to use in popup menus. */
+        virtual Font getPopupMenuFont() = 0;
+
+        virtual void drawPopupMenuUpDownArrow (Graphics&,
+                                               int width, int height,
+                                               bool isScrollUpArrow) = 0;
+
+        /** Finds the best size for an item in a popup menu. */
+        virtual void getIdealPopupMenuItemSize (const String& text,
+                                                bool isSeparator,
+                                                int standardMenuItemHeight,
+                                                int& idealWidth,
+                                                int& idealHeight) = 0;
+
+        virtual int getMenuWindowFlags() = 0;
+
+        virtual void drawMenuBarBackground (Graphics&, int width, int height,
+                                            bool isMouseOverBar,
+                                            MenuBarComponent&) = 0;
+
+        virtual int getDefaultMenuBarHeight() = 0;
+
+        virtual int getMenuBarItemWidth (MenuBarComponent&, int itemIndex, const String& itemText) = 0;
+
+        virtual Font getMenuBarFont (MenuBarComponent&, int itemIndex, const String& itemText) = 0;
+
+        virtual void drawMenuBarItem (Graphics&, int width, int height,
+                                      int itemIndex,
+                                      const String& itemText,
+                                      bool isMouseOverItem,
+                                      bool isMenuOpen,
+                                      bool isMouseOverBar,
+                                      MenuBarComponent&) = 0;
+    };
 
 private:
     //==============================================================================
-    class Item;
-    class ItemComponent;
-
-    friend class MenuItemIterator;
-    friend class ItemComponent;
-    friend class Window;
-    friend class CustomComponent;
+    JUCE_PUBLIC_IN_DLL_BUILD (class Item)
+    JUCE_PUBLIC_IN_DLL_BUILD (struct HelperClasses)
+    friend struct HelperClasses;
     friend class MenuBarComponent;
-    friend class OwnedArray <Item>;
-    friend class OwnedArray <ItemComponent>;
-    friend class ScopedPointer <Window>;
 
-    OwnedArray <Item> items;
+    OwnedArray<Item> items;
     LookAndFeel* lookAndFeel;
 
     Component* createWindow (const Options&, ApplicationCommandManager**) const;
     int showWithOptionalCallback (const Options&, ModalComponentManager::Callback*, bool);
 
-    JUCE_LEAK_DETECTOR (PopupMenu);
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+    // These methods have new implementations now - see its new definition
+    int drawPopupMenuItem (Graphics&, int, int, bool, bool, bool, bool, bool, const String&, const String&, Image*, const Colour*) { return 0; }
+   #endif
+
+    JUCE_LEAK_DETECTOR (PopupMenu)
 };
 
-#endif   // __JUCE_POPUPMENU_JUCEHEADER__
+#endif   // JUCE_POPUPMENU_H_INCLUDED

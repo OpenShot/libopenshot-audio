@@ -1,35 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_URL_JUCEHEADER__
-#define __JUCE_URL_JUCEHEADER__
-
-#include "../text/juce_StringPairArray.h"
-#include "../files/juce_File.h"
-class InputStream;
-class XmlElement;
+#ifndef JUCE_URL_H_INCLUDED
+#define JUCE_URL_H_INCLUDED
 
 
 //==============================================================================
@@ -46,7 +44,11 @@ public:
     /** Creates an empty URL. */
     URL();
 
-    /** Creates a URL from a string. */
+    /** Creates a URL from a string.
+        This will parse any embedded parameters after a '?' character and store them
+        in the list (see getParameterNames etc). If you don't want this to happen, you
+        can use createWithoutParsing().
+    */
     URL (const String& url);
 
     /** Creates a copy of another URL. */
@@ -135,22 +137,39 @@ public:
     URL withParameter (const String& parameterName,
                        const String& parameterValue) const;
 
-    /** Returns a copy of this URl, with a file-upload type parameter added to it.
+    /** Returns a copy of this URL, with a file-upload type parameter added to it.
 
         When performing a POST where one of your parameters is a binary file, this
         lets you specify the file.
 
         Note that the filename is stored, but the file itself won't actually be read
-        until this URL is later used to create a network input stream.
+        until this URL is later used to create a network input stream. If you want to
+        upload data from memory, use withDataToUpload().
+
+        @see withDataToUpload
     */
     URL withFileToUpload (const String& parameterName,
                           const File& fileToUpload,
                           const String& mimeType) const;
 
+    /** Returns a copy of this URL, with a file-upload type parameter added to it.
+
+        When performing a POST where one of your parameters is a binary file, this
+        lets you specify the file content.
+        Note that the filename parameter should not be a full path, it's just the
+        last part of the filename.
+
+        @see withFileToUpload
+    */
+    URL withDataToUpload (const String& parameterName,
+                          const String& filename,
+                          const MemoryBlock& fileContentToUpload,
+                          const String& mimeType) const;
+
     /** Returns an array of the names of all the URL's parameters.
 
         E.g. for the url "www.fish.com?type=haddock&amount=some+fish", this array would
-        contain two items: "type" and "haddock".
+        contain two items: "type" and "amount".
 
         You can call getParameterValues() to get the corresponding value of each
         parameter. Note that the list can contain multiple parameters with the same name.
@@ -172,17 +191,6 @@ public:
         @see getParameterNames, withParameter
     */
     const StringArray& getParameterValues() const noexcept      { return parameterValues; }
-
-    /** Returns the set of files that should be uploaded as part of a POST operation.
-
-        This is the set of files that were added to the URL with the withFileToUpload()
-        method.
-    */
-    const StringPairArray& getFilesToUpload() const;
-
-    /** Returns the set of mime types associated with each of the upload files.
-    */
-    const StringPairArray& getMimeTypesOfUploadFiles() const;
 
     /** Returns a copy of this URL, with a block of data to send as the POST data.
 
@@ -232,7 +240,7 @@ public:
     /** Attempts to open a stream that can read from this URL.
 
         @param usePostCommand   if true, it will try to do use a http 'POST' to pass
-                                the paramters, otherwise it'll encode them into the
+                                the parameters, otherwise it'll encode them into the
                                 URL and do a 'GET'.
         @param progressCallback if this is non-zero, it lets you supply a callback function
                                 to keep track of the operation's progress. This can be useful
@@ -245,17 +253,20 @@ public:
         @param connectionTimeOutMs  if 0, this will use whatever default setting the OS chooses. If
                                 a negative number, it will be infinite. Otherwise it specifies a
                                 time in milliseconds.
-        @param responseHeaders  if this is non-zero, all the (key, value) pairs received as headers
+        @param responseHeaders  if this is non-null, all the (key, value) pairs received as headers
                                 in the response will be stored in this array
+        @param statusCode       if this is non-null, it will get set to the http status code, if one
+                                is known, or 0 if a code isn't available
         @returns    an input stream that the caller must delete, or a null pointer if there was an
                     error trying to open it.
      */
     InputStream* createInputStream (bool usePostCommand,
                                     OpenStreamProgressCallback* progressCallback = nullptr,
                                     void* progressCallbackContext = nullptr,
-                                    const String& extraHeaders = String::empty,
+                                    String extraHeaders = String(),
                                     int connectionTimeOutMs = 0,
-                                    StringPairArray* responseHeaders = nullptr) const;
+                                    StringPairArray* responseHeaders = nullptr,
+                                    int* statusCode = nullptr) const;
 
 
     //==============================================================================
@@ -328,20 +339,37 @@ public:
     */
     static String removeEscapeChars (const String& stringToRemoveEscapeCharsFrom);
 
+    /** Returns a URL without attempting to remove any embedded parameters from the string.
+        This may be necessary if you need to create a request that involves both POST
+        parameters and parameters which are embedded in the URL address itself.
+    */
+    static URL createWithoutParsing (const String& url);
+
 private:
     //==============================================================================
     String url, postData;
     StringArray parameterNames, parameterValues;
-    StringPairArray filesToUpload, mimeTypes;
 
+    struct Upload  : public ReferenceCountedObject
+    {
+        Upload (const String&, const String&, const String&, const File&, MemoryBlock*);
+        String parameterName, filename, mimeType;
+        File file;
+        ScopedPointer<MemoryBlock> data;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Upload)
+    };
+
+    friend struct ContainerDeletePolicy<Upload>;
+    ReferenceCountedArray<Upload> filesToUpload;
+
+    URL (const String&, int);
     void addParameter (const String&, const String&);
+    void createHeadersAndPostData (String&, MemoryBlock&) const;
+    URL withUpload (Upload*) const;
 
-    static InputStream* createNativeStream (const String& address, bool isPost, const MemoryBlock& postData,
-                                            OpenStreamProgressCallback* progressCallback,
-                                            void* progressCallbackContext, const String& headers,
-                                            const int timeOutMs, StringPairArray* responseHeaders);
-    JUCE_LEAK_DETECTOR (URL);
+    JUCE_LEAK_DETECTOR (URL)
 };
 
 
-#endif   // __JUCE_URL_JUCEHEADER__
+#endif   // JUCE_URL_H_INCLUDED

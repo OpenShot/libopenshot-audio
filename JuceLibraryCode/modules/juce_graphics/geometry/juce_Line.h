@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_LINE_JUCEHEADER__
-#define __JUCE_LINE_JUCEHEADER__
-
-#include "juce_Point.h"
+#ifndef JUCE_LINE_H_INCLUDED
+#define JUCE_LINE_H_INCLUDED
 
 
 //==============================================================================
@@ -58,7 +55,7 @@ public:
     {
     }
 
-    /** Creates a line based on the co-ordinates of its start and end points. */
+    /** Creates a line based on the coordinates of its start and end points. */
     Line (ValueType startX, ValueType startY, ValueType endX, ValueType endY) noexcept
         : start (startX, startY),
           end (endX, endY)
@@ -66,8 +63,8 @@ public:
     }
 
     /** Creates a line from its start and end points. */
-    Line (const Point<ValueType>& startPoint,
-          const Point<ValueType>& endPoint) noexcept
+    Line (const Point<ValueType> startPoint,
+          const Point<ValueType> endPoint) noexcept
         : start (startPoint),
           end (endPoint)
     {
@@ -85,23 +82,23 @@ public:
     ~Line() noexcept {}
 
     //==============================================================================
-    /** Returns the x co-ordinate of the line's start point. */
+    /** Returns the x coordinate of the line's start point. */
     inline ValueType getStartX() const noexcept                             { return start.x; }
 
-    /** Returns the y co-ordinate of the line's start point. */
+    /** Returns the y coordinate of the line's start point. */
     inline ValueType getStartY() const noexcept                             { return start.y; }
 
-    /** Returns the x co-ordinate of the line's end point. */
+    /** Returns the x coordinate of the line's end point. */
     inline ValueType getEndX() const noexcept                               { return end.x; }
 
-    /** Returns the y co-ordinate of the line's end point. */
+    /** Returns the y coordinate of the line's end point. */
     inline ValueType getEndY() const noexcept                               { return end.y; }
 
     /** Returns the line's start point. */
-    inline const Point<ValueType>& getStart() const noexcept                { return start; }
+    inline Point<ValueType> getStart() const noexcept                       { return start; }
 
     /** Returns the line's end point. */
-    inline const Point<ValueType>& getEnd() const noexcept                  { return end; }
+    inline Point<ValueType> getEnd() const noexcept                         { return end; }
 
     /** Changes this line's start point */
     void setStart (ValueType newStartX, ValueType newStartY) noexcept       { start.setXY (newStartX, newStartY); }
@@ -110,10 +107,10 @@ public:
     void setEnd (ValueType newEndX, ValueType newEndY) noexcept             { end.setXY (newEndX, newEndY); }
 
     /** Changes this line's start point */
-    void setStart (const Point<ValueType>& newStart) noexcept               { start = newStart; }
+    void setStart (const Point<ValueType> newStart) noexcept                { start = newStart; }
 
     /** Changes this line's end point */
-    void setEnd (const Point<ValueType>& newEnd) noexcept                   { end = newEnd; }
+    void setEnd (const Point<ValueType> newEnd) noexcept                    { end = newEnd; }
 
     /** Returns a line that is the same as this one, but with the start and end reversed, */
     const Line reversed() const noexcept                                    { return Line (end, start); }
@@ -129,10 +126,10 @@ public:
     /** Returns the length of the line. */
     ValueType getLength() const noexcept                                    { return start.getDistanceFrom (end); }
 
-    /** Returns true if the line's start and end x co-ordinates are the same. */
+    /** Returns true if the line's start and end x coordinates are the same. */
     bool isVertical() const noexcept                                        { return start.x == end.x; }
 
-    /** Returns true if the line's start and end y co-ordinates are the same. */
+    /** Returns true if the line's start and end y coordinates are the same. */
     bool isHorizontal() const noexcept                                      { return start.y == end.y; }
 
     /** Returns the line's angle.
@@ -141,6 +138,12 @@ public:
         where the line's start point is considered to be at the centre.
     */
     typename Point<ValueType>::FloatType getAngle() const noexcept          { return start.getAngleToPoint (end); }
+
+    /** Casts this line to float coordinates. */
+    Line<float> toFloat() const noexcept                                    { return Line<float> (start.toFloat(), end.toFloat()); }
+
+    /** Casts this line to double coordinates. */
+    Line<double> toDouble() const noexcept                                  { return Line<double> (start.toDouble(), end.toDouble()); }
 
     //==============================================================================
     /** Compares two lines. */
@@ -152,23 +155,6 @@ public:
     //==============================================================================
     /** Finds the intersection between two lines.
 
-        @param line             the other line
-        @param intersection     the position of the point where the lines meet (or
-                                where they would meet if they were infinitely long)
-                                the intersection (if the lines intersect). If the lines
-                                are parallel, this will just be set to the position
-                                of one of the line's endpoints.
-        @returns    true if the line segments intersect; false if they dont. Even if they
-                    don't intersect, the intersection co-ordinates returned will still
-                    be valid
-    */
-    bool intersects (const Line& line, Point<ValueType>& intersection) const noexcept
-    {
-        return findIntersection (start, end, line.start, line.end, intersection);
-    }
-
-    /** Finds the intersection between two lines.
-
         @param line     the line to intersect with
         @returns        the point at which the lines intersect, even if this lies beyond the end of the lines
     */
@@ -177,6 +163,30 @@ public:
         Point<ValueType> p;
         findIntersection (start, end, line.start, line.end, p);
         return p;
+    }
+
+    /** Finds the intersection between two lines.
+
+        @param line             the other line
+        @param intersection     the position of the point where the lines meet (or
+                                where they would meet if they were infinitely long)
+                                the intersection (if the lines intersect). If the lines
+                                are parallel, this will just be set to the position
+                                of one of the line's endpoints.
+        @returns    true if the line segments intersect; false if they dont. Even if they
+                    don't intersect, the intersection coordinates returned will still
+                    be valid
+    */
+    bool intersects (const Line& line, Point<ValueType>& intersection) const noexcept
+    {
+        return findIntersection (start, end, line.start, line.end, intersection);
+    }
+
+    /** Returns true if this line intersects another. */
+    bool intersects (const Line& other) const noexcept
+    {
+        Point<ValueType> ignored;
+        return findIntersection (start, end, other.start, other.end, ignored);
     }
 
     //==============================================================================
@@ -244,7 +254,7 @@ public:
         @returns the point's distance from the line
         @see getPositionAlongLineOfNearestPoint
     */
-    ValueType getDistanceFromPoint (const Point<ValueType>& targetPoint,
+    ValueType getDistanceFromPoint (const Point<ValueType> targetPoint,
                                     Point<ValueType>& pointOnLine) const noexcept
     {
         const Point<ValueType> delta (end - start);
@@ -285,7 +295,7 @@ public:
                     turn this number into a position, use getPointAlongLineProportionally().
         @see getDistanceFromPoint, getPointAlongLineProportionally
     */
-    ValueType findNearestProportionalPositionTo (const Point<ValueType>& point) const noexcept
+    ValueType findNearestProportionalPositionTo (const Point<ValueType> point) const noexcept
     {
         const Point<ValueType> delta (end - start);
         const double length = delta.x * delta.x + delta.y * delta.y;
@@ -299,7 +309,7 @@ public:
     /** Finds the point on this line which is nearest to a given point.
         @see getDistanceFromPoint, findNearestProportionalPositionTo
     */
-    Point<ValueType> findNearestPointTo (const Point<ValueType>& point) const noexcept
+    Point<ValueType> findNearestPointTo (const Point<ValueType> point) const noexcept
     {
         return getPointAlongLineProportionally (findNearestProportionalPositionTo (point));
     }
@@ -310,7 +320,7 @@ public:
         coordinate of this line at the given x (assuming the line extends infinitely
         in both directions).
     */
-    bool isPointAbove (const Point<ValueType>& point) const noexcept
+    bool isPointAbove (const Point<ValueType> point) const noexcept
     {
         return start.x != end.x
                 && point.y < ((end.y - start.y)
@@ -343,8 +353,8 @@ private:
     //==============================================================================
     Point<ValueType> start, end;
 
-    static bool findIntersection (const Point<ValueType>& p1, const Point<ValueType>& p2,
-                                  const Point<ValueType>& p3, const Point<ValueType>& p4,
+    static bool findIntersection (const Point<ValueType> p1, const Point<ValueType> p2,
+                                  const Point<ValueType> p3, const Point<ValueType> p4,
                                   Point<ValueType>& intersection) noexcept
     {
         if (p2 == p3)
@@ -403,4 +413,4 @@ private:
 };
 
 
-#endif   // __JUCE_LINE_JUCEHEADER__
+#endif   // JUCE_LINE_H_INCLUDED

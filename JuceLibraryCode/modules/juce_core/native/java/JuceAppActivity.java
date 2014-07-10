@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -30,12 +29,19 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.*;
+import android.view.inputmethod.BaseInputConnection;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 import android.graphics.*;
 import android.opengl.*;
 import android.text.ClipboardManager;
+import android.text.InputType;
+import android.util.DisplayMetrics;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,6 +50,9 @@ import java.net.URL;
 import java.net.HttpURLConnection;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
+import android.media.AudioManager;
+import android.media.MediaScannerConnection;
+import android.media.MediaScannerConnection.MediaScannerConnectionClient;
 
 //==============================================================================
 public final class JuceAppActivity   extends Activity
@@ -61,6 +70,8 @@ public final class JuceAppActivity   extends Activity
 
         viewHolder = new ViewHolder (this);
         setContentView (viewHolder);
+
+        setVolumeControlStream (AudioManager.STREAM_MUSIC);
     }
 
     @Override
@@ -68,6 +79,34 @@ public final class JuceAppActivity   extends Activity
     {
         quitApp();
         super.onDestroy();
+    }
+
+    @Override
+    protected final void onPause()
+    {
+        if (viewHolder != null)
+            viewHolder.onPause();
+
+        suspendApp();
+        super.onPause();
+    }
+
+    @Override
+    protected final void onResume()
+    {
+        super.onResume();
+
+        if (viewHolder != null)
+            viewHolder.onResume();
+
+        resumeApp();
+    }
+
+    @Override
+    public void onConfigurationChanged (Configuration cfg)
+    {
+        super.onConfigurationChanged (cfg);
+        setContentView (viewHolder);
     }
 
     private void callAppLauncher()
@@ -79,7 +118,9 @@ public final class JuceAppActivity   extends Activity
     //==============================================================================
     private native void launchApp (String appFile, String appDataDir);
     private native void quitApp();
-    private native void setScreenSize (int screenWidth, int screenHeight);
+    private native void suspendApp();
+    private native void resumeApp();
+    private native void setScreenSize (int screenWidth, int screenHeight, int dpi);
 
     //==============================================================================
     public native void deliverMessage (long value);
@@ -101,9 +142,9 @@ public final class JuceAppActivity   extends Activity
     //==============================================================================
     private ViewHolder viewHolder;
 
-    public final ComponentPeerView createNewView (boolean opaque)
+    public final ComponentPeerView createNewView (boolean opaque, long host)
     {
-        ComponentPeerView v = new ComponentPeerView (this, opaque);
+        ComponentPeerView v = new ComponentPeerView (this, opaque, host);
         viewHolder.addView (v);
         return v;
     }
@@ -127,13 +168,42 @@ public final class JuceAppActivity   extends Activity
 
         protected final void onLayout (boolean changed, int left, int top, int right, int bottom)
         {
-            setScreenSize (getWidth(), getHeight());
+            setScreenSize (getWidth(), getHeight(), getDPI());
 
             if (isFirstResize)
             {
                 isFirstResize = false;
                 callAppLauncher();
             }
+        }
+
+        public final void onPause()
+        {
+            for (int i = getChildCount(); --i >= 0;)
+            {
+                View v = getChildAt (i);
+
+                if (v instanceof ComponentPeerView)
+                    ((ComponentPeerView) v).onPause();
+            }
+        }
+
+        public final void onResume()
+        {
+            for (int i = getChildCount(); --i >= 0;)
+            {
+                View v = getChildAt (i);
+
+                if (v instanceof ComponentPeerView)
+                    ((ComponentPeerView) v).onResume();
+             }
+         }
+
+        private final int getDPI()
+        {
+            DisplayMetrics metrics = new DisplayMetrics();
+            getWindowManager().getDefaultDisplay().getMetrics (metrics);
+            return metrics.densityDpi;
         }
 
         private boolean isFirstResize = true;
@@ -242,9 +312,10 @@ public final class JuceAppActivity   extends Activity
     public final class ComponentPeerView extends ViewGroup
                                          implements View.OnFocusChangeListener
     {
-        public ComponentPeerView (Context context, boolean opaque_)
+        public ComponentPeerView (Context context, boolean opaque_, long host)
         {
             super (context);
+            this.host = host;
             setWillNotDraw (false);
             opaque = opaque_;
 
@@ -255,13 +326,12 @@ public final class JuceAppActivity   extends Activity
         }
 
         //==============================================================================
-        private native void handlePaint (Canvas canvas);
+        private native void handlePaint (long host, Canvas canvas);
 
         @Override
-        public void draw (Canvas canvas)
+        public void onDraw (Canvas canvas)
         {
-            super.draw (canvas);
-            handlePaint (canvas);
+            handlePaint (host, canvas);
         }
 
         @Override
@@ -271,25 +341,118 @@ public final class JuceAppActivity   extends Activity
         }
 
         private boolean opaque;
+        private long host;
 
         //==============================================================================
-        private native void handleMouseDown (float x, float y, long time);
-        private native void handleMouseDrag (float x, float y, long time);
-        private native void handleMouseUp (float x, float y, long time);
+        private native void handleMouseDown (long host, int index, float x, float y, long time);
+        private native void handleMouseDrag (long host, int index, float x, float y, long time);
+        private native void handleMouseUp   (long host, int index, float x, float y, long time);
 
         @Override
         public boolean onTouchEvent (MotionEvent event)
         {
-            switch (event.getAction())
+            int action = event.getAction();
+            long time = event.getEventTime();
+
+            switch (action & MotionEvent.ACTION_MASK)
             {
-                case MotionEvent.ACTION_DOWN:  handleMouseDown (event.getX(), event.getY(), event.getEventTime()); return true;
-                case MotionEvent.ACTION_MOVE:  handleMouseDrag (event.getX(), event.getY(), event.getEventTime()); return true;
+                case MotionEvent.ACTION_DOWN:
+                    handleMouseDown (host, event.getPointerId(0), event.getX(), event.getY(), time);
+                    return true;
+
                 case MotionEvent.ACTION_CANCEL:
-                case MotionEvent.ACTION_UP:    handleMouseUp (event.getX(), event.getY(), event.getEventTime()); return true;
-                default: break;
+                case MotionEvent.ACTION_UP:
+                    handleMouseUp (host, event.getPointerId(0), event.getX(), event.getY(), time);
+                    return true;
+
+                case MotionEvent.ACTION_MOVE:
+                {
+                    int n = event.getPointerCount();
+                    for (int i = 0; i < n; ++i)
+                        handleMouseDrag (host, event.getPointerId(i), event.getX(i), event.getY(i), time);
+
+                    return true;
+                }
+
+                case MotionEvent.ACTION_POINTER_UP:
+                {
+                    int i = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
+                    handleMouseUp (host, event.getPointerId(i), event.getX(i), event.getY(i), time);
+                    return true;
+                }
+
+                case MotionEvent.ACTION_POINTER_DOWN:
+                {
+                    int i = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
+                    handleMouseDown (host, event.getPointerId(i), event.getX(i), event.getY(i), time);
+                    return true;
+                }
+
+                default:
+                    break;
             }
 
             return false;
+        }
+
+        //==============================================================================
+        private native void handleKeyDown (long host, int keycode, int textchar);
+        private native void handleKeyUp (long host, int keycode, int textchar);
+
+        public void showKeyboard (String type)
+        {
+            InputMethodManager imm = (InputMethodManager) getSystemService (Context.INPUT_METHOD_SERVICE);
+
+            if (imm != null)
+            {
+                if (type.length() > 0)
+                {
+                    imm.showSoftInput (this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                    imm.setInputMethod (getWindowToken(), type);
+                }
+                else
+                {
+                    imm.hideSoftInputFromWindow (getWindowToken(), 0);
+                }
+            }
+        }
+
+        @Override
+        public boolean onKeyDown (int keyCode, KeyEvent event)
+        {
+            switch (keyCode)
+            {
+                case KeyEvent.KEYCODE_VOLUME_UP:
+                case KeyEvent.KEYCODE_VOLUME_DOWN:
+                    return super.onKeyDown (keyCode, event);
+
+                default: break;
+            }
+
+            handleKeyDown (host, keyCode, event.getUnicodeChar());
+            return true;
+        }
+
+        @Override
+        public boolean onKeyUp (int keyCode, KeyEvent event)
+        {
+            handleKeyUp (host, keyCode, event.getUnicodeChar());
+            return true;
+        }
+
+        // this is here to make keyboard entry work on a Galaxy Tab2 10.1
+        @Override
+        public InputConnection onCreateInputConnection (EditorInfo outAttrs)
+        {
+            outAttrs.actionLabel = "";
+            outAttrs.hintText = "";
+            outAttrs.initialCapsMode = 0;
+            outAttrs.initialSelEnd = outAttrs.initialSelStart = -1;
+            outAttrs.label = "";
+            outAttrs.imeOptions = EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI;
+            outAttrs.inputType = InputType.TYPE_NULL;
+
+            return new BaseInputConnection (this, false);
         }
 
         //==============================================================================
@@ -297,7 +460,7 @@ public final class JuceAppActivity   extends Activity
         protected void onSizeChanged (int w, int h, int oldw, int oldh)
         {
             super.onSizeChanged (w, h, oldw, oldh);
-            viewSizeChanged();
+            viewSizeChanged (host);
         }
 
         @Override
@@ -307,16 +470,16 @@ public final class JuceAppActivity   extends Activity
                 requestTransparentRegion (getChildAt (i));
         }
 
-        private native void viewSizeChanged();
+        private native void viewSizeChanged (long host);
 
         @Override
         public void onFocusChange (View v, boolean hasFocus)
         {
             if (v == this)
-                focusChanged (hasFocus);
+                focusChanged (host, hasFocus);
         }
 
-        private native void focusChanged (boolean hasFocus);
+        private native void focusChanged (long host, boolean hasFocus);
 
         public void setViewName (String newName)    {}
 
@@ -326,6 +489,28 @@ public final class JuceAppActivity   extends Activity
         public boolean containsPoint (int x, int y)
         {
             return true; //xxx needs to check overlapping views
+        }
+
+        public final void onPause()
+        {
+            for (int i = getChildCount(); --i >= 0;)
+            {
+                View v = getChildAt (i);
+
+                if (v instanceof OpenGLView)
+                    ((OpenGLView) v).onPause();
+            }
+        }
+
+        public final void onResume()
+        {
+            for (int i = getChildCount(); --i >= 0;)
+            {
+                View v = getChildAt (i);
+
+                if (v instanceof OpenGLView)
+                    ((OpenGLView) v).onResume();
+            }
         }
 
         public OpenGLView createGLView()
@@ -386,7 +571,7 @@ public final class JuceAppActivity   extends Activity
         bounds.right++;
 
         final int w = bounds.width();
-        final int h = bounds.height();
+        final int h = Math.max (1, bounds.height());
 
         Bitmap bm = Bitmap.createBitmap (w, h, Bitmap.Config.ARGB_8888);
 
@@ -409,10 +594,34 @@ public final class JuceAppActivity   extends Activity
     //==============================================================================
     public static class HTTPStream
     {
-        public HTTPStream (HttpURLConnection connection_) throws IOException
+        public HTTPStream (HttpURLConnection connection_,
+                           int[] statusCode, StringBuffer responseHeaders) throws IOException
         {
             connection = connection_;
-            inputStream = new BufferedInputStream (connection.getInputStream());
+
+            try
+            {
+                inputStream = new BufferedInputStream (connection.getInputStream());
+            }
+            catch (IOException e)
+            {
+                if (connection.getResponseCode() < org.apache.http.HttpStatus.SC_BAD_REQUEST)
+                    throw e;
+            }
+            finally
+            {
+                statusCode[0] = connection.getResponseCode();
+            }
+
+            if (statusCode[0] >= org.apache.http.HttpStatus.SC_BAD_REQUEST)
+                inputStream = connection.getErrorStream();
+            else
+                inputStream = connection.getInputStream();
+
+            for (java.util.Map.Entry<String, java.util.List<String>> entry : connection.getHeaderFields().entrySet())
+                if (entry.getKey() != null && entry.getValue() != null)
+                    responseHeaders.append (entry.getKey() + ": "
+                                             + android.text.TextUtils.join (",", entry.getValue()) + "\n");
         }
 
         public final void release()
@@ -454,30 +663,31 @@ public final class JuceAppActivity   extends Activity
         private long position;
     }
 
-    public static final HTTPStream createHTTPStream (String address, boolean isPost, byte[] postData,
-                                                     String headers, int timeOutMs,
-                                                     java.lang.StringBuffer responseHeaders)
+    public static final HTTPStream createHTTPStream (String address,
+                                                     boolean isPost, byte[] postData, String headers,
+                                                     int timeOutMs, int[] statusCode,
+                                                     StringBuffer responseHeaders)
     {
         try
         {
-            HttpURLConnection connection = (HttpURLConnection) (new URL (address).openConnection());
-
+            HttpURLConnection connection = (HttpURLConnection) (new URL(address)
+                    .openConnection());
             if (connection != null)
             {
                 try
                 {
                     if (isPost)
                     {
-                        connection.setConnectTimeout (timeOutMs);
-                        connection.setDoOutput (true);
-                        connection.setChunkedStreamingMode (0);
-
+                        connection.setRequestMethod("POST");
+                        connection.setConnectTimeout(timeOutMs);
+                        connection.setDoOutput(true);
+                        connection.setChunkedStreamingMode(0);
                         OutputStream out = connection.getOutputStream();
-                        out.write (postData);
+                        out.write(postData);
                         out.flush();
                     }
 
-                    return new HTTPStream (connection);
+                    return new HTTPStream (connection, statusCode, responseHeaders);
                 }
                 catch (Throwable e)
                 {
@@ -485,8 +695,7 @@ public final class JuceAppActivity   extends Activity
                 }
             }
         }
-        catch (Throwable e)
-        {}
+        catch (Throwable e) {}
 
         return null;
     }
@@ -494,5 +703,44 @@ public final class JuceAppActivity   extends Activity
     public final void launchURL (String url)
     {
         startActivity (new Intent (Intent.ACTION_VIEW, Uri.parse (url)));
+    }
+
+    public static final String getLocaleValue (boolean isRegion)
+    {
+        java.util.Locale locale = java.util.Locale.getDefault();
+
+        return isRegion ? locale.getDisplayCountry  (java.util.Locale.US)
+                        : locale.getDisplayLanguage (java.util.Locale.US);
+    }
+
+    //==============================================================================
+    private final class SingleMediaScanner  implements MediaScannerConnectionClient
+    {
+        public SingleMediaScanner (Context context, String filename)
+        {
+            file = filename;
+            msc = new MediaScannerConnection (context, this);
+            msc.connect();
+        }
+
+        @Override
+        public void onMediaScannerConnected()
+        {
+            msc.scanFile (file, null);
+        }
+
+        @Override
+        public void onScanCompleted (String path, Uri uri)
+        {
+            msc.disconnect();
+        }
+
+        private MediaScannerConnection msc;
+        private String file;
+    }
+
+    public final void scanFile (String filename)
+    {
+        new SingleMediaScanner (this, filename);
     }
 }

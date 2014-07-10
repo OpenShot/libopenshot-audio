@@ -1,32 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_STRINGPAIRARRAY_JUCEHEADER__
-#define __JUCE_STRINGPAIRARRAY_JUCEHEADER__
-
-#include "juce_StringArray.h"
+#ifndef JUCE_STRINGPAIRARRAY_H_INCLUDED
+#define JUCE_STRINGPAIRARRAY_H_INCLUDED
 
 
 //==============================================================================
@@ -76,16 +77,16 @@ public:
 
         @see getValue
     */
-    const String& operator[] (const String& key) const;
+    const String& operator[] (StringRef key) const;
 
     /** Finds the value corresponding to a key string.
-
         If no such key is found, this will just return the value provided as a default.
-
         @see operator[]
     */
-    String getValue (const String& key, const String& defaultReturnValue) const;
+    String getValue (StringRef, const String& defaultReturnValue) const;
 
+    /** Returns true if the given key exists. */
+    bool containsKey (StringRef key) const noexcept;
 
     /** Returns a list of all keys in the array. */
     const StringArray& getAllKeys() const noexcept          { return keys; }
@@ -99,14 +100,12 @@ public:
 
     //==============================================================================
     /** Adds or amends a key/value pair.
-
         If a value already exists with this key, its value will be overwritten,
         otherwise the key/value pair will be added to the array.
     */
     void set (const String& key, const String& value);
 
     /** Adds the items from another array to this one.
-
         This is equivalent to using set() to add each of the pairs from the other array.
     */
     void addArray (const StringPairArray& other);
@@ -116,13 +115,11 @@ public:
     void clear();
 
     /** Removes a string from the array based on its key.
-
         If the key isn't found, nothing will happen.
     */
-    void remove (const String& key);
+    void remove (StringRef key);
 
     /** Removes a string from the array based on its index.
-
         If the index is out-of-range, no action will be taken.
     */
     void remove (int index);
@@ -153,8 +150,8 @@ private:
     StringArray keys, values;
     bool ignoreCase;
 
-    JUCE_LEAK_DETECTOR (StringPairArray);
+    JUCE_LEAK_DETECTOR (StringPairArray)
 };
 
 
-#endif   // __JUCE_STRINGPAIRARRAY_JUCEHEADER__
+#endif   // JUCE_STRINGPAIRARRAY_H_INCLUDED

@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -31,8 +30,8 @@ ResizableEdgeComponent::ResizableEdgeComponent (Component* const componentToResi
      edge (edge_)
 {
     setRepaintsOnMouseActivity (true);
-    setMouseCursor (MouseCursor (isVertical() ? MouseCursor::LeftRightResizeCursor
-                                              : MouseCursor::UpDownResizeCursor));
+    setMouseCursor (isVertical() ? MouseCursor::LeftRightResizeCursor
+                                 : MouseCursor::UpDownResizeCursor);
 }
 
 ResizableEdgeComponent::~ResizableEdgeComponent()
@@ -94,9 +93,7 @@ void ResizableEdgeComponent::mouseDrag (const MouseEvent& e)
     }
     else
     {
-        Component::Positioner* const pos = component->getPositioner();
-
-        if (pos != nullptr)
+        if (Component::Positioner* const pos = component->getPositioner())
             pos->applyNewBounds (newBounds);
         else
             component->setBounds (newBounds);

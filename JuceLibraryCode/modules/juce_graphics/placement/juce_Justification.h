@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_JUSTIFICATION_JUCEHEADER__
-#define __JUCE_JUSTIFICATION_JUCEHEADER__
-
-#include "../geometry/juce_Rectangle.h"
+#ifndef JUCE_JUSTIFICATION_H_INCLUDED
+#define JUCE_JUSTIFICATION_H_INCLUDED
 
 
 //==============================================================================
@@ -38,37 +35,40 @@
 
     It is used in various places wherever this kind of information is needed.
 */
-class JUCE_API  Justification
+class Justification
 {
 public:
     //==============================================================================
-    /** Creates a Justification object using a combination of flags. */
-    inline Justification (int flags_) noexcept : flags (flags_) {}
+    /** Creates a Justification object using a combination of flags from the Flags enum. */
+    Justification (int justificationFlags) noexcept   : flags (justificationFlags) {}
 
     /** Creates a copy of another Justification object. */
-    Justification (const Justification& other) noexcept;
+    Justification (const Justification& other) noexcept   : flags (other.flags) {}
 
     /** Copies another Justification object. */
-    Justification& operator= (const Justification& other) noexcept;
+    Justification& operator= (const Justification& other) noexcept
+    {
+        flags = other.flags;
+        return *this;
+    }
 
     bool operator== (const Justification& other) const noexcept     { return flags == other.flags; }
     bool operator!= (const Justification& other) const noexcept     { return flags != other.flags; }
 
     //==============================================================================
     /** Returns the raw flags that are set for this Justification object. */
-    inline int getFlags() const noexcept                            { return flags; }
+    inline int getFlags() const noexcept                        { return flags; }
 
     /** Tests a set of flags for this object.
-
         @returns true if any of the flags passed in are set on this object.
     */
-    inline bool testFlags (int flagsToTest) const noexcept          { return (flags & flagsToTest) != 0; }
+    inline bool testFlags (int flagsToTest) const noexcept      { return (flags & flagsToTest) != 0; }
 
     /** Returns just the flags from this object that deal with vertical layout. */
-    int getOnlyVerticalFlags() const noexcept;
+    int getOnlyVerticalFlags() const noexcept                   { return flags & (top | bottom | verticallyCentred); }
 
     /** Returns just the flags from this object that deal with horizontal layout. */
-    int getOnlyHorizontalFlags() const noexcept;
+    int getOnlyHorizontalFlags() const noexcept                 { return flags & (left | right | horizontallyCentred | horizontallyJustified); }
 
     //==============================================================================
     /** Adjusts the position of a rectangle to fit it into a space.
@@ -103,7 +103,7 @@ public:
 
     //==============================================================================
     /** Flag values that can be combined and used in the constructor. */
-    enum
+    enum Flags
     {
         //==============================================================================
         /** Indicates that the item should be aligned against the left edge of the available space. */
@@ -186,4 +186,4 @@ private:
     int flags;
 };
 
-#endif   // __JUCE_JUSTIFICATION_JUCEHEADER__
+#endif   // JUCE_JUSTIFICATION_H_INCLUDED

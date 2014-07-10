@@ -1,146 +1,109 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
 #if JUCE_MAC
 
-} // (juce namespace)
-
-using namespace juce;
-
-#define JuceFileChooserDelegate MakeObjCClassName(JuceFileChooserDelegate)
-
-#if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
-@interface JuceFileChooserDelegate   : NSObject <NSOpenSavePanelDelegate>
-#else
-@interface JuceFileChooserDelegate   : NSObject
-#endif
+struct FileChooserDelegateClass  : public ObjCClass <NSObject>
 {
-    StringArray* filters;
-}
-
-- (JuceFileChooserDelegate*) initWithFilters: (StringArray*) filters_;
-- (void) dealloc;
-- (BOOL) panel: (id) sender shouldShowFilename: (NSString*) filename;
-
-@end
-
-@implementation JuceFileChooserDelegate
-- (JuceFileChooserDelegate*) initWithFilters: (StringArray*) filters_
-{
-    [super init];
-    filters = filters_;
-    return self;
-}
-
-- (void) dealloc
-{
-    delete filters;
-    [super dealloc];
-}
-
-- (BOOL) panel: (id) sender shouldShowFilename: (NSString*) filename
-{
-    (void) sender;
-    const File f (nsStringToJuce (filename));
-
-    for (int i = filters->size(); --i >= 0;)
-        if (f.getFileName().matchesWildcard ((*filters)[i], true))
-            return true;
-
-   #if (! defined (MAC_OS_X_VERSION_10_7)) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_7
-    NSError* error;
-    NSString* name = [[NSWorkspace sharedWorkspace] typeOfFile: filename error: &error];
-
-    if ([name isEqualToString: nsStringLiteral ("com.apple.alias-file")])
+    FileChooserDelegateClass()  : ObjCClass <NSObject> ("JUCEFileChooser_")
     {
-        FSRef ref;
-        FSPathMakeRef ((const UInt8*) [filename fileSystemRepresentation], &ref, nullptr);
+        addIvar<StringArray*> ("filters");
 
-        Boolean targetIsFolder = false, wasAliased = false;
-        FSResolveAliasFileWithMountFlags (&ref, true, &targetIsFolder, &wasAliased, 0);
+        addMethod (@selector (dealloc),                   dealloc,            "v@:");
+        addMethod (@selector (panel:shouldShowFilename:), shouldShowFilename, "c@:@@");
 
-        return wasAliased && targetIsFolder;
-    }
-   #endif
+       #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+        addProtocol (@protocol (NSOpenSavePanelDelegate));
+       #endif
 
-    return f.isDirectory()
-            && ! [[NSWorkspace sharedWorkspace] isFilePackageAtPath: filename];
-}
-@end
-
-
-namespace juce
-{
-
-//==============================================================================
-bool FileChooser::isPlatformDialogAvailable()
-{
-    return true;
-}
-
-class TemporaryMainMenuWithStandardCommands
-{
-public:
-    TemporaryMainMenuWithStandardCommands()
-        : oldMenu (MenuBarModel::getMacMainMenu())
-    {
-        MenuBarModel::setMacMainMenu (nullptr);
-
-        NSMenu* menu = [[NSMenu alloc] initWithTitle: nsStringLiteral ("Edit")];
-        NSMenuItem* item;
-
-        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (nsStringLiteral ("Cut"), nil)
-                                          action: @selector (cut:)  keyEquivalent: nsStringLiteral ("x")];
-        [menu addItem: item];
-        [item release];
-
-        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (nsStringLiteral ("Copy"), nil)
-                                          action: @selector (copy:)  keyEquivalent: nsStringLiteral ("c")];
-        [menu addItem: item];
-        [item release];
-
-        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (nsStringLiteral ("Paste"), nil)
-                                          action: @selector (paste:)  keyEquivalent: nsStringLiteral ("v")];
-        [menu addItem: item];
-        [item release];
-
-        item = [[NSApp mainMenu] addItemWithTitle: NSLocalizedString (nsStringLiteral ("Edit"), nil)
-                                           action: nil keyEquivalent: nsEmptyString()];
-        [[NSApp mainMenu] setSubmenu: menu forItem: item];
-        [menu release];
+        registerClass();
     }
 
-    ~TemporaryMainMenuWithStandardCommands()
+    static void setFilters (id self, StringArray* filters)
     {
-        MenuBarModel::setMacMainMenu (oldMenu);
+        object_setInstanceVariable (self, "filters", filters);
     }
 
 private:
-    MenuBarModel* oldMenu;
+    static void dealloc (id self, SEL)
+    {
+        delete getIvar<StringArray*> (self, "filters");
+        sendSuperclassMessage (self, @selector (dealloc));
+    }
+
+    static BOOL shouldShowFilename (id self, SEL, id /*sender*/, NSString* filename)
+    {
+        StringArray* const filters = getIvar<StringArray*> (self, "filters");
+
+        const File f (nsStringToJuce (filename));
+
+        for (int i = filters->size(); --i >= 0;)
+            if (f.getFileName().matchesWildcard ((*filters)[i], true))
+                return true;
+
+       #if (! defined (MAC_OS_X_VERSION_10_7)) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_7
+        NSError* error;
+        NSString* name = [[NSWorkspace sharedWorkspace] typeOfFile: filename error: &error];
+
+        if ([name isEqualToString: nsStringLiteral ("com.apple.alias-file")])
+        {
+            FSRef ref;
+            FSPathMakeRef ((const UInt8*) [filename fileSystemRepresentation], &ref, nullptr);
+
+            Boolean targetIsFolder = false, wasAliased = false;
+            FSResolveAliasFileWithMountFlags (&ref, true, &targetIsFolder, &wasAliased, 0);
+
+            return wasAliased && targetIsFolder;
+        }
+       #endif
+
+        return f.isDirectory()
+                 && ! [[NSWorkspace sharedWorkspace] isFilePackageAtPath: filename];
+    }
 };
 
+static NSMutableArray* createAllowedTypesArray (const StringArray& filters)
+{
+    if (filters.size() == 0)
+        return nil;
+
+    NSMutableArray* filterArray = [[[NSMutableArray alloc] init] autorelease];
+
+    for (int i = 0; i < filters.size(); ++i)
+    {
+        const String f (filters[i].replace ("*.", ""));
+
+        if (f == "*")
+            return nil;
+
+        [filterArray addObject: juceStringToNS (f)];
+    }
+
+    return filterArray;
+}
+
+//==============================================================================
 void FileChooser::showPlatformDialog (Array<File>& results,
                                       const String& title,
                                       const File& currentFileOrDirectory,
@@ -153,73 +116,93 @@ void FileChooser::showPlatformDialog (Array<File>& results,
                                       FilePreviewComponent* /*extraInfoComponent*/)
 {
     JUCE_AUTORELEASEPOOL
-
-    const TemporaryMainMenuWithStandardCommands tempMenu;
-
-    StringArray* filters = new StringArray();
-    filters->addTokens (filter.replaceCharacters (",:", ";;"), ";", String::empty);
-    filters->trim();
-    filters->removeEmptyStrings();
-
-    JuceFileChooserDelegate* delegate = [[JuceFileChooserDelegate alloc] initWithFilters: filters];
-    [delegate autorelease];
-
-    NSSavePanel* panel = isSaveDialogue ? [NSSavePanel savePanel]
-                                        : [NSOpenPanel openPanel];
-
-    [panel setTitle: juceStringToNS (title)];
-
-    if (! isSaveDialogue)
     {
-        NSOpenPanel* openPanel = (NSOpenPanel*) panel;
-        [openPanel setCanChooseDirectories: selectsDirectory];
-        [openPanel setCanChooseFiles: selectsFiles];
-        [openPanel setAllowsMultipleSelection: selectMultipleFiles];
-        [openPanel setResolvesAliases: YES];
-    }
+        ScopedPointer<TemporaryMainMenuWithStandardCommands> tempMenu;
+        if (JUCEApplicationBase::isStandaloneApp())
+            tempMenu = new TemporaryMainMenuWithStandardCommands();
 
-    [panel setDelegate: delegate];
+        StringArray* filters = new StringArray();
+        filters->addTokens (filter.replaceCharacters (",:", ";;"), ";", String::empty);
+        filters->trim();
+        filters->removeEmptyStrings();
 
-    if (isSaveDialogue || selectsDirectory)
-        [panel setCanCreateDirectories: YES];
+       #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+        typedef NSObject<NSOpenSavePanelDelegate> DelegateType;
+       #else
+        typedef NSObject DelegateType;
+       #endif
 
-    String directory, filename;
+        static FileChooserDelegateClass cls;
+        DelegateType* delegate = (DelegateType*) [[cls.createInstance() init] autorelease];
+        FileChooserDelegateClass::setFilters (delegate, filters);
 
-    if (currentFileOrDirectory.isDirectory())
-    {
-        directory = currentFileOrDirectory.getFullPathName();
-    }
-    else
-    {
-        directory = currentFileOrDirectory.getParentDirectory().getFullPathName();
-        filename = currentFileOrDirectory.getFileName();
-    }
+        NSSavePanel* panel = isSaveDialogue ? [NSSavePanel savePanel]
+                                            : [NSOpenPanel openPanel];
 
-   #if defined (MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6)
-    [panel setDirectoryURL: [NSURL fileURLWithPath: juceStringToNS (directory)]];
-    [panel setNameFieldStringValue: juceStringToNS (filename)];
+        [panel setTitle: juceStringToNS (title)];
+        [panel setAllowedFileTypes: createAllowedTypesArray (*filters)];
 
-    if ([panel runModal] == NSOKButton)
-   #else
-    if ([panel runModalForDirectory: juceStringToNS (directory)
-                               file: juceStringToNS (filename)] == NSOKButton)
-   #endif
-    {
-        if (isSaveDialogue)
+        if (! isSaveDialogue)
         {
-            results.add (File (nsStringToJuce ([[panel URL] path])));
+            NSOpenPanel* openPanel = (NSOpenPanel*) panel;
+            [openPanel setCanChooseDirectories: selectsDirectory];
+            [openPanel setCanChooseFiles: selectsFiles];
+            [openPanel setAllowsMultipleSelection: selectMultipleFiles];
+            [openPanel setResolvesAliases: YES];
+        }
+
+        [panel setDelegate: delegate];
+
+        if (isSaveDialogue || selectsDirectory)
+            [panel setCanCreateDirectories: YES];
+
+        String directory, filename;
+
+        if (currentFileOrDirectory.isDirectory())
+        {
+            directory = currentFileOrDirectory.getFullPathName();
         }
         else
         {
-            NSOpenPanel* openPanel = (NSOpenPanel*) panel;
-            NSArray* urls = [openPanel URLs];
-
-            for (unsigned int i = 0; i < [urls count]; ++i)
-                results.add (File (nsStringToJuce ([[urls objectAtIndex: i] path])));
+            directory = currentFileOrDirectory.getParentDirectory().getFullPathName();
+            filename = currentFileOrDirectory.getFileName();
         }
-    }
 
-    [panel setDelegate: nil];
+       #if defined (MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6)
+        [panel setDirectoryURL: [NSURL fileURLWithPath: juceStringToNS (directory)]];
+        [panel setNameFieldStringValue: juceStringToNS (filename)];
+
+        if ([panel runModal] == NSOKButton)
+       #else
+        if ([panel runModalForDirectory: juceStringToNS (directory)
+                                   file: juceStringToNS (filename)] == NSOKButton)
+       #endif
+        {
+            if (isSaveDialogue)
+            {
+                results.add (File (nsStringToJuce ([[panel URL] path])));
+            }
+            else
+            {
+                NSOpenPanel* openPanel = (NSOpenPanel*) panel;
+                NSArray* urls = [openPanel URLs];
+
+                for (unsigned int i = 0; i < [urls count]; ++i)
+                    results.add (File (nsStringToJuce ([[urls objectAtIndex: i] path])));
+            }
+        }
+
+        [panel setDelegate: nil];
+    }
+}
+
+bool FileChooser::isPlatformDialogAvailable()
+{
+   #if JUCE_DISABLE_NATIVE_FILECHOOSERS
+    return false;
+   #else
+    return true;
+   #endif
 }
 
 #else
@@ -230,19 +213,17 @@ bool FileChooser::isPlatformDialogAvailable()
     return false;
 }
 
-void FileChooser::showPlatformDialog (Array<File>& results,
-                                      const String& title,
-                                      const File& currentFileOrDirectory,
-                                      const String& filter,
-                                      bool selectsDirectory,
-                                      bool selectsFiles,
-                                      bool isSaveDialogue,
-                                      bool warnAboutOverwritingExistingFiles,
-                                      bool selectMultipleFiles,
-                                      FilePreviewComponent* extraInfoComponent)
+void FileChooser::showPlatformDialog (Array<File>&,
+                                      const String& /*title*/,
+                                      const File& /*currentFileOrDirectory*/,
+                                      const String& /*filter*/,
+                                      bool /*selectsDirectory*/,
+                                      bool /*selectsFiles*/,
+                                      bool /*isSaveDialogue*/,
+                                      bool /*warnAboutOverwritingExistingFiles*/,
+                                      bool /*selectMultipleFiles*/,
+                                      FilePreviewComponent*)
 {
-    JUCE_AUTORELEASEPOOL
-
     jassertfalse; //there's no such thing in iOS
 }
 

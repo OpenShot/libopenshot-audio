@@ -1,32 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_RESULT_JUCEHEADER__
-#define __JUCE_RESULT_JUCEHEADER__
-
-#include "../text/juce_String.h"
+#ifndef JUCE_RESULT_H_INCLUDED
+#define JUCE_RESULT_H_INCLUDED
 
 
 //==============================================================================
@@ -62,7 +63,7 @@ class JUCE_API  Result
 public:
     //==============================================================================
     /** Creates and returns a 'successful' result. */
-    static Result ok() noexcept;
+    static Result ok() noexcept                         { return Result(); }
 
     /** Creates a 'failure' result.
         If you pass a blank error message in here, a default "Unknown Error" message
@@ -96,12 +97,12 @@ public:
     const String& getErrorMessage() const noexcept;
 
     //==============================================================================
-    Result (const Result& other);
-    Result& operator= (const Result& other);
+    Result (const Result&);
+    Result& operator= (const Result&);
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
-    Result (Result&& other) noexcept;
-    Result& operator= (Result&& other) noexcept;
+    Result (Result&&) noexcept;
+    Result& operator= (Result&&) noexcept;
    #endif
 
     bool operator== (const Result& other) const noexcept;
@@ -110,6 +111,9 @@ public:
 private:
     String errorMessage;
 
+    // The default constructor is not for public use!
+    // Instead, use Result::ok() or Result::fail()
+    Result() noexcept;
     explicit Result (const String&) noexcept;
 
     // These casts are private to prevent people trying to use the Result object in numeric contexts
@@ -118,4 +122,4 @@ private:
 };
 
 
-#endif   // __JUCE_RESULT_JUCEHEADER__
+#endif   // JUCE_RESULT_H_INCLUDED

@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
-#define __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
+#ifndef JUCE_MODALCOMPONENTMANAGER_H_INCLUDED
+#define JUCE_MODALCOMPONENTMANAGER_H_INCLUDED
 
 
 //==============================================================================
@@ -38,8 +37,8 @@
     @see Component::enterModalState, Component::exitModalState, Component::isCurrentlyModal,
          Component::getCurrentlyModalComponent, Component::isCurrentlyBlockedByAnotherModalComponent
 */
-class JUCE_API  ModalComponentManager   : public AsyncUpdater,
-                                          public DeletedAtShutdown
+class JUCE_API  ModalComponentManager   : private AsyncUpdater,
+                                          private DeletedAtShutdown
 {
 public:
     //==============================================================================
@@ -108,6 +107,11 @@ public:
     /** Brings any modal components to the front. */
     void bringModalComponentsToFront (bool topOneShouldGrabFocus = true);
 
+    /** Calls exitModalState (0) on any components that are currently modal.
+        @returns true if any components were modal; false if nothing needed cancelling
+    */
+    bool cancelAllModalComponents();
+
    #if JUCE_MODAL_LOOPS_PERMITTED
     /** Runs the event loop until the currently topmost modal component is dismissed, and
         returns the exit code for that component.
@@ -128,7 +132,7 @@ protected:
     ~ModalComponentManager();
 
     /** @internal */
-    void handleAsyncUpdate();
+    void handleAsyncUpdate() override;
 
 private:
     //==============================================================================
@@ -136,14 +140,14 @@ private:
     class ReturnValueRetriever;
 
     friend class Component;
-    friend class OwnedArray <ModalItem>;
-    OwnedArray <ModalItem> stack;
+    friend struct ContainerDeletePolicy<ModalItem>;
+    OwnedArray<ModalItem> stack;
 
     void startModal (Component*, bool autoDelete);
     void endModal (Component*, int returnValue);
     void endModal (Component*);
 
-    JUCE_DECLARE_NON_COPYABLE (ModalComponentManager);
+    JUCE_DECLARE_NON_COPYABLE (ModalComponentManager)
 };
 
 //==============================================================================
@@ -282,8 +286,8 @@ private:
     public:
         typedef void (*FunctionType) (int, ParamType);
 
-        FunctionCaller1 (FunctionType& function_, ParamType& param_)
-            : function (function_), param (param_) {}
+        FunctionCaller1 (FunctionType& f, ParamType& p1)
+            : function (f), param (p1) {}
 
         void modalStateFinished (int returnValue)  { function (returnValue, param); }
 
@@ -291,7 +295,7 @@ private:
         const FunctionType function;
         ParamType param;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunctionCaller1);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunctionCaller1)
     };
 
     template <typename ParamType1, typename ParamType2>
@@ -300,8 +304,8 @@ private:
     public:
         typedef void (*FunctionType) (int, ParamType1, ParamType2);
 
-        FunctionCaller2 (FunctionType& function_, ParamType1& param1_, ParamType2& param2_)
-            : function (function_), param1 (param1_), param2 (param2_) {}
+        FunctionCaller2 (FunctionType& f, ParamType1& p1, ParamType2& p2)
+            : function (f), param1 (p1), param2 (p2) {}
 
         void modalStateFinished (int returnValue)   { function (returnValue, param1, param2); }
 
@@ -310,7 +314,7 @@ private:
         ParamType1 param1;
         ParamType2 param2;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunctionCaller2);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FunctionCaller2)
     };
 
     template <typename ComponentType>
@@ -319,8 +323,8 @@ private:
     public:
         typedef void (*FunctionType) (int, ComponentType*);
 
-        ComponentCaller1 (FunctionType& function_, ComponentType* comp_)
-            : function (function_), comp (comp_) {}
+        ComponentCaller1 (FunctionType& f, ComponentType* c)
+            : function (f), comp (c) {}
 
         void modalStateFinished (int returnValue)
         {
@@ -331,7 +335,7 @@ private:
         const FunctionType function;
         WeakReference<Component> comp;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentCaller1);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentCaller1)
     };
 
     template <typename ComponentType, typename ParamType1>
@@ -340,8 +344,8 @@ private:
     public:
         typedef void (*FunctionType) (int, ComponentType*, ParamType1);
 
-        ComponentCaller2 (FunctionType& function_, ComponentType* comp_, ParamType1 param1_)
-            : function (function_), comp (comp_), param1 (param1_) {}
+        ComponentCaller2 (FunctionType& f, ComponentType* c, ParamType1 p1)
+            : function (f), comp (c), param1 (p1) {}
 
         void modalStateFinished (int returnValue)
         {
@@ -353,13 +357,13 @@ private:
         WeakReference<Component> comp;
         ParamType1 param1;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentCaller2);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentCaller2)
     };
 
     ModalCallbackFunction();
     ~ModalCallbackFunction();
-    JUCE_DECLARE_NON_COPYABLE (ModalCallbackFunction);
+    JUCE_DECLARE_NON_COPYABLE (ModalCallbackFunction)
 };
 
 
-#endif   // __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
+#endif   // JUCE_MODALCOMPONENTMANAGER_H_INCLUDED

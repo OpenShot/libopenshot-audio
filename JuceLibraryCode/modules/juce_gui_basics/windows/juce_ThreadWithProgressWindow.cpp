@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -26,16 +25,21 @@
 ThreadWithProgressWindow::ThreadWithProgressWindow (const String& title,
                                                     const bool hasProgressBar,
                                                     const bool hasCancelButton,
-                                                    const int timeOutMsWhenCancelling_,
-                                                    const String& cancelButtonText)
-  : Thread ("Juce Progress Window"),
-    progress (0.0),
-    timeOutMsWhenCancelling (timeOutMsWhenCancelling_)
+                                                    const int cancellingTimeOutMs,
+                                                    const String& cancelButtonText,
+                                                    Component* componentToCentreAround)
+   : Thread ("ThreadWithProgressWindow"),
+     progress (0.0),
+     timeOutMsWhenCancelling (cancellingTimeOutMs),
+     wasCancelledByUser (false)
 {
     alertWindow = LookAndFeel::getDefaultLookAndFeel()
-                    .createAlertWindow (title, String::empty, cancelButtonText,
-                                        String::empty, String::empty,
-                                        AlertWindow::NoIcon, hasCancelButton ? 1 : 0, 0);
+                    .createAlertWindow (title, String(),
+                                        cancelButtonText.isEmpty() ? TRANS("Cancel")
+                                                                   : cancelButtonText,
+                                        String(), String(),
+                                        AlertWindow::NoIcon, hasCancelButton ? 1 : 0,
+                                        componentToCentreAround);
 
     // if there are no buttons, we won't allow the user to interrupt the thread.
     alertWindow->setEscapeKeyCancels (false);
@@ -49,8 +53,7 @@ ThreadWithProgressWindow::~ThreadWithProgressWindow()
     stopThread (timeOutMsWhenCancelling);
 }
 
-#if JUCE_MODAL_LOOPS_PERMITTED
-bool ThreadWithProgressWindow::runThread (const int priority)
+void ThreadWithProgressWindow::launchThread (int priority)
 {
     jassert (MessageManager::getInstance()->isThisTheMessageThread());
 
@@ -62,15 +65,8 @@ bool ThreadWithProgressWindow::runThread (const int priority)
         alertWindow->setMessage (message);
     }
 
-    const bool finishedNaturally = alertWindow->runModalLoop() != 0;
-
-    stopThread (timeOutMsWhenCancelling);
-
-    alertWindow->setVisible (false);
-
-    return finishedNaturally;
+    alertWindow->enterModalState();
 }
-#endif
 
 void ThreadWithProgressWindow::setProgress (const double newProgress)
 {
@@ -85,15 +81,34 @@ void ThreadWithProgressWindow::setStatusMessage (const String& newStatusMessage)
 
 void ThreadWithProgressWindow::timerCallback()
 {
-    if (! isThreadRunning())
+    bool threadStillRunning = isThreadRunning();
+
+    if (! (threadStillRunning && alertWindow->isCurrentlyModal()))
     {
-        // thread has finished normally..
+        stopTimer();
+        stopThread (timeOutMsWhenCancelling);
         alertWindow->exitModalState (1);
         alertWindow->setVisible (false);
+
+        wasCancelledByUser = threadStillRunning;
+        threadComplete (threadStillRunning);
+        return; // (this may be deleted now)
     }
-    else
-    {
-        const ScopedLock sl (messageLock);
-        alertWindow->setMessage (message);
-    }
+
+    const ScopedLock sl (messageLock);
+    alertWindow->setMessage (message);
 }
+
+void ThreadWithProgressWindow::threadComplete (bool) {}
+
+#if JUCE_MODAL_LOOPS_PERMITTED
+bool ThreadWithProgressWindow::runThread (const int priority)
+{
+    launchThread (priority);
+
+    while (isTimerRunning())
+        MessageManager::getInstance()->runDispatchLoopUntil (5);
+
+    return ! wasCancelledByUser;
+}
+#endif

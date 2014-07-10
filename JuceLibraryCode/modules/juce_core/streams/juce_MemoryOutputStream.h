@@ -1,34 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MEMORYOUTPUTSTREAM_JUCEHEADER__
-#define __JUCE_MEMORYOUTPUTSTREAM_JUCEHEADER__
-
-#include "juce_OutputStream.h"
-#include "../memory/juce_MemoryBlock.h"
-#include "../memory/juce_ScopedPointer.h"
+#ifndef JUCE_MEMORYOUTPUTSTREAM_H_INCLUDED
+#define JUCE_MEMORYOUTPUTSTREAM_H_INCLUDED
 
 
 //==============================================================================
@@ -42,8 +41,7 @@ class JUCE_API  MemoryOutputStream  : public OutputStream
 {
 public:
     //==============================================================================
-    /** Creates an empty memory stream ready for writing into.
-
+    /** Creates an empty memory stream, ready to be written into.
         @param initialSize  the intial amount of capacity to allocate for writing into
     */
     MemoryOutputStream (size_t initialSize = 256);
@@ -63,6 +61,13 @@ public:
     MemoryOutputStream (MemoryBlock& memoryBlockToWriteTo,
                         bool appendToExistingBlockContent);
 
+    /** Creates a MemoryOutputStream that will write into a user-supplied, fixed-size
+        block of memory.
+        When using this mode, the stream will write directly into this memory area until
+        it's full, at which point write operations will fail.
+    */
+    MemoryOutputStream (void* destBuffer, size_t destBufferSize);
+
     /** Destructor.
         This will free any data that was written to it.
     */
@@ -70,13 +75,11 @@ public:
 
     //==============================================================================
     /** Returns a pointer to the data that has been written to the stream.
-
         @see getDataSize
     */
     const void* getData() const noexcept;
 
     /** Returns the number of bytes of data that have been written to the stream.
-
         @see getData
     */
     size_t getDataSize() const noexcept                 { return size; }
@@ -88,6 +91,9 @@ public:
         amount of data without needing to be resized.
     */
     void preallocate (size_t bytesToPreallocate);
+
+    /** Appends the utf-8 bytes for a unicode character */
+    bool appendUTF8Char (juce_wchar character);
 
     /** Returns a String created from the (UTF8) data that has been written to the stream. */
     String toUTF8() const;
@@ -107,26 +113,27 @@ public:
     */
     void flush();
 
-    bool write (const void* buffer, int howMany);
-    int64 getPosition()                                 { return position; }
-    bool setPosition (int64 newPosition);
-    int writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite);
-    void writeRepeatedByte (uint8 byte, int numTimesToRepeat);
+    bool write (const void*, size_t) override;
+    int64 getPosition() override                                 { return position; }
+    bool setPosition (int64) override;
+    int writeFromInputStream (InputStream&, int64 maxNumBytesToWrite) override;
+    bool writeRepeatedByte (uint8 byte, size_t numTimesToRepeat) override;
 
 private:
     //==============================================================================
-    MemoryBlock& data;
+    MemoryBlock* const blockToUse;
     MemoryBlock internalBlock;
-    size_t position, size;
+    void* externalData;
+    size_t position, size, availableSize;
 
     void trimExternalBlockSize();
-    void prepareToWrite (int numBytes);
+    char* prepareToWrite (size_t);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MemoryOutputStream);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MemoryOutputStream)
 };
 
 /** Copies all the data that has been written to a MemoryOutputStream into another stream. */
 OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const MemoryOutputStream& streamToRead);
 
 
-#endif   // __JUCE_MEMORYOUTPUTSTREAM_JUCEHEADER__
+#endif   // JUCE_MEMORYOUTPUTSTREAM_H_INCLUDED

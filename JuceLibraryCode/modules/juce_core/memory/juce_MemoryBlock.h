@@ -1,33 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
-#define __JUCE_MEMORYBLOCK_JUCEHEADER__
-
-#include "../text/juce_String.h"
-#include "../memory/juce_HeapBlock.h"
+#ifndef JUCE_MEMORYBLOCK_H_INCLUDED
+#define JUCE_MEMORYBLOCK_H_INCLUDED
 
 
 //==============================================================================
@@ -51,7 +51,7 @@ public:
                  bool initialiseToZero = false);
 
     /** Creates a copy of another memory block. */
-    MemoryBlock (const MemoryBlock& other);
+    MemoryBlock (const MemoryBlock&);
 
     /** Creates a memory block using a copy of a block of data.
 
@@ -64,31 +64,27 @@ public:
     ~MemoryBlock() noexcept;
 
     /** Copies another memory block onto this one.
-
         This block will be resized and copied to exactly match the other one.
     */
-    MemoryBlock& operator= (const MemoryBlock& other);
+    MemoryBlock& operator= (const MemoryBlock&);
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
-    MemoryBlock (MemoryBlock&& other) noexcept;
-    MemoryBlock& operator= (MemoryBlock&& other) noexcept;
+    MemoryBlock (MemoryBlock&&) noexcept;
+    MemoryBlock& operator= (MemoryBlock&&) noexcept;
    #endif
 
     //==============================================================================
     /** Compares two memory blocks.
-
         @returns true only if the two blocks are the same size and have identical contents.
     */
     bool operator== (const MemoryBlock& other) const noexcept;
 
     /** Compares two memory blocks.
-
         @returns true if the two blocks are different sizes or have different contents.
     */
     bool operator!= (const MemoryBlock& other) const noexcept;
 
-    /** Returns true if the data in this MemoryBlock matches the raw bytes passed-in.
-    */
+    /** Returns true if the data in this MemoryBlock matches the raw bytes passed-in. */
     bool matches (const void* data, size_t dataSize) const noexcept;
 
     //==============================================================================
@@ -100,7 +96,6 @@ public:
     void* getData() const noexcept                                  { return data; }
 
     /** Returns a byte from the memory block.
-
         This returns a reference, so you can also use it to set a byte.
     */
     template <typename Type>
@@ -113,9 +108,9 @@ public:
 
     /** Resizes the memory block.
 
-        This will try to keep as much of the block's current content as it can,
-        and can optionally be made to clear any new space that gets allocated at
-        the end of the block.
+        Any data that is present in both the old and new sizes will be retained.
+        When enlarging the block, the new space that is allocated at the end can either be
+        cleared, or left uninitialised.
 
         @param newSize                      the new desired size for the block
         @param initialiseNewSpaceToZero     if the block gets enlarged, this determines
@@ -138,9 +133,11 @@ public:
     void ensureSize (const size_t minimumSize,
                      bool initialiseNewSpaceToZero = false);
 
+    /** Frees all the blocks data, setting its size to 0. */
+    void reset();
+
     //==============================================================================
     /** Fills the entire memory block with a repeated byte value.
-
         This is handy for clearing a block of memory to zero.
     */
     void fillWith (uint8 valueToUse) noexcept;
@@ -149,6 +146,11 @@ public:
         The data pointer must not be null. This block's size will be increased accordingly.
     */
     void append (const void* data, size_t numBytes);
+
+    /** Resizes this block to the given size and fills its contents from the supplied buffer.
+        The data pointer must not be null.
+    */
+    void replaceWith (const void* data, size_t numBytes);
 
     /** Inserts some data into the block.
         The dataToInsert pointer must not be null. This block's size will be increased accordingly.
@@ -207,7 +209,7 @@ public:
 
         @see String::toHexString()
     */
-    void loadFromHexString (const String& sourceHexString);
+    void loadFromHexString (StringRef sourceHexString);
 
     //==============================================================================
     /** Sets a number of bits in the memory block, treating it as a long binary sequence. */
@@ -236,17 +238,16 @@ public:
 
         @see toBase64Encoding
     */
-    bool fromBase64Encoding  (const String& encodedString);
+    bool fromBase64Encoding  (StringRef encodedString);
 
 
 private:
     //==============================================================================
-    HeapBlock <char> data;
+    HeapBlock<char> data;
     size_t size;
-    static const char* const encodingTable;
 
-    JUCE_LEAK_DETECTOR (MemoryBlock);
+    JUCE_LEAK_DETECTOR (MemoryBlock)
 };
 
 
-#endif   // __JUCE_MEMORYBLOCK_JUCEHEADER__
+#endif   // JUCE_MEMORYBLOCK_H_INCLUDED

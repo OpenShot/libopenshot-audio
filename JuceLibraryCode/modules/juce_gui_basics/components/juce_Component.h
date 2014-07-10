@@ -1,52 +1,34 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_COMPONENT_JUCEHEADER__
-#define __JUCE_COMPONENT_JUCEHEADER__
-
-#include "../mouse/juce_MouseCursor.h"
-#include "../mouse/juce_MouseListener.h"
-#include "../mouse/juce_MouseEvent.h"
-#include "juce_ComponentListener.h"
-#include "../keyboard/juce_KeyListener.h"
-#include "../keyboard/juce_KeyboardFocusTraverser.h"
-#include "juce_ModalComponentManager.h"
-
-class LookAndFeel;
-class MouseInputSource;
-class MouseInputSourceInternal;
-class ComponentPeer;
-class MarkerList;
-class RelativeRectangle;
-class CachedComponentImage;
+#ifndef JUCE_COMPONENT_H_INCLUDED
+#define JUCE_COMPONENT_H_INCLUDED
 
 
 //==============================================================================
 /**
     The base class for all JUCE user-interface objects.
-
 */
 class JUCE_API  Component  : public MouseListener
 {
@@ -82,13 +64,11 @@ public:
 
     //==============================================================================
     /** Creates a component, setting its name at the same time.
-
         @see getName, setName
     */
     explicit Component (const String& componentName);
 
     /** Returns the name of this component.
-
         @see setName
     */
     const String& getName() const noexcept                  { return componentName; }
@@ -139,8 +119,7 @@ public:
     */
     bool isVisible() const noexcept                         { return flags.visibleFlag; }
 
-    /** Called when this component's visiblility changes.
-
+    /** Called when this component's visibility changes.
         @see setVisible, isVisible
     */
     virtual void visibilityChanged();
@@ -189,7 +168,6 @@ public:
     void removeFromDesktop();
 
     /** Returns true if this component is currently showing on the desktop.
-
         @see addToDesktop, removeFromDesktop
     */
     bool isOnDesktop() const noexcept;
@@ -200,7 +178,7 @@ public:
         object that it is using. Otherwise, it will return the window of
         its top-level parent component.
 
-        This may return 0 if there isn't a desktop component.
+        This may return nullptr if there isn't a desktop component.
 
         @see addToDesktop, isOnDesktop
     */
@@ -216,12 +194,19 @@ public:
     virtual void userTriedToCloseWindow();
 
     /** Called for a desktop component which has just been minimised or un-minimised.
-
         This will only be called for components on the desktop.
-
         @see getPeer, ComponentPeer::setMinimised, ComponentPeer::isMinimised
     */
     virtual void minimisationStateChanged (bool isNowMinimised);
+
+    /** Returns the default scale factor to use for this component when it is placed
+        on the desktop.
+        The default implementation of this method just returns the value from
+        Desktop::getGlobalScaleFactor(), but it can be overridden if a particular component
+        has different requirements. The method only used if this component is added
+        to the desktop - it has no effect for child components.
+    */
+    virtual float getDesktopScaleFactor() const;
 
     //==============================================================================
     /** Brings the component to the front of its siblings.
@@ -246,19 +231,16 @@ public:
     void toBack();
 
     /** Changes this component's z-order so that it's just behind another component.
-
         @see toFront, toBack
     */
     void toBehind (Component* other);
 
     /** Sets whether the component should always be kept at the front of its siblings.
-
         @see isAlwaysOnTop
     */
     void setAlwaysOnTop (bool shouldStayOnTop);
 
     /** Returns true if this component is set to always stay in front of its siblings.
-
         @see setAlwaysOnTop
     */
     bool isAlwaysOnTop() const noexcept;
@@ -271,7 +253,7 @@ public:
         bounds will no longer be a direct reflection of the position at which it appears within
         its parent, as the transform will be applied to its bounding box.
     */
-    inline int getX() const noexcept                        { return bounds.getX(); }
+    int getX() const noexcept                               { return bounds.getX(); }
 
     /** Returns the y coordinate of the top of this component.
         This is a distance in pixels from the top edge of the component's parent.
@@ -280,13 +262,13 @@ public:
         bounds will no longer be a direct reflection of the position at which it appears within
         its parent, as the transform will be applied to its bounding box.
     */
-    inline int getY() const noexcept                        { return bounds.getY(); }
+    int getY() const noexcept                               { return bounds.getY(); }
 
     /** Returns the component's width in pixels. */
-    inline int getWidth() const noexcept                    { return bounds.getWidth(); }
+    int getWidth() const noexcept                           { return bounds.getWidth(); }
 
     /** Returns the component's height in pixels. */
-    inline int getHeight() const noexcept                   { return bounds.getHeight(); }
+    int getHeight() const noexcept                          { return bounds.getHeight(); }
 
     /** Returns the x coordinate of the component's right-hand edge.
         This is a distance in pixels from the left edge of the component's parent.
@@ -298,7 +280,7 @@ public:
     int getRight() const noexcept                           { return bounds.getRight(); }
 
     /** Returns the component's top-left position as a Point. */
-    const Point<int>& getPosition() const noexcept          { return bounds.getPosition(); }
+    Point<int> getPosition() const noexcept                 { return bounds.getPosition(); }
 
     /** Returns the y coordinate of the bottom edge of this component.
         This is a distance in pixels from the top edge of the component's parent.
@@ -341,15 +323,15 @@ public:
         If includeSiblings is true, it will also take into account any siblings
         that may be overlapping the component.
     */
-    void getVisibleArea (RectangleList& result, bool includeSiblings) const;
+    void getVisibleArea (RectangleList<int>& result, bool includeSiblings) const;
 
     //==============================================================================
-    /** Returns this component's x coordinate relative the the screen's top-left origin.
+    /** Returns this component's x coordinate relative the screen's top-left origin.
         @see getX, localPointToGlobal
     */
     int getScreenX() const;
 
-    /** Returns this component's y coordinate relative the the screen's top-left origin.
+    /** Returns this component's y coordinate relative the screen's top-left origin.
         @see getY, localPointToGlobal
     */
     int getScreenY() const;
@@ -371,7 +353,7 @@ public:
         screen coordinate.
     */
     Point<int> getLocalPoint (const Component* sourceComponent,
-                              const Point<int>& pointRelativeToSourceComponent) const;
+                              Point<int> pointRelativeToSourceComponent) const;
 
     /** Converts a rectangle to be relative to this component's coordinate space.
 
@@ -389,7 +371,7 @@ public:
     /** Converts a point relative to this component's top-left into a screen coordinate.
         @see getLocalPoint, localAreaToGlobal
     */
-    Point<int> localPointToGlobal (const Point<int>& localPoint) const;
+    Point<int> localPointToGlobal (Point<int> localPoint) const;
 
     /** Converts a rectangle from this component's coordinate space to a screen coordinate.
 
@@ -429,7 +411,7 @@ public:
 
         @see setBounds, ComponentListener::componentMovedOrResized
     */
-    void setTopLeftPosition (const Point<int>& newTopLeftPosition);
+    void setTopLeftPosition (Point<int> newTopLeftPosition);
 
     /** Moves the component to a new position.
 
@@ -576,7 +558,7 @@ public:
         @see setBounds
     */
     void setBoundsToFit (int x, int y, int width, int height,
-                         const Justification& justification,
+                         Justification justification,
                          bool onlyReduceInSize);
 
     /** Changes the position of the component's centre.
@@ -638,13 +620,11 @@ public:
 
     //==============================================================================
     /** Returns a proportion of the component's width.
-
         This is a handy equivalent of (getWidth() * proportion).
     */
     int proportionOfWidth (float proportion) const noexcept;
 
     /** Returns a proportion of the component's height.
-
         This is a handy equivalent of (getHeight() * proportion).
     */
     int proportionOfHeight (float proportion) const noexcept;
@@ -703,7 +683,7 @@ public:
     /** Looks for a child component with the specified ID.
         @see setComponentID, getComponentID
     */
-    Component* findChildWithID (const String& componentID) const noexcept;
+    Component* findChildWithID (StringRef componentID) const noexcept;
 
     /** Adds a child component to this one.
 
@@ -723,12 +703,37 @@ public:
     */
     void addChildComponent (Component* child, int zOrder = -1);
 
-    /** Adds a child component to this one, and also makes the child visible if it isn't.
+    /** Adds a child component to this one.
 
-        Quite a useful function, this is just the same as calling setVisible (true) on the child
-        and then addChildComponent(). See addChildComponent() for more details.
+        Adding a child component does not mean that the component will own or delete the child - it's
+        your responsibility to delete the component. Note that it's safe to delete a component
+        without first removing it from its parent - doing so will automatically remove it and
+        send out the appropriate notifications before the deletion completes.
+
+        If the child is already a child of this component, then no action will be taken, and its
+        z-order will be left unchanged.
+
+        @param child    the new component to add. If the component passed-in is already
+                        the child of another component, it'll first be removed from it current parent.
+        @param zOrder   The index in the child-list at which this component should be inserted.
+                        A value of -1 will insert it in front of the others, 0 is the back.
+        @see removeChildComponent, addAndMakeVisible, addChildAndSetID, getChild, ComponentListener::componentChildrenChanged
+    */
+    void addChildComponent (Component& child, int zOrder = -1);
+
+    /** Adds a child component to this one, and also makes the child visible if it isn't already.
+
+        This is the same as calling setVisible (true) on the child and then addChildComponent().
+        See addChildComponent() for more details.
     */
     void addAndMakeVisible (Component* child, int zOrder = -1);
+
+    /** Adds a child component to this one, and also makes the child visible if it isn't already.
+
+        This is the same as calling setVisible (true) on the child and then addChildComponent().
+        See addChildComponent() for more details.
+    */
+    void addAndMakeVisible (Component& child, int zOrder = -1);
 
     /** Adds a child component to this one, makes it visible, and sets its component ID.
         @see addAndMakeVisible, addChildComponent
@@ -762,13 +767,11 @@ public:
     Component* removeChildComponent (int childIndexToRemove);
 
     /** Removes all this component's children.
-
         Note that this won't delete them! To do that, use deleteAllChildren() instead.
     */
     void removeAllChildren();
 
     /** Removes all this component's children, and deletes them.
-
         @see removeAllChildren
     */
     void deleteAllChildren();
@@ -785,20 +788,13 @@ public:
         For example findParentComponentOfClass \<MyComp\>() would return the first parent
         component that can be dynamically cast to a MyComp, or will return 0 if none
         of the parents are suitable.
-
-        N.B. The dummy parameter is needed to work around a VC6 compiler bug.
     */
     template <class TargetClass>
-    TargetClass* findParentComponentOfClass (TargetClass* const dummyParameter = nullptr) const
+    TargetClass* findParentComponentOfClass() const
     {
-        (void) dummyParameter;
-
         for (Component* p = parentComponent; p != nullptr; p = p->parentComponent)
-        {
-            TargetClass* const target = dynamic_cast <TargetClass*> (p);
-            if (target != nullptr)
+            if (TargetClass* const target = dynamic_cast <TargetClass*> (p))
                 return target;
-        }
 
         return nullptr;
     }
@@ -831,9 +827,9 @@ public:
     */
     virtual void parentHierarchyChanged();
 
-    /** Subclasses can use this callback to be told when children are added or removed.
-
-        @see parentHierarchyChanged
+    /** Subclasses can use this callback to be told when children are added or removed, or
+        when their z-order changes.
+        @see parentHierarchyChanged, ComponentListener::componentChildrenChanged
     */
     virtual void childrenChanged();
 
@@ -918,7 +914,7 @@ public:
                     which might be in the way - for that, see reallyContains()
         @see hitTest, reallyContains, getComponentAt
     */
-    bool contains (const Point<int>& localPoint);
+    bool contains (Point<int> localPoint);
 
     /** Returns true if a given point lies in this component, taking any overlapping
         siblings into account.
@@ -928,7 +924,7 @@ public:
                                             this determines whether that is counted as a hit.
         @see contains, getComponentAt
     */
-    bool reallyContains (const Point<int>& localPoint, bool returnTrueIfWithinAChild);
+    bool reallyContains (Point<int> localPoint, bool returnTrueIfWithinAChild);
 
     /** Returns the component at a certain point within this one.
 
@@ -951,7 +947,7 @@ public:
                     instead call getComponentAt on the top-level parent of this component.
         @see hitTest, contains, reallyContains
     */
-    Component* getComponentAt (const Point<int>& position);
+    Component* getComponentAt (Point<int> position);
 
     //==============================================================================
     /** Marks the whole component as needing to be redrawn.
@@ -1039,7 +1035,8 @@ public:
         @see paintEntireComponent
     */
     Image createComponentSnapshot (const Rectangle<int>& areaToGrab,
-                                   bool clipImageToComponentBounds = true);
+                                   bool clipImageToComponentBounds = true,
+                                   float scaleFactor = 1.0f);
 
     /** Draws this component and all its subcomponents onto the specified graphics
         context.
@@ -1091,7 +1088,6 @@ public:
     void setComponentEffect (ImageEffectFilter* newEffect);
 
     /** Returns the current component effect.
-
         @see setComponentEffect
     */
     ImageEffectFilter* getComponentEffect() const noexcept              { return effect; }
@@ -1183,7 +1179,6 @@ public:
     void setBroughtToFrontOnMouseClick (bool shouldBeBroughtToFront) noexcept;
 
     /** Indicates whether the component should be brought to the front when clicked-on.
-
         @see setBroughtToFrontOnMouseClick
     */
     bool isBroughtToFrontOnMouseClick() const noexcept;
@@ -1222,7 +1217,6 @@ public:
     void setMouseClickGrabsKeyboardFocus (bool shouldGrabFocus);
 
     /** Returns the last value set with setMouseClickGrabsKeyboardFocus().
-
         See setMouseClickGrabsKeyboardFocus() for more info.
     */
     bool getMouseClickGrabsKeyboardFocus() const noexcept;
@@ -1262,10 +1256,12 @@ public:
     bool hasKeyboardFocus (bool trueIfChildIsFocused) const;
 
     /** Returns the component that currently has the keyboard focus.
-
         @returns the focused component, or null if nothing is focused.
     */
     static Component* JUCE_CALLTYPE getCurrentlyFocusedComponent() noexcept;
+
+    /** If any component has keyboard focus, this will defocus it. */
+    static void JUCE_CALLTYPE unfocusAllComponents();
 
     //==============================================================================
     /** Tries to move the keyboard focus to one of this component's siblings.
@@ -1468,19 +1464,20 @@ public:
 
 
     //==============================================================================
-    /** Called when the mouse moves inside this component.
+    /** Called when the mouse moves inside a component.
 
         If the mouse button isn't pressed and the mouse moves over a component,
         this will be called to let the component react to this.
 
         A component will always get a mouseEnter callback before a mouseMove.
 
-        @param e    details about the position and status of the mouse event
+        @param event details about the position and status of the mouse event, including
+                     the source component in which it occurred
         @see mouseEnter, mouseExit, mouseDrag, contains
     */
-    virtual void mouseMove         (const MouseEvent& e);
+    virtual void mouseMove (const MouseEvent& event) override;
 
-    /** Called when the mouse first enters this component.
+    /** Called when the mouse first enters a component.
 
         If the mouse button isn't pressed and the mouse moves into a component,
         this will be called to let the component react to this.
@@ -1490,16 +1487,13 @@ public:
         mouseDrag messages are sent to the component that the mouse was originally
         clicked on, until the button is released.
 
-        If you're writing a component that needs to repaint itself when the mouse
-        enters and exits, it might be quicker to use the setRepaintsOnMouseActivity()
-        method.
-
-        @param e    details about the position and status of the mouse event
+        @param event details about the position and status of the mouse event, including
+                     the source component in which it occurred
         @see mouseExit, mouseDrag, mouseMove, contains
     */
-    virtual void mouseEnter        (const MouseEvent& e);
+    virtual void mouseEnter (const MouseEvent& event) override;
 
-    /** Called when the mouse moves out of this component.
+    /** Called when the mouse moves out of a component.
 
         This will be called when the mouse moves off the edge of this
         component.
@@ -1508,16 +1502,13 @@ public:
         edge of the component and released, then this callback will happen
         when the button is released, after the mouseUp callback.
 
-        If you're writing a component that needs to repaint itself when the mouse
-        enters and exits, it might be quicker to use the setRepaintsOnMouseActivity()
-        method.
-
-        @param e    details about the position and status of the mouse event
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseEnter, mouseDrag, mouseMove, contains
     */
-    virtual void mouseExit         (const MouseEvent& e);
+    virtual void mouseExit (const MouseEvent& event) override;
 
-    /** Called when a mouse button is pressed while it's over this component.
+    /** Called when a mouse button is pressed.
 
         The MouseEvent object passed in contains lots of methods for finding out
         which button was pressed, as well as which modifier keys (e.g. shift, ctrl)
@@ -1526,10 +1517,11 @@ public:
         Once a button is held down, the mouseDrag method will be called when the
         mouse moves, until the button is released.
 
-        @param e    details about the position and status of the mouse event
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseUp, mouseDrag, mouseDoubleClick, contains
     */
-    virtual void mouseDown         (const MouseEvent& e);
+    virtual void mouseDown (const MouseEvent& event) override;
 
     /** Called when the mouse is moved while a button is held down.
 
@@ -1537,14 +1529,11 @@ public:
         receives mouseDrag callbacks each time the mouse moves, even if the
         mouse strays outside the component's bounds.
 
-        If you want to be able to drag things off the edge of a component
-        and have the component scroll when you get to the edges, the
-        beginDragAutoRepeat() method might be useful.
-
-        @param e    details about the position and status of the mouse event
-        @see mouseDown, mouseUp, mouseMove, contains, beginDragAutoRepeat
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
+        @see mouseDown, mouseUp, mouseMove, contains, setDragRepeatInterval
     */
-    virtual void mouseDrag         (const MouseEvent& e);
+    virtual void mouseDrag (const MouseEvent& event) override;
 
     /** Called when a mouse button is released.
 
@@ -1555,46 +1544,54 @@ public:
         The MouseEvent object passed in contains lots of methods for finding out
         which buttons were down just before they were released.
 
-        @param e    details about the position and status of the mouse event
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseDown, mouseDrag, mouseDoubleClick, contains
     */
-    virtual void mouseUp           (const MouseEvent& e);
+    virtual void mouseUp (const MouseEvent& event) override;
 
-    /** Called when a mouse button has been double-clicked in this component.
+    /** Called when a mouse button has been double-clicked on a component.
 
         The MouseEvent object passed in contains lots of methods for finding out
         which button was pressed, as well as which modifier keys (e.g. shift, ctrl)
         were held down at the time.
 
-        For altering the time limit used to detect double-clicks,
-        see MouseEvent::setDoubleClickTimeout.
-
-        @param e    details about the position and status of the mouse event
-        @see mouseDown, mouseUp, MouseEvent::setDoubleClickTimeout,
-             MouseEvent::getDoubleClickTimeout
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
+        @see mouseDown, mouseUp
     */
-    virtual void mouseDoubleClick  (const MouseEvent& e);
+    virtual void mouseDoubleClick (const MouseEvent& event) override;
 
     /** Called when the mouse-wheel is moved.
 
         This callback is sent to the component that the mouse is over when the
         wheel is moved.
 
-        If not overridden, the component will forward this message to its parent, so
+        If not overridden, a component will forward this message to its parent, so
         that parent components can collect mouse-wheel messages that happen to
-        child components which aren't interested in them.
+        child components which aren't interested in them. (Bear in mind that if
+        you attach a component as a mouse-listener to other components, then
+        those wheel moves will also end up calling this method and being passed up
+        to the parents, which may not be what you intended to happen).
 
-        @param e                details about the position and status of the mouse event
-        @param wheelIncrementX   the speed and direction of the horizontal scroll-wheel - a positive
-                                 value means the wheel has been pushed to the right, negative means it
-                                 was pushed to the left
-        @param wheelIncrementY   the speed and direction of the vertical scroll-wheel - a positive
-                                 value means the wheel has been pushed upwards, negative means it
-                                 was pushed downwards
+        @param event   details about the mouse event
+        @param wheel   details about the mouse wheel movement
     */
-    virtual void mouseWheelMove    (const MouseEvent& e,
-                                    float wheelIncrementX,
-                                    float wheelIncrementY);
+    virtual void mouseWheelMove (const MouseEvent& event,
+                                 const MouseWheelDetails& wheel) override;
+
+    /** Called when a pinch-to-zoom mouse-gesture is used.
+
+        If not overridden, a component will forward this message to its parent, so
+        that parent components can collect gesture messages that are unused by child
+        components.
+
+        @param event   details about the mouse event
+        @param scaleFactor  a multiplier to indicate by how much the size of the target
+                            should be changed. A value of 1.0 would indicate no change,
+                            values greater than 1.0 mean it should be enlarged.
+    */
+    virtual void mouseMagnify (const MouseEvent& event, float scaleFactor);
 
     //==============================================================================
     /** Ensures that a non-stop stream of mouse-drag events will be sent during the
@@ -1666,7 +1663,6 @@ public:
     void addKeyListener (KeyListener* newListener);
 
     /** Removes a previously-registered key listener.
-
         @see addKeyListener
     */
     void removeKeyListener (KeyListener* listenerToRemove);
@@ -1738,13 +1734,11 @@ public:
     };
 
     /** Called to indicate that this component has just acquired the keyboard focus.
-
         @see focusLost, setWantsKeyboardFocus, getCurrentlyFocusedComponent, hasKeyboardFocus
     */
     virtual void focusGained (FocusChangeType cause);
 
     /** Called to indicate that this component has just lost the keyboard focus.
-
         @see focusGained, setWantsKeyboardFocus, getCurrentlyFocusedComponent, hasKeyboardFocus
     */
     virtual void focusLost (FocusChangeType cause);
@@ -1884,7 +1878,6 @@ public:
     void addComponentListener (ComponentListener* newListener);
 
     /** Removes a component listener.
-
         @see addComponentListener
     */
     void removeComponentListener (ComponentListener* listenerToRemove);
@@ -1960,7 +1953,7 @@ public:
 
     /** Ends a component's modal state.
 
-        If this component is currently modal, this will turn of its modalness, and return
+        If this component is currently modal, this will turn off its modalness, and return
         a value to the runModalLoop() method that might have be running its modal loop.
 
         @see runModalLoop, enterModalState, isCurrentlyModal
@@ -2071,10 +2064,9 @@ public:
 
         @see findColour, isColourSpecified, colourChanged, LookAndFeel::findColour, LookAndFeel::setColour
     */
-    void setColour (int colourId, const Colour& colour);
+    void setColour (int colourId, Colour newColour);
 
     /** If a colour has been set with setColour(), this will remove it.
-
         This allows you to make a colour revert to its default state.
     */
     void removeColour (int colourId);
@@ -2090,15 +2082,14 @@ public:
     void copyAllExplicitColoursTo (Component& target) const;
 
     /** This method is called when a colour is changed by the setColour() method.
-
         @see setColour, findColour
     */
     virtual void colourChanged();
 
     //==============================================================================
     /** Components can implement this method to provide a MarkerList.
-        The default implementation of this method returns 0, but you can override it to
-        return a pointer to the component's marker list. If xAxis is true, it should
+        The default implementation of this method returns nullptr, but you can override
+        it to return a pointer to the component's marker list. If xAxis is true, it should
         return the X marker list; if false, it should return the Y markers.
     */
     virtual MarkerList* getMarkers (bool xAxis);
@@ -2155,7 +2146,7 @@ public:
         const ComponentType* operator->() const noexcept    { return getComponent(); }
 
         /** If the component is valid, this deletes it and sets this pointer to null. */
-        void deleteAndZero()                                { delete getComponent(); jassert (getComponent() == nullptr); }
+        void deleteAndZero()                                { delete getComponent(); }
 
         bool operator== (ComponentType* component) const noexcept   { return weakRef == component; }
         bool operator!= (ComponentType* component) const noexcept   { return weakRef != component; }
@@ -2183,7 +2174,7 @@ public:
     private:
         const WeakReference<Component> safePointer;
 
-        JUCE_DECLARE_NON_COPYABLE (BailOutChecker);
+        JUCE_DECLARE_NON_COPYABLE (BailOutChecker)
     };
 
     //==============================================================================
@@ -2216,7 +2207,7 @@ public:
     private:
         Component& component;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Positioner);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Positioner)
     };
 
     /** Returns the Positioner object that has been set for this component.
@@ -2245,12 +2236,10 @@ public:
     CachedComponentImage* getCachedComponentImage() const noexcept  { return cachedImage; }
 
     //==============================================================================
-   #ifndef DOXYGEN
     // These methods are deprecated - use localPointToGlobal, getLocalPoint, getLocalPoint, etc instead.
-    JUCE_DEPRECATED (Point<int> relativePositionToGlobal (const Point<int>&) const);
-    JUCE_DEPRECATED (Point<int> globalPositionToRelative (const Point<int>&) const);
-    JUCE_DEPRECATED (Point<int> relativePositionToOtherComponent (const Component*, const Point<int>&) const);
-   #endif
+    JUCE_DEPRECATED (Point<int> relativePositionToGlobal (Point<int>) const);
+    JUCE_DEPRECATED (Point<int> globalPositionToRelative (Point<int>) const);
+    JUCE_DEPRECATED (Point<int> relativePositionToOtherComponent (const Component*, Point<int>) const);
 
 private:
     //==============================================================================
@@ -2275,7 +2264,7 @@ private:
 
     class MouseListenerList;
     friend class MouseListenerList;
-    friend class ScopedPointer <MouseListenerList>;
+    friend struct ContainerDeletePolicy<MouseListenerList>;
     ScopedPointer <MouseListenerList> mouseListeners;
     ScopedPointer <Array <KeyListener*> > keyListeners;
     ListenerList <ComponentListener> componentListeners;
@@ -2302,6 +2291,7 @@ private:
         bool isDisabledFlag             : 1;
         bool childCompFocusedFlag       : 1;
         bool dontClipGraphicsFlag       : 1;
+        bool mouseDownWasBlocked        : 1;
       #if JUCE_DEBUG
         bool isInsidePaintCall          : 1;
       #endif
@@ -2316,13 +2306,14 @@ private:
     uint8 componentTransparency;
 
     //==============================================================================
-    void internalMouseEnter (MouseInputSource&, const Point<int>&, const Time&);
-    void internalMouseExit  (MouseInputSource&, const Point<int>&, const Time&);
-    void internalMouseDown  (MouseInputSource&, const Point<int>&, const Time&);
-    void internalMouseUp    (MouseInputSource&, const Point<int>&, const Time&, const ModifierKeys& oldModifiers);
-    void internalMouseDrag  (MouseInputSource&, const Point<int>&, const Time&);
-    void internalMouseMove  (MouseInputSource&, const Point<int>&, const Time&);
-    void internalMouseWheel (MouseInputSource&, const Point<int>&, const Time&, float amountX, float amountY);
+    void internalMouseEnter (MouseInputSource, Point<int>, Time);
+    void internalMouseExit  (MouseInputSource, Point<int>, Time);
+    void internalMouseDown  (MouseInputSource, Point<int>, Time);
+    void internalMouseUp    (MouseInputSource, Point<int>, Time, const ModifierKeys oldModifiers);
+    void internalMouseDrag  (MouseInputSource, Point<int>, Time);
+    void internalMouseMove  (MouseInputSource, Point<int>, Time);
+    void internalMouseWheel (MouseInputSource, Point<int>, Time, const MouseWheelDetails&);
+    void internalMagnifyGesture (MouseInputSource, Point<int>, Time, float);
     void internalBroughtToFront();
     void internalFocusGain (const FocusChangeType, const WeakReference<Component>&);
     void internalFocusGain (const FocusChangeType);
@@ -2353,7 +2344,7 @@ private:
     /* Components aren't allowed to have copy constructors, as this would mess up parent hierarchies.
        You might need to give your subclasses a private dummy constructor to avoid compiler warnings.
     */
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Component);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Component)
 
     //==============================================================================
    #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
@@ -2364,8 +2355,8 @@ private:
     virtual void filesDropped (const StringArray&, int, int) {}
 
     // This is included here to cause an error if you use or overload it - it has been deprecated in
-    // favour of contains (const Point<int>&)
-    void contains (int, int);
+    // favour of contains (Point<int>)
+    void contains (int, int) JUCE_DELETED_FUNCTION;
    #endif
 
 protected:
@@ -2376,4 +2367,4 @@ protected:
 };
 
 
-#endif   // __JUCE_COMPONENT_JUCEHEADER__
+#endif   // JUCE_COMPONENT_H_INCLUDED

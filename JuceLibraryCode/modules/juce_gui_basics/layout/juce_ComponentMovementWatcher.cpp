@@ -1,33 +1,32 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-ComponentMovementWatcher::ComponentMovementWatcher (Component* const component_)
-    : component (component_),
+ComponentMovementWatcher::ComponentMovementWatcher (Component* const comp)
+    : component (comp),
       lastPeerID (0),
       reentrant (false),
-      wasShowing (component_->isShowing())
+      wasShowing (comp->isShowing())
 {
     jassert (component != nullptr); // can't use this with a null pointer..
 
@@ -80,10 +79,16 @@ void ComponentMovementWatcher::componentMovedOrResized (Component&, bool wasMove
     {
         if (wasMoved)
         {
-            const Point<int> pos (component->getTopLevelComponent()->getLocalPoint (component, Point<int>()));
+            Point<int> newPos;
+            Component* const top = component->getTopLevelComponent();
 
-            wasMoved = lastBounds.getPosition() != pos;
-            lastBounds.setPosition (pos);
+            if (top != component)
+                newPos = top->getLocalPoint (component, Point<int>());
+            else
+                newPos = top->getPosition();
+
+            wasMoved = lastBounds.getPosition() != newPos;
+            lastBounds.setPosition (newPos);
         }
 
         wasResized = (lastBounds.getWidth() != component->getWidth() || lastBounds.getHeight() != component->getHeight());
@@ -96,7 +101,7 @@ void ComponentMovementWatcher::componentMovedOrResized (Component&, bool wasMove
 
 void ComponentMovementWatcher::componentBeingDeleted (Component& comp)
 {
-    registeredParentComps.removeValue (&comp);
+    registeredParentComps.removeFirstMatchingValue (&comp);
 
     if (component == &comp)
         unregister();
@@ -118,13 +123,10 @@ void ComponentMovementWatcher::componentVisibilityChanged (Component&)
 
 void ComponentMovementWatcher::registerWithParentComps()
 {
-    Component* p = component->getParentComponent();
-
-    while (p != nullptr)
+    for (Component* p = component->getParentComponent(); p != nullptr; p = p->getParentComponent())
     {
         p->addComponentListener (this);
         registeredParentComps.add (p);
-        p = p->getParentComponent();
     }
 }
 

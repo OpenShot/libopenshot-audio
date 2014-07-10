@@ -1,32 +1,30 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_APPLICATIONPROPERTIES_JUCEHEADER__
-#define __JUCE_APPLICATIONPROPERTIES_JUCEHEADER__
+#ifndef JUCE_APPLICATIONPROPERTIES_H_INCLUDED
+#define JUCE_APPLICATIONPROPERTIES_H_INCLUDED
 
-#include "juce_PropertiesFile.h"
 
 //==============================================================================
 /**
@@ -39,8 +37,7 @@
     all users (stored in a folder accessible to all users).
 
     The class manages the creation of these files on-demand, allowing access via the
-    getUserSettings() and getCommonSettings() methods. It also has a few handy
-    methods like testWriteAccess() to check that the files can be saved.
+    getUserSettings() and getCommonSettings() methods.
 
     After creating an instance of an ApplicationProperties object, you should first
     of all call setStorageParameters() to tell it the parameters to use to create
@@ -68,6 +65,11 @@ public:
         See the PropertiesFile::Options class for details about what options you need to set.
     */
     void setStorageParameters (const PropertiesFile::Options& options);
+
+    /** Returns the current storage parameters.
+        @see setStorageParameters
+    */
+    const PropertiesFile::Options& getStorageParameters() const noexcept        { return options; }
 
     //==============================================================================
     /** Returns the user settings file.
@@ -123,8 +125,8 @@ private:
 
     void openFiles();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationProperties);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationProperties)
 };
 
 
-#endif   // __JUCE_APPLICATIONPROPERTIES_JUCEHEADER__
+#endif   // JUCE_APPLICATIONPROPERTIES_H_INCLUDED

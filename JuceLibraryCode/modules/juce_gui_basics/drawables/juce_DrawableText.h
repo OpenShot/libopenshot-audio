@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_DRAWABLETEXT_JUCEHEADER__
-#define __JUCE_DRAWABLETEXT_JUCEHEADER__
-
-#include "juce_Drawable.h"
-#include "../positioning/juce_RelativeParallelogram.h"
+#ifndef JUCE_DRAWABLETEXT_H_INCLUDED
+#define JUCE_DRAWABLETEXT_H_INCLUDED
 
 
 //==============================================================================
@@ -42,7 +38,7 @@ public:
     //==============================================================================
     /** Creates a DrawableText object. */
     DrawableText();
-    DrawableText (const DrawableText& other);
+    DrawableText (const DrawableText&);
 
     /** Destructor. */
     ~DrawableText();
@@ -51,11 +47,14 @@ public:
     /** Sets the text to display.*/
     void setText (const String& newText);
 
+    /** Returns the currently displayed text */
+    const String& getText() const noexcept                              { return text;}
+
     /** Sets the colour of the text. */
-    void setColour (const Colour& newColour);
+    void setColour (Colour newColour);
 
     /** Returns the current text colour. */
-    const Colour& getColour() const noexcept                { return colour; }
+    Colour getColour() const noexcept                                   { return colour; }
 
     /** Sets the font to use.
         Note that the font height and horizontal scale are set as RelativeCoordinates using
@@ -65,8 +64,14 @@ public:
     */
     void setFont (const Font& newFont, bool applySizeAndScale);
 
+    /** Returns the current font. */
+    const Font& getFont() const noexcept                                { return font; }
+
     /** Changes the justification of the text within the bounding box. */
-    void setJustification (const Justification& newJustification);
+    void setJustification (Justification newJustification);
+
+    /** Returns the current justification. */
+    Justification getJustification() const noexcept                     { return justification; }
 
     /** Returns the parallelogram that defines the text bounding box. */
     const RelativeParallelogram& getBoundingBox() const noexcept        { return bounds; }
@@ -82,17 +87,17 @@ public:
 
     //==============================================================================
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
     /** @internal */
-    Drawable* createCopy() const;
+    Drawable* createCopy() const override;
     /** @internal */
     void refreshFromValueTree (const ValueTree& tree, ComponentBuilder& builder);
     /** @internal */
-    ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
+    ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const override;
     /** @internal */
     static const Identifier valueTreeType;
     /** @internal */
-    Rectangle<float> getDrawableBounds() const;
+    Rectangle<float> getDrawableBounds() const override;
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawableText's state into a ValueTree. */
@@ -106,10 +111,10 @@ public:
         Value getTextValue (UndoManager* undoManager);
 
         Colour getColour() const;
-        void setColour (const Colour& newColour, UndoManager* undoManager);
+        void setColour (Colour newColour, UndoManager* undoManager);
 
         Justification getJustification() const;
-        void setJustification (const Justification& newJustification, UndoManager* undoManager);
+        void setJustification (Justification newJustification, UndoManager* undoManager);
 
         Font getFont() const;
         void setFont (const Font& newFont, UndoManager* undoManager);
@@ -141,11 +146,10 @@ private:
     bool registerCoordinates (RelativeCoordinatePositionerBase&);
     void recalculateCoordinates (Expression::Scope*);
     void refreshBounds();
-    const AffineTransform getArrangementAndTransform (GlyphArrangement& glyphs) const;
 
     DrawableText& operator= (const DrawableText&);
-    JUCE_LEAK_DETECTOR (DrawableText);
+    JUCE_LEAK_DETECTOR (DrawableText)
 };
 
 
-#endif   // __JUCE_DRAWABLETEXT_JUCEHEADER__
+#endif   // JUCE_DRAWABLETEXT_H_INCLUDED

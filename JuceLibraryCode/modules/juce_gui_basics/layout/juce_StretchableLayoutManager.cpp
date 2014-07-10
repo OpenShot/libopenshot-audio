@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -70,9 +69,7 @@ bool StretchableLayoutManager::getItemLayout (const int itemIndex,
                                               double& maximumSize,
                                               double& preferredSize) const
 {
-    const ItemLayoutProperties* const layout = getInfoFor (itemIndex);
-
-    if (layout != nullptr)
+    if (const ItemLayoutProperties* const layout = getInfoFor (itemIndex))
     {
         minimumSize = layout->minSize;
         maximumSize = layout->maxSize;
@@ -96,21 +93,15 @@ int StretchableLayoutManager::getItemCurrentPosition (const int itemIndex) const
     int pos = 0;
 
     for (int i = 0; i < itemIndex; ++i)
-    {
-        const ItemLayoutProperties* const layout = getInfoFor (i);
-
-        if (layout != nullptr)
+        if (const ItemLayoutProperties* const layout = getInfoFor (i))
             pos += layout->currentSize;
-    }
 
     return pos;
 }
 
 int StretchableLayoutManager::getItemCurrentAbsoluteSize (const int itemIndex) const
 {
-    const ItemLayoutProperties* const layout = getInfoFor (itemIndex);
-
-    if (layout != nullptr)
+    if (const ItemLayoutProperties* const layout = getInfoFor (itemIndex))
         return layout->currentSize;
 
     return 0;
@@ -118,9 +109,7 @@ int StretchableLayoutManager::getItemCurrentAbsoluteSize (const int itemIndex) c
 
 double StretchableLayoutManager::getItemCurrentRelativeSize (const int itemIndex) const
 {
-    const ItemLayoutProperties* const layout = getInfoFor (itemIndex);
-
-    if (layout != nullptr)
+    if (const ItemLayoutProperties* const layout = getInfoFor (itemIndex))
         return -layout->currentSize / (double) totalSize;
 
     return 0;
@@ -165,13 +154,9 @@ void StretchableLayoutManager::layOutComponents (Component** const components,
 
     for (int i = 0; i < numComponents; ++i)
     {
-        const ItemLayoutProperties* const layout = getInfoFor (i);
-
-        if (layout != nullptr)
+        if (const ItemLayoutProperties* const layout = getInfoFor (i))
         {
-            Component* const c = components[i];
-
-            if (c != nullptr)
+            if (Component* const c = components[i])
             {
                 if (i == numComponents - 1)
                 {
@@ -232,11 +217,10 @@ int StretchableLayoutManager::fitComponentsIntoSpace (const int startIndex,
                                                       int startPos)
 {
     // calculate the total sizes
-    int i;
     double totalIdealSize = 0.0;
     int totalMinimums = 0;
 
-    for (i = startIndex; i < endIndex; ++i)
+    for (int i = startIndex; i < endIndex; ++i)
     {
         ItemLayoutProperties* const layout = items.getUnchecked (i);
 
@@ -258,7 +242,7 @@ int StretchableLayoutManager::fitComponentsIntoSpace (const int startIndex,
         int numHavingTakenExtraSpace = 0;
 
         // first figure out how many comps want a slice of the extra space..
-        for (i = startIndex; i < endIndex; ++i)
+        for (int i = startIndex; i < endIndex; ++i)
         {
             ItemLayoutProperties* const layout = items.getUnchecked (i);
 
@@ -274,7 +258,7 @@ int StretchableLayoutManager::fitComponentsIntoSpace (const int startIndex,
         }
 
         // ..share out the extra space..
-        for (i = startIndex; i < endIndex; ++i)
+        for (int i = startIndex; i < endIndex; ++i)
         {
             ItemLayoutProperties* const layout = items.getUnchecked (i);
 
@@ -307,7 +291,7 @@ int StretchableLayoutManager::fitComponentsIntoSpace (const int startIndex,
     }
 
     // ..and calculate the end position
-    for (i = startIndex; i < endIndex; ++i)
+    for (int i = startIndex; i < endIndex; ++i)
     {
         ItemLayoutProperties* const layout = items.getUnchecked(i);
         startPos += layout->currentSize;

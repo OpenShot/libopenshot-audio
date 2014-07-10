@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_REVERB_JUCEHEADER__
-#define __JUCE_REVERB_JUCEHEADER__
+#ifndef JUCE_REVERB_H_INCLUDED
+#define JUCE_REVERB_H_INCLUDED
 
 
 //==============================================================================
@@ -104,14 +103,13 @@ public:
         const int stereoSpread = 23;
         const int intSampleRate = (int) sampleRate;
 
-        int i;
-        for (i = 0; i < numCombs; ++i)
+        for (int i = 0; i < numCombs; ++i)
         {
             comb[0][i].setSize ((intSampleRate * combTunings[i]) / 44100);
             comb[1][i].setSize ((intSampleRate * (combTunings[i] + stereoSpread)) / 44100);
         }
 
-        for (i = 0; i < numAllPasses; ++i)
+        for (int i = 0; i < numAllPasses; ++i)
         {
             allPass[0][i].setSize ((intSampleRate * allPassTunings[i]) / 44100);
             allPass[1][i].setSize ((intSampleRate * (allPassTunings[i] + stereoSpread)) / 44100);
@@ -125,11 +123,10 @@ public:
     {
         for (int j = 0; j < numChannels; ++j)
         {
-            int i;
-            for (i = 0; i < numCombs; ++i)
+            for (int i = 0; i < numCombs; ++i)
                 comb[j][i].clear();
 
-            for (i = 0; i < numAllPasses; ++i)
+            for (int i = 0; i < numAllPasses; ++i)
                 allPass[j][i].clear();
         }
     }
@@ -148,14 +145,13 @@ public:
             const float input = (left[i] + right[i]) * gain;
             float outL = 0, outR = 0;
 
-            int j;
-            for (j = 0; j < numCombs; ++j)  // accumulate the comb filters in parallel
+            for (int j = 0; j < numCombs; ++j)  // accumulate the comb filters in parallel
             {
                 outL += comb[0][j].process (input);
                 outR += comb[1][j].process (input);
             }
 
-            for (j = 0; j < numAllPasses; ++j)  // run the allpass filters in series
+            for (int j = 0; j < numAllPasses; ++j)  // run the allpass filters in series
             {
                 outL = allPass[0][j].process (outL);
                 outR = allPass[1][j].process (outR);
@@ -179,14 +175,13 @@ public:
             const float input = samples[i] * gain;
             float output = 0;
 
-            int j;
-            for (j = 0; j < numCombs; ++j)  // accumulate the comb filters in parallel
+            for (int j = 0; j < numCombs; ++j)  // accumulate the comb filters in parallel
                 output += comb[0][j].process (input);
 
-            for (j = 0; j < numAllPasses; ++j)  // run the allpass filters in series
+            for (int j = 0; j < numAllPasses; ++j)  // run the allpass filters in series
                 output = allPass[0][j].process (output);
 
-            samples[i] = output * wet1 + input * dry;
+            samples[i] = output * wet1 + samples[i] * dry;
         }
     }
 
@@ -208,7 +203,7 @@ private:
         shouldUpdateDamping = false;
 
         if (isFrozen (parameters.freezeMode))
-            setDamping (1.0f, 0.0f);
+            setDamping (0.0f, 1.0f);
         else
             setDamping (parameters.damping * dampScaleFactor,
                         parameters.roomSize * roomScaleFactor + roomOffset);
@@ -225,7 +220,10 @@ private:
     class CombFilter
     {
     public:
-        CombFilter() noexcept  : bufferSize (0), bufferIndex (0) {}
+        CombFilter() noexcept
+            : bufferSize (0), bufferIndex (0),
+              feedback (0), last (0), damp1 (0), damp2 (0)
+        {}
 
         void setSize (const int size)
         {
@@ -270,7 +268,7 @@ private:
         int bufferSize, bufferIndex;
         float feedback, last, damp1, damp2;
 
-        JUCE_DECLARE_NON_COPYABLE (CombFilter);
+        JUCE_DECLARE_NON_COPYABLE (CombFilter)
     };
 
     //==============================================================================
@@ -310,7 +308,7 @@ private:
         HeapBlock<float> buffer;
         int bufferSize, bufferIndex;
 
-        JUCE_DECLARE_NON_COPYABLE (AllPassFilter);
+        JUCE_DECLARE_NON_COPYABLE (AllPassFilter)
     };
 
     enum { numCombs = 8, numAllPasses = 4, numChannels = 2 };
@@ -318,8 +316,8 @@ private:
     CombFilter comb [numChannels][numCombs];
     AllPassFilter allPass [numChannels][numAllPasses];
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Reverb);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Reverb)
 };
 
 
-#endif   // __JUCE_REVERB_JUCEHEADER__
+#endif   // JUCE_REVERB_H_INCLUDED

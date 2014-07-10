@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -34,6 +33,13 @@ namespace jpeglibNamespace
    #if JUCE_MINGW
     typedef unsigned char boolean;
    #endif
+
+   #if JUCE_CLANG
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wconversion"
+    #pragma clang diagnostic ignored "-Wdeprecated-register"
+   #endif
+
     #define JPEG_INTERNALS
     #undef FAR
     #include "jpglib/jpeglib.h"
@@ -106,6 +112,10 @@ namespace jpeglibNamespace
     #include "jpglib/jquant2.c"
     #include "jpglib/jutils.c"
     #include "jpglib/transupp.c"
+
+   #if JUCE_CLANG
+    #pragma clang diagnostic pop
+   #endif
 #else
     #define JPEG_INTERNALS
     #undef FAR
@@ -148,6 +158,7 @@ namespace JPEGHelpers
     }
 
     //==============================================================================
+   #if ! JUCE_USING_COREIMAGE_LOADER
     static void dummyCallback1 (j_decompress_ptr) {}
 
     static void jpegSkip (j_decompress_ptr decompStruct, long num)
@@ -155,13 +166,14 @@ namespace JPEGHelpers
         decompStruct->src->next_input_byte += num;
 
         num = jmin (num, (long) decompStruct->src->bytes_in_buffer);
-        decompStruct->src->bytes_in_buffer -= num;
+        decompStruct->src->bytes_in_buffer -= (size_t) num;
     }
 
     static boolean jpegFill (j_decompress_ptr)
     {
         return 0;
     }
+   #endif
 
     //==============================================================================
     const int jpegBufferSize = 512;
@@ -179,7 +191,7 @@ namespace JPEGHelpers
         JuceJpegDest* const dest = static_cast <JuceJpegDest*> (cinfo->dest);
 
         const size_t numToWrite = jpegBufferSize - dest->free_in_buffer;
-        dest->output->write (dest->buffer, (int) numToWrite);
+        dest->output->write (dest->buffer, numToWrite);
     }
 
     static boolean jpegWriteFlush (j_compress_ptr cinfo)
@@ -191,7 +203,7 @@ namespace JPEGHelpers
         dest->next_output_byte = reinterpret_cast <JOCTET*> (dest->buffer);
         dest->free_in_buffer = jpegBufferSize;
 
-        return (boolean) dest->output->write (dest->buffer, numToWrite);
+        return (boolean) dest->output->write (dest->buffer, (size_t) numToWrite);
     }
 }
 
@@ -208,31 +220,27 @@ void JPEGImageFormat::setQuality (const float newQuality)
     quality = newQuality;
 }
 
-String JPEGImageFormat::getFormatName() { return "JPEG"; }
+String JPEGImageFormat::getFormatName()                   { return "JPEG"; }
+bool JPEGImageFormat::usesFileExtension (const File& f)   { return f.hasFileExtension ("jpeg;jpg"); }
 
 bool JPEGImageFormat::canUnderstand (InputStream& in)
 {
     const int bytesNeeded = 10;
     uint8 header [bytesNeeded];
 
-    if (in.read (header, bytesNeeded) == bytesNeeded)
-    {
-        return header[0] == 0xff
+    return in.read (header, bytesNeeded) == bytesNeeded
+            && header[0] == 0xff
             && header[1] == 0xd8
-            && header[2] == 0xff
-            && (header[3] == 0xe0 || header[3] == 0xe1);
-    }
-
-    return false;
+            && header[2] == 0xff;
 }
 
-#if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && JUCE_USE_COREIMAGE_LOADER
+#if JUCE_USING_COREIMAGE_LOADER
  Image juce_loadWithCoreImage (InputStream& input);
 #endif
 
 Image JPEGImageFormat::decodeImage (InputStream& in)
 {
-#if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && JUCE_USE_COREIMAGE_LOADER
+#if JUCE_USING_COREIMAGE_LOADER
     return juce_loadWithCoreImage (in);
 #else
     using namespace jpeglibNamespace;
@@ -337,7 +345,8 @@ bool JPEGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
     using namespace jpeglibNamespace;
     using namespace JPEGHelpers;
 
-    struct jpeg_compress_struct jpegCompStruct;
+    jpeg_compress_struct jpegCompStruct;
+    zerostruct (jpegCompStruct);
     jpeg_create_compress (&jpegCompStruct);
 
     struct jpeg_error_mgr jerr;
@@ -377,7 +386,7 @@ bool JPEGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
 
     jpeg_start_compress (&jpegCompStruct, TRUE);
 
-    const int strideBytes = (int) (jpegCompStruct.image_width * jpegCompStruct.input_components);
+    const int strideBytes = (int) (jpegCompStruct.image_width * (unsigned int) jpegCompStruct.input_components);
 
     JSAMPARRAY buffer = (*jpegCompStruct.mem->alloc_sarray) ((j_common_ptr) &jpegCompStruct,
                                                              JPOOL_IMAGE, (JDIMENSION) strideBytes, 1);

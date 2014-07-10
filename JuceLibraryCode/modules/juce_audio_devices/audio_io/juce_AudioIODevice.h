@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_AUDIOIODEVICE_JUCEHEADER__
-#define __JUCE_AUDIOIODEVICE_JUCEHEADER__
+#ifndef JUCE_AUDIOIODEVICE_H_INCLUDED
+#define JUCE_AUDIOIODEVICE_H_INCLUDED
 
 class AudioIODevice;
 
@@ -158,47 +157,19 @@ public:
     virtual StringArray getInputChannelNames() = 0;
 
     //==============================================================================
-    /** Returns the number of sample-rates this device supports.
-
-        To find out which rates are available on this device, use this method to
-        find out how many there are, and getSampleRate() to get the rates.
-
-        @see getSampleRate
+    /** Returns the set of sample-rates this device supports.
+        @see getCurrentSampleRate
     */
-    virtual int getNumSampleRates() = 0;
+    virtual Array<double> getAvailableSampleRates() = 0;
 
-    /** Returns one of the sample-rates this device supports.
-
-        To find out which rates are available on this device, use getNumSampleRates() to
-        find out how many there are, and getSampleRate() to get the individual rates.
-
-        The sample rate is set by the open() method.
-
-        (Note that for DirectSound some rates might not work, depending on combinations
-        of i/o channels that are being opened).
-
-        @see getNumSampleRates
+    /** Returns the set of buffer sizes that are available.
+        @see getCurrentBufferSizeSamples, getDefaultBufferSize
     */
-    virtual double getSampleRate (int index) = 0;
-
-    /** Returns the number of sizes of buffer that are available.
-
-        @see getBufferSizeSamples, getDefaultBufferSize
-    */
-    virtual int getNumBufferSizesAvailable() = 0;
-
-    /** Returns one of the possible buffer-sizes.
-
-        @param index    the index of the buffer-size to use, from 0 to getNumBufferSizesAvailable() - 1
-        @returns a number of samples
-        @see getNumBufferSizesAvailable, getDefaultBufferSize
-    */
-    virtual int getBufferSizeSamples (int index) = 0;
+    virtual Array<int> getAvailableBufferSizes() = 0;
 
     /** Returns the default buffer-size to use.
-
         @returns a number of samples
-        @see getNumBufferSizesAvailable, getBufferSizeSamples
+        @see getAvailableBufferSizes
     */
     virtual int getDefaultBufferSize() = 0;
 
@@ -210,9 +181,9 @@ public:
         @param outputChannels       a BigInteger in which a set bit indicates that the corresponding
                                     output channel should be enabled
         @param sampleRate           the sample rate to try to use - to find out which rates are
-                                    available, see getNumSampleRates() and getSampleRate()
+                                    available, see getAvailableSampleRates()
         @param bufferSizeSamples    the size of i/o buffer to use - to find out the available buffer
-                                    sizes, see getNumBufferSizesAvailable() and getBufferSizeSamples()
+                                    sizes, see getAvailableBufferSizes()
         @returns    an error description if there's a problem, or an empty string if it succeeds in
                     opening the device
         @see close
@@ -318,6 +289,11 @@ public:
     */
     virtual bool showControlPanel();
 
+    /** On devices which support it, this allows automatic gain control or other
+        mic processing to be disabled.
+        If the device doesn't support this operation, it'll return false.
+    */
+    virtual bool setAudioPreprocessingEnabled (bool shouldBeEnabled);
 
     //==============================================================================
 protected:
@@ -330,4 +306,4 @@ protected:
 };
 
 
-#endif   // __JUCE_AUDIOIODEVICE_JUCEHEADER__
+#endif   // JUCE_AUDIOIODEVICE_H_INCLUDED

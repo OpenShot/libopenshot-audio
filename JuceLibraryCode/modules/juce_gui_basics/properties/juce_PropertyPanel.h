@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PROPERTYPANEL_JUCEHEADER__
-#define __JUCE_PROPERTYPANEL_JUCEHEADER__
-
-#include "juce_PropertyComponent.h"
-#include "../layout/juce_Viewport.h"
+#ifndef JUCE_PROPERTYPANEL_H_INCLUDED
+#define JUCE_PROPERTYPANEL_H_INCLUDED
 
 
 //==============================================================================
@@ -49,12 +45,14 @@ public:
     /** Creates an empty property panel. */
     PropertyPanel();
 
+    /** Creates an empty property panel. */
+    PropertyPanel (const String& name);
+
     /** Destructor. */
     ~PropertyPanel();
 
     //==============================================================================
-    /** Deletes all property components from the panel.
-    */
+    /** Deletes all property components from the panel. */
     void clear();
 
     /** Adds a set of properties to the panel.
@@ -65,7 +63,7 @@ public:
         These properties are added without them being inside a named section. If you
         want them to be kept together in a collapsible section, use addSection() instead.
     */
-    void addProperties (const Array <PropertyComponent*>& newPropertyComponents);
+    void addProperties (const Array<PropertyComponent*>& newPropertyComponents);
 
     /** Adds a set of properties to the panel.
 
@@ -78,33 +76,37 @@ public:
         To add properies without them being in a section, use addProperties().
     */
     void addSection (const String& sectionTitle,
-                     const Array <PropertyComponent*>& newPropertyComponents,
+                     const Array<PropertyComponent*>& newPropertyComponents,
                      bool shouldSectionInitiallyBeOpen = true);
 
     /** Calls the refresh() method of all PropertyComponents in the panel */
     void refreshAll() const;
 
+    /** Returns true if the panel contains no properties. */
+    bool isEmpty() const;
+
+    /** Returns the height that the panel needs in order to display all of its content
+        without scrolling.
+    */
+    int getTotalContentHeight() const;
+
     //==============================================================================
     /** Returns a list of all the names of sections in the panel.
-
         These are the sections that have been added with addSection().
     */
     StringArray getSectionNames() const;
 
     /** Returns true if the section at this index is currently open.
-
         The index is from 0 up to the number of items returned by getSectionNames().
     */
     bool isSectionOpen (int sectionIndex) const;
 
     /** Opens or closes one of the sections.
-
         The index is from 0 up to the number of items returned by getSectionNames().
     */
     void setSectionOpen (int sectionIndex, bool shouldBeOpen);
 
     /** Enables or disables one of the sections.
-
         The index is from 0 up to the number of items returned by getSectionNames().
     */
     void setSectionEnabled (int sectionIndex, bool shouldBeEnabled);
@@ -113,7 +115,6 @@ public:
     /** Saves the current state of open/closed sections so it can be restored later.
 
         The caller is responsible for deleting the object that is returned.
-
         To restore this state, use restoreOpennessState().
 
         @see restoreOpennessState
@@ -132,7 +133,6 @@ public:
 
     //==============================================================================
     /** Sets a message to be displayed when there are no properties in the panel.
-
         The default message is "nothing selected".
     */
     void setMessageWhenEmpty (const String& newMessage);
@@ -144,21 +144,24 @@ public:
 
     //==============================================================================
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
     /** @internal */
-    void resized();
+    void resized() override;
 
 private:
+    class SectionComponent;
+
     Viewport viewport;
     class PropertyHolderComponent;
     PropertyHolderComponent* propertyHolderComponent;
     String messageWhenEmpty;
 
+    void init();
     void updatePropHolderLayout() const;
     void updatePropHolderLayout (int width) const;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertyPanel);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertyPanel)
 };
 
 
-#endif   // __JUCE_PROPERTYPANEL_JUCEHEADER__
+#endif   // JUCE_PROPERTYPANEL_H_INCLUDED

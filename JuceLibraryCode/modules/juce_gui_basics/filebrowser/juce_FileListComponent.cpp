@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -87,23 +86,23 @@ void FileListComponent::changeListenerCallback (ChangeBroadcaster*)
 }
 
 //==============================================================================
-class FileListItemComponent  : public Component,
-                               public TimeSliceClient,
-                               public AsyncUpdater
+class FileListComponent::ItemComponent  : public Component,
+                                          private TimeSliceClient,
+                                          private AsyncUpdater
 {
 public:
-    FileListItemComponent (FileListComponent& owner_, TimeSliceThread& thread_)
-        : owner (owner_), thread (thread_), index (0), highlighted (false)
+    ItemComponent (FileListComponent& fc, TimeSliceThread& t)
+        : owner (fc), thread (t), index (0), highlighted (false)
     {
     }
 
-    ~FileListItemComponent()
+    ~ItemComponent()
     {
         thread.removeTimeSliceClient (this);
     }
 
     //==============================================================================
-    void paint (Graphics& g)
+    void paint (Graphics& g) override
     {
         getLookAndFeel().drawFileBrowserRow (g, getWidth(), getHeight(),
                                              file.getFileName(),
@@ -112,13 +111,13 @@ public:
                                              index, owner);
     }
 
-    void mouseDown (const MouseEvent& e)
+    void mouseDown (const MouseEvent& e) override
     {
-        owner.selectRowsBasedOnModifierKeys (index, e.mods, false);
+        owner.selectRowsBasedOnModifierKeys (index, e.mods, true);
         owner.sendMouseClickMessage (file, e);
     }
 
-    void mouseDoubleClick (const MouseEvent&)
+    void mouseDoubleClick (const MouseEvent&) override
     {
         owner.sendDoubleClickMessage (file);
     }
@@ -169,13 +168,13 @@ public:
         }
     }
 
-    int useTimeSlice()
+    int useTimeSlice() override
     {
         updateIcon (false);
         return -1;
     }
 
-    void handleAsyncUpdate()
+    void handleAsyncUpdate() override
     {
         repaint();
     }
@@ -213,7 +212,7 @@ private:
         }
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListItemComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ItemComponent)
 };
 
 //==============================================================================
@@ -228,12 +227,12 @@ void FileListComponent::paintListBoxItem (int, Graphics&, int, int, bool)
 
 Component* FileListComponent::refreshComponentForRow (int row, bool isSelected, Component* existingComponentToUpdate)
 {
-    jassert (existingComponentToUpdate == nullptr || dynamic_cast <FileListItemComponent*> (existingComponentToUpdate) != nullptr);
+    jassert (existingComponentToUpdate == nullptr || dynamic_cast<ItemComponent*> (existingComponentToUpdate) != nullptr);
 
-    FileListItemComponent* comp = static_cast <FileListItemComponent*> (existingComponentToUpdate);
+    ItemComponent* comp = static_cast<ItemComponent*> (existingComponentToUpdate);
 
     if (comp == nullptr)
-        comp = new FileListItemComponent (*this, fileList.getTimeSliceThread());
+        comp = new ItemComponent (*this, fileList.getTimeSliceThread());
 
     DirectoryContentsList::FileInfo fileInfo;
     comp->update (fileList.getDirectory(),

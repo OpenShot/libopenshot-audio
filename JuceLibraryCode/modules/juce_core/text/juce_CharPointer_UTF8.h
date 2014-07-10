@@ -1,30 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_CHARPOINTER_UTF8_JUCEHEADER__
-#define __JUCE_CHARPOINTER_UTF8_JUCEHEADER__
+#ifndef JUCE_CHARPOINTER_UTF8_H_INCLUDED
+#define JUCE_CHARPOINTER_UTF8_H_INCLUDED
 
 //==============================================================================
 /**
@@ -47,25 +50,25 @@ public:
     {
     }
 
-    inline CharPointer_UTF8& operator= (const CharPointer_UTF8& other) noexcept
+    inline CharPointer_UTF8 operator= (CharPointer_UTF8 other) noexcept
     {
         data = other.data;
         return *this;
     }
 
-    inline CharPointer_UTF8& operator= (const CharType* text) noexcept
+    inline CharPointer_UTF8 operator= (const CharType* text) noexcept
     {
         data = const_cast <CharType*> (text);
         return *this;
     }
 
     /** This is a pointer comparison, it doesn't compare the actual text. */
-    inline bool operator== (const CharPointer_UTF8& other) const noexcept { return data == other.data; }
-    inline bool operator!= (const CharPointer_UTF8& other) const noexcept { return data != other.data; }
-    inline bool operator<= (const CharPointer_UTF8& other) const noexcept { return data <= other.data; }
-    inline bool operator<  (const CharPointer_UTF8& other) const noexcept { return data <  other.data; }
-    inline bool operator>= (const CharPointer_UTF8& other) const noexcept { return data >= other.data; }
-    inline bool operator>  (const CharPointer_UTF8& other) const noexcept { return data >  other.data; }
+    inline bool operator== (CharPointer_UTF8 other) const noexcept      { return data == other.data; }
+    inline bool operator!= (CharPointer_UTF8 other) const noexcept      { return data != other.data; }
+    inline bool operator<= (CharPointer_UTF8 other) const noexcept      { return data <= other.data; }
+    inline bool operator<  (CharPointer_UTF8 other) const noexcept      { return data <  other.data; }
+    inline bool operator>= (CharPointer_UTF8 other) const noexcept      { return data >= other.data; }
+    inline bool operator>  (CharPointer_UTF8 other) const noexcept      { return data >  other.data; }
 
     /** Returns the address that this pointer is pointing to. */
     inline CharType* getAddress() const noexcept        { return data; }
@@ -115,6 +118,7 @@ public:
     /** Moves this pointer along to the next character in the string. */
     CharPointer_UTF8& operator++() noexcept
     {
+        jassert (*data != 0); // trying to advance past the end of the string?
         const signed char n = (signed char) *data++;
 
         if (n < 0)
@@ -132,20 +136,12 @@ public:
     }
 
     /** Moves this pointer back to the previous character in the string. */
-    CharPointer_UTF8& operator--() noexcept
+    CharPointer_UTF8 operator--() noexcept
     {
-        const char n = *--data;
+        int count = 0;
 
-        if ((n & 0xc0) == 0xc0)
-        {
-            int count = 3;
-
-            do
-            {
-                --data;
-            }
-            while ((*data & 0xc0) == 0xc0 && --count >= 0);
-        }
+        while ((*--data & 0xc0) == 0x80 && ++count < 4)
+        {}
 
         return *this;
     }
@@ -175,11 +171,12 @@ public:
 
         while (--numExtraValues >= 0)
         {
-            const uint32 nextByte = (uint32) (uint8) *data++;
+            const uint32 nextByte = (uint32) (uint8) *data;
 
             if ((nextByte & 0xc0) != 0x80)
                 break;
 
+            ++data;
             n <<= 6;
             n |= (nextByte & 0x3f);
         }
@@ -252,16 +249,8 @@ public:
 
             if ((n & 0x80) != 0)
             {
-                uint32 bit = 0x40;
-
-                while ((n & bit) != 0)
-                {
+                while ((*d & 0xc0) == 0x80)
                     ++d;
-                    bit >>= 1;
-
-                    if (bit == 0)
-                        break; // illegal utf-8 sequence
-                }
             }
             else if (n == 0)
                 break;
@@ -279,7 +268,7 @@ public:
     }
 
     /** Returns the number of characters in this string, or up to the given end pointer, whichever is lower. */
-    size_t lengthUpTo (const CharPointer_UTF8& end) const noexcept
+    size_t lengthUpTo (const CharPointer_UTF8 end) const noexcept
     {
         return CharacterFunctions::lengthUpTo (*this, end);
     }
@@ -371,13 +360,13 @@ public:
 
     /** Copies a source string to this pointer, advancing this pointer as it goes. */
     template <typename CharPointer>
-    void writeAll (const CharPointer& src) noexcept
+    void writeAll (const CharPointer src) noexcept
     {
         CharacterFunctions::copyAll (*this, src);
     }
 
     /** Copies a source string to this pointer, advancing this pointer as it goes. */
-    void writeAll (const CharPointer_UTF8& src) noexcept
+    void writeAll (const CharPointer_UTF8 src) noexcept
     {
         const CharType* s = src.data;
 
@@ -393,7 +382,7 @@ public:
         to the destination buffer before stopping.
     */
     template <typename CharPointer>
-    int writeWithDestByteLimit (const CharPointer& src, const int maxDestBytes) noexcept
+    size_t writeWithDestByteLimit (const CharPointer src, const size_t maxDestBytes) noexcept
     {
         return CharacterFunctions::copyWithDestByteLimit (*this, src, maxDestBytes);
     }
@@ -403,34 +392,34 @@ public:
         written to the destination buffer before stopping (including the terminating null).
     */
     template <typename CharPointer>
-    void writeWithCharLimit (const CharPointer& src, const int maxChars) noexcept
+    void writeWithCharLimit (const CharPointer src, const int maxChars) noexcept
     {
         CharacterFunctions::copyWithCharLimit (*this, src, maxChars);
     }
 
     /** Compares this string with another one. */
     template <typename CharPointer>
-    int compare (const CharPointer& other) const noexcept
+    int compare (const CharPointer other) const noexcept
     {
         return CharacterFunctions::compare (*this, other);
     }
 
     /** Compares this string with another one, up to a specified number of characters. */
     template <typename CharPointer>
-    int compareUpTo (const CharPointer& other, const int maxChars) const noexcept
+    int compareUpTo (const CharPointer other, const int maxChars) const noexcept
     {
         return CharacterFunctions::compareUpTo (*this, other, maxChars);
     }
 
     /** Compares this string with another one. */
     template <typename CharPointer>
-    int compareIgnoreCase (const CharPointer& other) const noexcept
+    int compareIgnoreCase (const CharPointer other) const noexcept
     {
         return CharacterFunctions::compareIgnoreCase (*this, other);
     }
 
     /** Compares this string with another one. */
-    int compareIgnoreCase (const CharPointer_UTF8& other) const noexcept
+    int compareIgnoreCase (const CharPointer_UTF8 other) const noexcept
     {
        #if JUCE_WINDOWS
         return stricmp (data, other.data);
@@ -441,14 +430,14 @@ public:
 
     /** Compares this string with another one, up to a specified number of characters. */
     template <typename CharPointer>
-    int compareIgnoreCaseUpTo (const CharPointer& other, const int maxChars) const noexcept
+    int compareIgnoreCaseUpTo (const CharPointer other, const int maxChars) const noexcept
     {
         return CharacterFunctions::compareIgnoreCaseUpTo (*this, other, maxChars);
     }
 
     /** Returns the character index of a substring, or -1 if it isn't found. */
     template <typename CharPointer>
-    int indexOf (const CharPointer& stringToFind) const noexcept
+    int indexOf (const CharPointer stringToFind) const noexcept
     {
         return CharacterFunctions::indexOf (*this, stringToFind);
     }
@@ -516,34 +505,33 @@ public:
     {
         while (--maxBytesToRead >= 0 && *dataToTest != 0)
         {
-            const signed char byte = (signed char) *dataToTest;
+            const signed char byte = (signed char) *dataToTest++;
 
             if (byte < 0)
             {
-                uint32 n = (uint32) (uint8) byte;
-                uint32 mask = 0x7f;
-                uint32 bit = 0x40;
+                uint8 bit = 0x40;
                 int numExtraValues = 0;
 
-                while ((n & bit) != 0)
+                while ((byte & bit) != 0)
                 {
-                    if (bit <= 0x10)
+                    if (bit < 8)
                         return false;
 
-                    mask >>= 1;
                     ++numExtraValues;
                     bit >>= 1;
-                }
 
-                n &= mask;
-
-                while (--numExtraValues >= 0)
-                {
-                    const uint32 nextByte = (uint32) (uint8) *dataToTest++;
-
-                    if ((nextByte & 0xc0) != 0x80)
+                    if (bit == 8 && (numExtraValues > maxBytesToRead
+                                       || *CharPointer_UTF8 (dataToTest - 1) > 0x10ffff))
                         return false;
                 }
+
+                maxBytesToRead -= numExtraValues;
+                if (maxBytesToRead < 0)
+                    return false;
+
+                while (--numExtraValues >= 0)
+                    if ((*dataToTest++ & 0xc0) != 0x80)
+                        return false;
             }
         }
 
@@ -551,12 +539,12 @@ public:
     }
 
     /** Atomically swaps this pointer for a new value, returning the previous value. */
-    CharPointer_UTF8 atomicSwap (const CharPointer_UTF8& newValue)
+    CharPointer_UTF8 atomicSwap (const CharPointer_UTF8 newValue)
     {
         return CharPointer_UTF8 (reinterpret_cast <Atomic<CharType*>&> (data).exchange (newValue.data));
     }
 
-    /** These values are the byte-order-mark (BOM) values for a UTF-8 stream. */
+    /** These values are the byte-order mark (BOM) values for a UTF-8 stream. */
     enum
     {
         byteOrderMark1 = 0xef,
@@ -564,8 +552,21 @@ public:
         byteOrderMark3 = 0xbf
     };
 
+    /** Returns true if the first three bytes in this pointer are the UTF8 byte-order mark (BOM).
+        The pointer must not be null, and must point to at least 3 valid bytes.
+    */
+    static bool isByteOrderMark (const void* possibleByteOrder) noexcept
+    {
+        jassert (possibleByteOrder != nullptr);
+        const uint8* const c = static_cast<const uint8*> (possibleByteOrder);
+
+        return c[0] == (uint8) byteOrderMark1
+            && c[1] == (uint8) byteOrderMark2
+            && c[2] == (uint8) byteOrderMark3;
+    }
+
 private:
     CharType* data;
 };
 
-#endif   // __JUCE_CHARPOINTER_UTF8_JUCEHEADER__
+#endif   // JUCE_CHARPOINTER_UTF8_H_INCLUDED

@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -32,7 +35,7 @@ AbstractFifo::AbstractFifo (const int capacity) noexcept
 AbstractFifo::~AbstractFifo() {}
 
 int AbstractFifo::getTotalSize() const noexcept           { return bufferSize; }
-int AbstractFifo::getFreeSpace() const noexcept           { return bufferSize - getNumReady(); }
+int AbstractFifo::getFreeSpace() const noexcept           { return bufferSize - getNumReady() - 1; }
 
 int AbstractFifo::getNumReady() const noexcept
 {
@@ -138,8 +141,8 @@ public:
     class WriteThread  : public Thread
     {
     public:
-        WriteThread (AbstractFifo& fifo_, int* buffer_)
-            : Thread ("fifo writer"), fifo (fifo_), buffer (buffer_)
+        WriteThread (AbstractFifo& f, int* b, Random rng)
+            : Thread ("fifo writer"), fifo (f), buffer (b), random (rng)
         {
             startThread();
         }
@@ -152,11 +155,10 @@ public:
         void run()
         {
             int n = 0;
-            Random r;
 
             while (! threadShouldExit())
             {
-                int num = r.nextInt (2000) + 1;
+                int num = random.nextInt (2000) + 1;
 
                 int start1, size1, start2, size2;
                 fifo.prepareToWrite (num, start1, size1, start2, size2);
@@ -165,11 +167,10 @@ public:
                 jassert (size1 == 0 || (start1 >= 0 && start1 < fifo.getTotalSize()));
                 jassert (size2 == 0 || (start2 >= 0 && start2 < fifo.getTotalSize()));
 
-                int i;
-                for (i = 0; i < size1; ++i)
+                for (int i = 0; i < size1; ++i)
                     buffer [start1 + i] = n++;
 
-                for (i = 0; i < size2; ++i)
+                for (int i = 0; i < size2; ++i)
                     buffer [start2 + i] = n++;
 
                 fifo.finishedWrite (size1 + size2);
@@ -179,6 +180,7 @@ public:
     private:
         AbstractFifo& fifo;
         int* buffer;
+        Random random;
     };
 
     void runTest()
@@ -188,12 +190,13 @@ public:
         int buffer [5000];
         AbstractFifo fifo (numElementsInArray (buffer));
 
-        WriteThread writer (fifo, buffer);
+        WriteThread writer (fifo, buffer, getRandom());
 
         int n = 0;
-        Random r;
+        Random r = getRandom();
+        r.combineSeed (12345);
 
-        for (int count = 1000000; --count >= 0;)
+        for (int count = 100000; --count >= 0;)
         {
             int num = r.nextInt (6000) + 1;
 
@@ -210,11 +213,10 @@ public:
 
             bool failed = false;
 
-            int i;
-            for (i = 0; i < size1; ++i)
+            for (int i = 0; i < size1; ++i)
                 failed = (buffer [start1 + i] != n++) || failed;
 
-            for (i = 0; i < size2; ++i)
+            for (int i = 0; i < size2; ++i)
                 failed = (buffer [start2 + i] != n++) || failed;
 
             if (failed)

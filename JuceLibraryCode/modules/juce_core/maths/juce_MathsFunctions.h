@@ -1,30 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MATHSFUNCTIONS_JUCEHEADER__
-#define __JUCE_MATHSFUNCTIONS_JUCEHEADER__
+#ifndef JUCE_MATHSFUNCTIONS_H_INCLUDED
+#define JUCE_MATHSFUNCTIONS_H_INCLUDED
 
 //==============================================================================
 /*
@@ -52,27 +55,21 @@ typedef unsigned int                uint32;
   typedef __int64                   int64;
   /** A platform-independent 64-bit unsigned integer type. */
   typedef unsigned __int64          uint64;
-  /** A platform-independent macro for writing 64-bit literals, needed because
-      different compilers have different syntaxes for this.
-
-      E.g. writing literal64bit (0x1000000000) will translate to 0x1000000000LL for
-      GCC, or 0x1000000000 for MSVC.
-  */
-  #define literal64bit(longLiteral)     ((__int64) longLiteral)
 #else
   /** A platform-independent 64-bit integer type. */
   typedef long long                 int64;
   /** A platform-independent 64-bit unsigned integer type. */
   typedef unsigned long long        uint64;
-  /** A platform-independent macro for writing 64-bit literals, needed because
-      different compilers have different syntaxes for this.
-
-      E.g. writing literal64bit (0x1000000000) will translate to 0x1000000000LL for
-      GCC, or 0x1000000000 for MSVC.
-  */
-  #define literal64bit(longLiteral)     (longLiteral##LL)
 #endif
 
+#ifndef DOXYGEN
+ /** A macro for creating 64-bit literals.
+     Historically, this was needed to support portability with MSVC6, and is kept here
+     so that old code will still compile, but nowadays every compiler will support the
+     LL and ULL suffixes, so you should use those in preference to this macro.
+ */
+ #define literal64bit(longLiteral)     (longLiteral##LL)
+#endif
 
 #if JUCE_64BIT
   /** A signed integer type that's guaranteed to be large enough to hold a pointer without truncating it. */
@@ -285,7 +282,7 @@ inline int numElementsInArray (Type (&array)[N])
 template <typename Type>
 inline Type juce_hypot (Type a, Type b) noexcept
 {
-   #if JUCE_WINDOWS
+   #if JUCE_MSVC
     return static_cast <Type> (_hypot (a, b));
    #else
     return static_cast <Type> (hypot (a, b));
@@ -298,15 +295,19 @@ inline int64 abs64 (const int64 n) noexcept
     return (n >= 0) ? n : -n;
 }
 
+#if JUCE_MSVC && ! defined (DOXYGEN)  // The MSVC libraries omit these functions for some reason...
+ template<typename Type> Type asinh (Type x) noexcept  { return std::log (x + std::sqrt (x * x + (Type) 1)); }
+ template<typename Type> Type acosh (Type x) noexcept  { return std::log (x + std::sqrt (x * x - (Type) 1)); }
+ template<typename Type> Type atanh (Type x) noexcept  { return (std::log (x + (Type) 1) - std::log (((Type) 1) - x)) / (Type) 2; }
+#endif
+
 //==============================================================================
 /** A predefined value for Pi, at double-precision.
-
     @see float_Pi
 */
 const double  double_Pi  = 3.1415926535897932384626433832795;
 
-/** A predefined value for Pi, at sngle-precision.
-
+/** A predefined value for Pi, at single-precision.
     @see double_Pi
 */
 const float   float_Pi   = 3.14159265358979323846f;
@@ -331,7 +332,9 @@ inline bool juce_isfinite (FloatingPointType value)
 //==============================================================================
 #if JUCE_MSVC
  #pragma optimize ("t", off)
- #pragma float_control (precise, on, push)
+ #ifndef __INTEL_COMPILER
+  #pragma float_control (precise, on, push)
+ #endif
 #endif
 
 /** Fast floating-point-to-integer conversion.
@@ -347,6 +350,10 @@ inline bool juce_isfinite (FloatingPointType value)
 template <typename FloatType>
 inline int roundToInt (const FloatType value) noexcept
 {
+  #ifdef __INTEL_COMPILER
+   #pragma float_control (precise, on, push)
+  #endif
+
     union { int asInt[2]; double asDouble; } n;
     n.asDouble = ((double) value) + 6755399441055744.0;
 
@@ -358,7 +365,9 @@ inline int roundToInt (const FloatType value) noexcept
 }
 
 #if JUCE_MSVC
- #pragma float_control (pop)
+ #ifndef __INTEL_COMPILER
+  #pragma float_control (pop)
+ #endif
  #pragma optimize ("", on)  // resets optimisations to the project defaults
 #endif
 
@@ -369,6 +378,10 @@ inline int roundToInt (const FloatType value) noexcept
 */
 inline int roundToIntAccurate (const double value) noexcept
 {
+   #ifdef __INTEL_COMPILER
+    #pragma float_control (pop)
+   #endif
+
     return roundToInt (value + 1.5e-8);
 }
 
@@ -429,11 +442,18 @@ inline int nextPowerOfTwo (int n) noexcept
     The divisor must be greater than zero.
 */
 template <typename IntegerType>
-int negativeAwareModulo (IntegerType dividend, const IntegerType divisor) noexcept
+IntegerType negativeAwareModulo (IntegerType dividend, const IntegerType divisor) noexcept
 {
     jassert (divisor > 0);
     dividend %= divisor;
     return (dividend < 0) ? (dividend + divisor) : dividend;
+}
+
+/** Returns the square of its argument. */
+template <typename NumericType>
+NumericType square (NumericType n) noexcept
+{
+    return n * n;
 }
 
 //==============================================================================
@@ -504,4 +524,4 @@ namespace TypeHelpers
 
 //==============================================================================
 
-#endif   // __JUCE_MATHSFUNCTIONS_JUCEHEADER__
+#endif   // JUCE_MATHSFUNCTIONS_H_INCLUDED

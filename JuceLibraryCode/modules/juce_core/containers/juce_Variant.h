@@ -1,40 +1,34 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_VARIANT_JUCEHEADER__
-#define __JUCE_VARIANT_JUCEHEADER__
+#ifndef JUCE_VARIANT_H_INCLUDED
+#define JUCE_VARIANT_H_INCLUDED
 
-#include "../text/juce_Identifier.h"
-#include "../streams/juce_OutputStream.h"
-#include "../streams/juce_InputStream.h"
-#include "../containers/juce_Array.h"
-
-#ifndef DOXYGEN
- class ReferenceCountedObject;
- class DynamicObject;
-#endif
 
 //==============================================================================
 /**
@@ -53,7 +47,21 @@ class JUCE_API  var
 {
 public:
     //==============================================================================
-    typedef const var (DynamicObject::*MethodFunction) (const var* arguments, int numArguments);
+    /** This structure is passed to a NativeFunction callback, and contains invocation
+        details about the function's arguments and context.
+    */
+    struct NativeFunctionArgs
+    {
+        NativeFunctionArgs (const var& thisObject, const var* args, int numArgs) noexcept;
+
+        const var& thisObject;
+        const var* arguments;
+        int numArguments;
+
+        JUCE_DECLARE_NON_COPYABLE (NativeFunctionArgs)
+    };
+
+    typedef var (*NativeFunction) (const NativeFunctionArgs&);
     typedef Identifier identifier;
 
     //==============================================================================
@@ -76,7 +84,9 @@ public:
     var (const String& value);
     var (const Array<var>& value);
     var (ReferenceCountedObject* object);
-    var (MethodFunction method) noexcept;
+    var (NativeFunction method) noexcept;
+    var (const void* binaryData, size_t dataSize);
+    var (const MemoryBlock& binaryData);
 
     var& operator= (const var& valueToCopy);
     var& operator= (int value);
@@ -88,17 +98,23 @@ public:
     var& operator= (const String& value);
     var& operator= (const Array<var>& value);
     var& operator= (ReferenceCountedObject* object);
-    var& operator= (MethodFunction method);
+    var& operator= (NativeFunction method);
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
     var (var&& other) noexcept;
     var (String&& value);
+    var (MemoryBlock&& binaryData);
+    var (Array<var>&& value);
     var& operator= (var&& other) noexcept;
     var& operator= (String&& value);
    #endif
 
     void swapWith (var& other) noexcept;
 
+    /** Returns a var object that can be used where you need the javascript "undefined" value. */
+    static var undefined() noexcept;
+
+    //==============================================================================
     operator int() const noexcept;
     operator int64() const noexcept;
     operator bool() const noexcept;
@@ -106,11 +122,29 @@ public:
     operator double() const noexcept;
     operator String() const;
     String toString() const;
+
+    /** If this variant holds an array, this provides access to it.
+        NOTE: Beware when you use this - the array pointer is only valid for the lifetime
+        of the variant that returned it, so be very careful not to call this method on temporary
+        var objects that are the return-value of a function, and which may go out of scope before
+        you use the array!
+    */
     Array<var>* getArray() const noexcept;
+
+    /** If this variant holds a memory block, this provides access to it.
+        NOTE: Beware when you use this - the MemoryBlock pointer is only valid for the lifetime
+        of the variant that returned it, so be very careful not to call this method on temporary
+        var objects that are the return-value of a function, and which may go out of scope before
+        you use the MemoryBlock!
+    */
+    MemoryBlock* getBinaryData() const noexcept;
+
     ReferenceCountedObject* getObject() const noexcept;
     DynamicObject* getDynamicObject() const noexcept;
 
+    //==============================================================================
     bool isVoid() const noexcept;
+    bool isUndefined() const noexcept;
     bool isInt() const noexcept;
     bool isInt64() const noexcept;
     bool isBool() const noexcept;
@@ -118,6 +152,7 @@ public:
     bool isString() const noexcept;
     bool isObject() const noexcept;
     bool isArray() const noexcept;
+    bool isBinaryData() const noexcept;
     bool isMethod() const noexcept;
 
     /** Returns true if this var has the same value as the one supplied.
@@ -132,6 +167,15 @@ public:
         @see equals
     */
     bool equalsWithSameType (const var& other) const noexcept;
+
+    /** Returns true if this var has the same type as the one supplied. */
+    bool hasSameTypeAs (const var& other) const noexcept;
+
+    /** Returns a deep copy of this object.
+        For simple types this just returns a copy, but if the object contains any arrays
+        or DynamicObjects, they will be cloned (recursively).
+    */
+    var clone() const noexcept;
 
     //==============================================================================
     /** If the var is an array, this returns the number of elements.
@@ -198,27 +242,29 @@ public:
 
     //==============================================================================
     /** If this variant is an object, this returns one of its properties. */
-    var operator[] (const Identifier& propertyName) const;
+    var operator[] (Identifier propertyName) const;
     /** If this variant is an object, this returns one of its properties. */
     var operator[] (const char* propertyName) const;
     /** If this variant is an object, this returns one of its properties, or a default
         fallback value if the property is not set. */
-    var getProperty (const Identifier& propertyName, const var& defaultReturnValue) const;
+    var getProperty (Identifier propertyName, const var& defaultReturnValue) const;
 
-    /** If this variant is an object, this invokes one of its methods with no arguments. */
-    var call (const Identifier& method) const;
-    /** If this variant is an object, this invokes one of its methods with one argument. */
-    var call (const Identifier& method, const var& arg1) const;
-    /** If this variant is an object, this invokes one of its methods with 2 arguments. */
-    var call (const Identifier& method, const var& arg1, const var& arg2) const;
-    /** If this variant is an object, this invokes one of its methods with 3 arguments. */
-    var call (const Identifier& method, const var& arg1, const var& arg2, const var& arg3);
-    /** If this variant is an object, this invokes one of its methods with 4 arguments. */
-    var call (const Identifier& method, const var& arg1, const var& arg2, const var& arg3, const var& arg4) const;
-    /** If this variant is an object, this invokes one of its methods with 5 arguments. */
-    var call (const Identifier& method, const var& arg1, const var& arg2, const var& arg3, const var& arg4, const var& arg5) const;
-    /** If this variant is an object, this invokes one of its methods with a list of arguments. */
-    var invoke (const Identifier& method, const var* arguments, int numArguments) const;
+    /** Invokes a named method call with no arguments. */
+    var call (Identifier method) const;
+    /** Invokes a named method call with one argument. */
+    var call (Identifier method, const var& arg1) const;
+    /** Invokes a named method call with 2 arguments. */
+    var call (Identifier method, const var& arg1, const var& arg2) const;
+    /** Invokes a named method call with 3 arguments. */
+    var call (Identifier method, const var& arg1, const var& arg2, const var& arg3);
+    /** Invokes a named method call with 4 arguments. */
+    var call (Identifier method, const var& arg1, const var& arg2, const var& arg3, const var& arg4) const;
+    /** Invokes a named method call with 5 arguments. */
+    var call (Identifier method, const var& arg1, const var& arg2, const var& arg3, const var& arg4, const var& arg5) const;
+    /** Invokes a named method call with a list of arguments. */
+    var invoke (Identifier method, const var* arguments, int numArguments) const;
+    /** If this object is a method, this returns the function pointer. */
+    NativeFunction getNativeFunction() const;
 
     //==============================================================================
     /** Writes a binary representation of this value to a stream.
@@ -236,16 +282,18 @@ public:
 
 private:
     //==============================================================================
-    class VariantType;         friend class VariantType;
-    class VariantType_Void;    friend class VariantType_Void;
-    class VariantType_Int;     friend class VariantType_Int;
-    class VariantType_Int64;   friend class VariantType_Int64;
-    class VariantType_Double;  friend class VariantType_Double;
-    class VariantType_Bool;    friend class VariantType_Bool;
-    class VariantType_String;  friend class VariantType_String;
-    class VariantType_Object;  friend class VariantType_Object;
-    class VariantType_Array;   friend class VariantType_Array;
-    class VariantType_Method;  friend class VariantType_Method;
+    class VariantType;            friend class VariantType;
+    class VariantType_Void;       friend class VariantType_Void;
+    class VariantType_Undefined;  friend class VariantType_Undefined;
+    class VariantType_Int;        friend class VariantType_Int;
+    class VariantType_Int64;      friend class VariantType_Int64;
+    class VariantType_Double;     friend class VariantType_Double;
+    class VariantType_Bool;       friend class VariantType_Bool;
+    class VariantType_String;     friend class VariantType_String;
+    class VariantType_Object;     friend class VariantType_Object;
+    class VariantType_Array;      friend class VariantType_Array;
+    class VariantType_Binary;     friend class VariantType_Binary;
+    class VariantType_Method;     friend class VariantType_Method;
 
     union ValueUnion
     {
@@ -255,16 +303,15 @@ private:
         double doubleValue;
         char stringValue [sizeof (String)];
         ReferenceCountedObject* objectValue;
-        Array<var>* arrayValue;
-        MethodFunction methodValue;
+        MemoryBlock* binaryValue;
+        NativeFunction methodValue;
     };
 
     const VariantType* type;
     ValueUnion value;
 
     Array<var>* convertToArray();
-    friend class DynamicObject;
-    var invokeMethod (DynamicObject*, const var*, int) const;
+    var (const VariantType&) noexcept;
 };
 
 /** Compares the values of two var objects, using the var::equals() comparison. */
@@ -277,4 +324,4 @@ bool operator== (const var& v1, const char* v2);
 bool operator!= (const var& v1, const char* v2);
 
 
-#endif   // __JUCE_VARIANT_JUCEHEADER__
+#endif   // JUCE_VARIANT_H_INCLUDED

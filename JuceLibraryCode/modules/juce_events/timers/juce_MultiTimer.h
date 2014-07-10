@@ -1,32 +1,30 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MULTITIMER_JUCEHEADER__
-#define __JUCE_MULTITIMER_JUCEHEADER__
+#ifndef JUCE_MULTITIMER_H_INCLUDED
+#define JUCE_MULTITIMER_H_INCLUDED
 
-#include "juce_Timer.h"
 
 //==============================================================================
 /**
@@ -60,7 +58,7 @@ protected:
         Note that this timer will not contain any running timers, even if the one you're
         copying from was running.
     */
-    MultiTimer (const MultiTimer& other) noexcept;
+    MultiTimer (const MultiTimer&) noexcept;
 
 public:
     //==============================================================================
@@ -74,7 +72,7 @@ public:
         It's perfectly ok to call startTimer() or stopTimer() from within this
         callback to change the subsequent intervals.
     */
-    virtual void timerCallback (int timerId) = 0;
+    virtual void timerCallback (int timerID) = 0;
 
     //==============================================================================
     /** Starts a timer and sets the length of interval required.
@@ -83,14 +81,14 @@ public:
         time between calling this method and the next timer callback
         will not be less than the interval length passed in.
 
-        @param timerId                  a unique Id number that identifies the timer to
+        @param timerID                  a unique Id number that identifies the timer to
                                         start. This is the id that will be passed back
                                         to the timerCallback() method when this timer is
                                         triggered
         @param  intervalInMilliseconds  the interval to use (any values less than 1 will be
                                         rounded up to 1)
     */
-    void startTimer (int timerId, int intervalInMilliseconds) noexcept;
+    void startTimer (int timerID, int intervalInMilliseconds) noexcept;
 
     /** Stops a timer.
 
@@ -101,30 +99,28 @@ public:
         be currently executing may be allowed to finish before the method
         returns.
     */
-    void stopTimer (int timerId) noexcept;
+    void stopTimer (int timerID) noexcept;
 
     //==============================================================================
     /** Checks whether a timer has been started for a specified ID.
-
         @returns true if a timer with the given ID is running.
     */
-    bool isTimerRunning (int timerId) const noexcept;
+    bool isTimerRunning (int timerID) const noexcept;
 
     /** Returns the interval for a specified timer ID.
-
-        @returns    the timer's interval in milliseconds if it's running, or 0 if it's no timer
-                    is running for the ID number specified.
+        @returns    the timer's interval in milliseconds if it's running, or 0 if no
+                    timer was running for the ID number specified.
     */
-    int getTimerInterval (int timerId) const noexcept;
+    int getTimerInterval (int timerID) const noexcept;
 
 
     //==============================================================================
 private:
-    class MultiTimerCallback;
     SpinLock timerListLock;
-    OwnedArray <MultiTimerCallback> timers;
+    OwnedArray<Timer> timers;
 
+    Timer* getCallback (int) const noexcept;
     MultiTimer& operator= (const MultiTimer&);
 };
 
-#endif   // __JUCE_MULTITIMER_JUCEHEADER__
+#endif   // JUCE_MULTITIMER_H_INCLUDED

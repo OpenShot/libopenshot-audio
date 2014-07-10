@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MARKERLIST_JUCEHEADER__
-#define __JUCE_MARKERLIST_JUCEHEADER__
-
-#include "../positioning/juce_RelativeCoordinate.h"
-class Component;
+#ifndef JUCE_MARKERLIST_H_INCLUDED
+#define JUCE_MARKERLIST_H_INCLUDED
 
 
 //==============================================================================
@@ -44,9 +40,9 @@ public:
     /** Creates an empty marker list. */
     MarkerList();
     /** Creates a copy of another marker list. */
-    MarkerList (const MarkerList& other);
+    MarkerList (const MarkerList&);
     /** Copies another marker list to this one. */
-    MarkerList& operator= (const MarkerList& other);
+    MarkerList& operator= (const MarkerList&);
     /** Destructor. */
     ~MarkerList();
 
@@ -56,7 +52,7 @@ public:
     {
     public:
         /** Creates a copy of another Marker. */
-        Marker (const Marker& other);
+        Marker (const Marker&);
         /** Creates a Marker with a given name and position. */
         Marker (const String& name, const RelativeCoordinate& position);
 
@@ -89,7 +85,7 @@ public:
     /** Returns one of the markers in the list, by its index. */
     const Marker* getMarker (int index) const noexcept;
 
-    /** Returns a named marker, or 0 if no such name is found.
+    /** Returns a named marker, or nullptr if no such name is found.
         Note that name comparisons are case-sensitive.
     */
     const Marker* getMarker (const String& name) const noexcept;
@@ -114,9 +110,9 @@ public:
     void removeMarker (const String& name);
 
     /** Returns true if all the markers in these two lists match exactly. */
-    bool operator== (const MarkerList& other) const noexcept;
+    bool operator== (const MarkerList&) const noexcept;
     /** Returns true if not all the markers in these two lists match exactly. */
-    bool operator!= (const MarkerList& other) const noexcept;
+    bool operator!= (const MarkerList&) const noexcept;
 
     //==============================================================================
     /**
@@ -181,8 +177,8 @@ private:
 
     Marker* getMarkerByName (const String& name) const noexcept;
 
-    JUCE_LEAK_DETECTOR (MarkerList);
+    JUCE_LEAK_DETECTOR (MarkerList)
 };
 
 
-#endif   // __JUCE_MARKERLIST_JUCEHEADER__
+#endif   // JUCE_MARKERLIST_H_INCLUDED

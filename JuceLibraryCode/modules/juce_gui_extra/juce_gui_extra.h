@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_GUI_EXTRA_JUCEHEADER__
-#define __JUCE_GUI_EXTRA_JUCEHEADER__
+#ifndef JUCE_GUI_EXTRA_H_INCLUDED
+#define JUCE_GUI_EXTRA_H_INCLUDED
 
 #include "../juce_gui_basics/juce_gui_basics.h"
 
@@ -38,67 +37,42 @@
  #define JUCE_WEB_BROWSER 1
 #endif
 
+/** Config: JUCE_ENABLE_LIVE_CONSTANT_EDITOR
+    This lets you turn on the JUCE_ENABLE_LIVE_CONSTANT_EDITOR support. See the documentation
+    for that macro for more details.
+*/
+#ifndef JUCE_ENABLE_LIVE_CONSTANT_EDITOR
+ #if JUCE_DEBUG
+  #define JUCE_ENABLE_LIVE_CONSTANT_EDITOR 1
+ #endif
+#endif
+
 //=============================================================================
 namespace juce
 {
 
-// START_AUTOINCLUDE documents, code_editor, embedding, lookandfeel, misc
-#ifndef __JUCE_FILEBASEDDOCUMENT_JUCEHEADER__
- #include "documents/juce_FileBasedDocument.h"
-#endif
-#ifndef __JUCE_CODEDOCUMENT_JUCEHEADER__
- #include "code_editor/juce_CodeDocument.h"
-#endif
-#ifndef __JUCE_CODEEDITORCOMPONENT_JUCEHEADER__
- #include "code_editor/juce_CodeEditorComponent.h"
-#endif
-#ifndef __JUCE_CODETOKENISER_JUCEHEADER__
- #include "code_editor/juce_CodeTokeniser.h"
-#endif
-#ifndef __JUCE_CPLUSPLUSCODETOKENISER_JUCEHEADER__
- #include "code_editor/juce_CPlusPlusCodeTokeniser.h"
-#endif
-#ifndef __JUCE_ACTIVEXCONTROLCOMPONENT_JUCEHEADER__
- #include "embedding/juce_ActiveXControlComponent.h"
-#endif
-#ifndef __JUCE_NSVIEWCOMPONENT_JUCEHEADER__
- #include "embedding/juce_NSViewComponent.h"
-#endif
-#ifndef __JUCE_UIVIEWCOMPONENT_JUCEHEADER__
- #include "embedding/juce_UIViewComponent.h"
-#endif
-#ifndef __JUCE_OLDSCHOOLLOOKANDFEEL_JUCEHEADER__
- #include "lookandfeel/juce_OldSchoolLookAndFeel.h"
-#endif
-#ifndef __JUCE_APPLEREMOTE_JUCEHEADER__
- #include "misc/juce_AppleRemote.h"
-#endif
-#ifndef __JUCE_BUBBLEMESSAGECOMPONENT_JUCEHEADER__
- #include "misc/juce_BubbleMessageComponent.h"
-#endif
-#ifndef __JUCE_COLOURSELECTOR_JUCEHEADER__
- #include "misc/juce_ColourSelector.h"
-#endif
-#ifndef __JUCE_KEYMAPPINGEDITORCOMPONENT_JUCEHEADER__
- #include "misc/juce_KeyMappingEditorComponent.h"
-#endif
-#ifndef __JUCE_PREFERENCESPANEL_JUCEHEADER__
- #include "misc/juce_PreferencesPanel.h"
-#endif
-#ifndef __JUCE_RECENTLYOPENEDFILESLIST_JUCEHEADER__
- #include "misc/juce_RecentlyOpenedFilesList.h"
-#endif
-#ifndef __JUCE_SPLASHSCREEN_JUCEHEADER__
- #include "misc/juce_SplashScreen.h"
-#endif
-#ifndef __JUCE_SYSTEMTRAYICONCOMPONENT_JUCEHEADER__
- #include "misc/juce_SystemTrayIconComponent.h"
-#endif
-#ifndef __JUCE_WEBBROWSERCOMPONENT_JUCEHEADER__
- #include "misc/juce_WebBrowserComponent.h"
-#endif
-// END_AUTOINCLUDE
+#include "documents/juce_FileBasedDocument.h"
+#include "code_editor/juce_CodeDocument.h"
+#include "code_editor/juce_CodeEditorComponent.h"
+#include "code_editor/juce_CodeTokeniser.h"
+#include "code_editor/juce_CPlusPlusCodeTokeniser.h"
+#include "code_editor/juce_CPlusPlusCodeTokeniserFunctions.h"
+#include "code_editor/juce_XMLCodeTokeniser.h"
+#include "code_editor/juce_LuaCodeTokeniser.h"
+#include "embedding/juce_ActiveXControlComponent.h"
+#include "embedding/juce_NSViewComponent.h"
+#include "embedding/juce_UIViewComponent.h"
+#include "misc/juce_AppleRemote.h"
+#include "misc/juce_BubbleMessageComponent.h"
+#include "misc/juce_ColourSelector.h"
+#include "misc/juce_KeyMappingEditorComponent.h"
+#include "misc/juce_PreferencesPanel.h"
+#include "misc/juce_RecentlyOpenedFilesList.h"
+#include "misc/juce_SplashScreen.h"
+#include "misc/juce_SystemTrayIconComponent.h"
+#include "misc/juce_WebBrowserComponent.h"
+#include "misc/juce_LiveConstantEditor.h"
 
 }
 
-#endif   // __JUCE_GUI_EXTRA_JUCEHEADER__
+#endif   // JUCE_GUI_EXTRA_H_INCLUDED

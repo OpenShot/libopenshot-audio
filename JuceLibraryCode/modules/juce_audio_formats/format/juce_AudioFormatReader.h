@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_AUDIOFORMATREADER_JUCEHEADER__
-#define __JUCE_AUDIOFORMATREADER_JUCEHEADER__
-
-class AudioFormat;
+#ifndef JUCE_AUDIOFORMATREADER_H_INCLUDED
+#define JUCE_AUDIOFORMATREADER_H_INCLUDED
 
 
 //==============================================================================
@@ -237,13 +234,15 @@ protected:
         typedef AudioData::Pointer <DestSampleType, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst>    DestType;
         typedef AudioData::Pointer <SourceSampleType, SourceEndianness, AudioData::Interleaved, AudioData::Const>               SourceType;
 
-        static void read (int** destData, int destOffset, int numDestChannels, const void* sourceData, int numSourceChannels, int numSamples) noexcept
+        template <typename TargetType>
+        static void read (TargetType* const* destData, int destOffset, int numDestChannels,
+                          const void* sourceData, int numSourceChannels, int numSamples) noexcept
         {
             for (int i = 0; i < numDestChannels; ++i)
             {
-                if (destData[i] != nullptr)
+                if (void* targetChan = destData[i])
                 {
-                    DestType dest (destData[i]);
+                    DestType dest (targetChan);
                     dest += destOffset;
 
                     if (i < numSourceChannels)
@@ -255,11 +254,31 @@ protected:
         }
     };
 
+    /** Used by AudioFormatReader subclasses to clear any parts of the data blocks that lie
+        beyond the end of their available length.
+    */
+    static void clearSamplesBeyondAvailableLength (int** destSamples, int numDestChannels,
+                                                   int startOffsetInDestBuffer, int64 startSampleInFile,
+                                                   int& numSamples, int64 fileLengthInSamples)
+    {
+        jassert (destSamples != nullptr);
+        const int64 samplesAvailable = fileLengthInSamples - startSampleInFile;
+
+        if (samplesAvailable < numSamples)
+        {
+            for (int i = numDestChannels; --i >= 0;)
+                if (destSamples[i] != nullptr)
+                    zeromem (destSamples[i] + startOffsetInDestBuffer, sizeof (int) * (size_t) numSamples);
+
+            numSamples = (int) samplesAvailable;
+        }
+    }
+
 private:
     String formatName;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatReader);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatReader)
 };
 
 
-#endif   // __JUCE_AUDIOFORMATREADER_JUCEHEADER__
+#endif   // JUCE_AUDIOFORMATREADER_H_INCLUDED

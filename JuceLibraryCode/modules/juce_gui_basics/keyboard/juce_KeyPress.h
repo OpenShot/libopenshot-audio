@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_KEYPRESS_JUCEHEADER__
-#define __JUCE_KEYPRESS_JUCEHEADER__
-
-#include "juce_ModifierKeys.h"
+#ifndef JUCE_KEYPRESS_H_INCLUDED
+#define JUCE_KEYPRESS_H_INCLUDED
 
 
 //==============================================================================
@@ -35,7 +32,7 @@
 
     E.g. a KeyPress might represent CTRL+C, SHIFT+ALT+H, Spacebar, Escape, etc.
 
-    @see Component, KeyListener, Button::addShortcut, KeyPressMappingManager
+    @see Component, KeyListener, KeyPressMappingSet, Button::addShortcut
 */
 class JUCE_API  KeyPress
 {
@@ -67,12 +64,11 @@ public:
         @see getKeyCode, isKeyCode, getModifiers
     */
     KeyPress (int keyCode,
-              const ModifierKeys& modifiers,
+              ModifierKeys modifiers,
               juce_wchar textCharacter) noexcept;
 
-    /** Creates a keypress with a keyCode but no modifiers or text character.
-    */
-    KeyPress (int keyCode) noexcept;
+    /** Creates a keypress with a keyCode but no modifiers or text character. */
+    explicit KeyPress (int keyCode) noexcept;
 
     /** Creates a copy of another KeyPress. */
     KeyPress (const KeyPress& other) noexcept;
@@ -85,6 +81,12 @@ public:
 
     /** Compares two KeyPress objects. */
     bool operator!= (const KeyPress& other) const noexcept;
+
+    /** Returns true if this keypress is for the given keycode without any modifiers. */
+    bool operator== (int keyCode) const noexcept;
+
+    /** Returns true if this keypress is not for the given keycode without any modifiers. */
+    bool operator!= (int keyCode) const noexcept;
 
     //==============================================================================
     /** Returns true if this is a valid KeyPress.
@@ -245,8 +247,8 @@ private:
     ModifierKeys mods;
     juce_wchar textCharacter;
 
-    JUCE_LEAK_DETECTOR (KeyPress);
+    JUCE_LEAK_DETECTOR (KeyPress)
 };
 
 
-#endif   // __JUCE_KEYPRESS_JUCEHEADER__
+#endif   // JUCE_KEYPRESS_H_INCLUDED

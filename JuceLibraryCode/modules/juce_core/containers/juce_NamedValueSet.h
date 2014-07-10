@@ -1,37 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
-#define __JUCE_NAMEDVALUESET_JUCEHEADER__
-
-#include "juce_Variant.h"
-#include "../containers/juce_LinkedListPointer.h"
-class XmlElement;
-#ifndef DOXYGEN
- class JSONFormatter;
-#endif
+#ifndef JUCE_NAMEDVALUESET_H_INCLUDED
+#define JUCE_NAMEDVALUESET_H_INCLUDED
 
 
 //==============================================================================
@@ -47,21 +43,21 @@ public:
     NamedValueSet() noexcept;
 
     /** Creates a copy of another set. */
-    NamedValueSet (const NamedValueSet& other);
+    NamedValueSet (const NamedValueSet&);
 
     /** Replaces this set with a copy of another set. */
-    NamedValueSet& operator= (const NamedValueSet& other);
+    NamedValueSet& operator= (const NamedValueSet&);
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
-    NamedValueSet (NamedValueSet&& other) noexcept;
-    NamedValueSet& operator= (NamedValueSet&& other) noexcept;
+    NamedValueSet (NamedValueSet&&) noexcept;
+    NamedValueSet& operator= (NamedValueSet&&) noexcept;
    #endif
 
     /** Destructor. */
     ~NamedValueSet();
 
-    bool operator== (const NamedValueSet& other) const;
-    bool operator!= (const NamedValueSet& other) const;
+    bool operator== (const NamedValueSet&) const;
+    bool operator!= (const NamedValueSet&) const;
 
     //==============================================================================
     /** Returns the total number of values that the set contains. */
@@ -80,16 +76,16 @@ public:
 
     /** Changes or adds a named value.
         @returns    true if a value was changed or added; false if the
-                    value was already set the the value passed-in.
+                    value was already set the value passed-in.
     */
-    bool set (const Identifier& name, const var& newValue);
+    bool set (Identifier name, const var& newValue);
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
     /** Changes or adds a named value.
         @returns    true if a value was changed or added; false if the
-                    value was already set the the value passed-in.
+                    value was already set the value passed-in.
     */
-    bool set (const Identifier& name, var&& newValue);
+    bool set (Identifier name, var&& newValue);
    #endif
 
     /** Returns true if the set contains an item with the specified name. */
@@ -104,17 +100,8 @@ public:
     /** Returns the name of the value at a given index.
         The index must be between 0 and size() - 1.
     */
-    const Identifier getName (int index) const;
+    Identifier getName (int index) const noexcept;
 
-    /** Returns the value of the item at a given index.
-        The index must be between 0 and size() - 1.
-    */
-    const var& getValueAt (int index) const;
-
-    /** Removes all values. */
-    void clear();
-
-    //==============================================================================
     /** Returns a pointer to the var that holds a named value, or null if there is
         no value with this name.
 
@@ -122,6 +109,22 @@ public:
         for some reason - for normal reading and writing always prefer operator[]() and set().
     */
     var* getVarPointer (const Identifier& name) const noexcept;
+
+    /** Returns the value of the item at a given index.
+        The index must be between 0 and size() - 1.
+    */
+    const var& getValueAt (int index) const noexcept;
+
+    /** Returns the value of the item at a given index.
+        The index must be between 0 and size() - 1, or this will return a nullptr
+    */
+    var* getVarPointerAt (int index) const noexcept;
+
+    /** Returns the index of the given name, or -1 if it's not found. */
+    int indexOf (const Identifier& name) const noexcept;
+
+    /** Removes all values. */
+    void clear();
 
     //==============================================================================
     /** Sets properties to the values of all of an XML element's attributes. */
@@ -134,33 +137,9 @@ public:
 
 private:
     //==============================================================================
-    class NamedValue
-    {
-    public:
-        NamedValue() noexcept;
-        NamedValue (const NamedValue&);
-        NamedValue (const Identifier& name, const var& value);
-        NamedValue& operator= (const NamedValue&);
-       #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
-        NamedValue (NamedValue&&) noexcept;
-        NamedValue (const Identifier& name, var&& value);
-        NamedValue& operator= (NamedValue&&) noexcept;
-       #endif
-        bool operator== (const NamedValue& other) const noexcept;
-
-        LinkedListPointer<NamedValue> nextListItem;
-        Identifier name;
-        var value;
-
-    private:
-        JUCE_LEAK_DETECTOR (NamedValue);
-    };
-
-    friend class LinkedListPointer<NamedValue>;
-    LinkedListPointer<NamedValue> values;
-
-    friend class JSONFormatter;
+    struct NamedValue;
+    Array<NamedValue> values;
 };
 
 
-#endif   // __JUCE_NAMEDVALUESET_JUCEHEADER__
+#endif   // JUCE_NAMEDVALUESET_H_INCLUDED

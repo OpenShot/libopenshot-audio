@@ -1,32 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_WAITABLEEVENT_JUCEHEADER__
-#define __JUCE_WAITABLEEVENT_JUCEHEADER__
-
-#include "../text/juce_String.h"
+#ifndef JUCE_WAITABLEEVENT_H_INCLUDED
+#define JUCE_WAITABLEEVENT_H_INCLUDED
 
 
 //==============================================================================
@@ -43,11 +44,13 @@ public:
     //==============================================================================
     /** Creates a WaitableEvent object.
 
+        The object is initially in an unsignalled state.
+
         @param manualReset  If this is false, the event will be reset automatically when the wait()
                             method is called. If manualReset is true, then once the event is signalled,
                             the only way to reset it will be by calling the reset() method.
     */
-    WaitableEvent (bool manualReset = false) noexcept;
+    explicit WaitableEvent (bool manualReset = false) noexcept;
 
     /** Destructor.
 
@@ -93,7 +96,6 @@ public:
 
     //==============================================================================
     /** Resets the event to an unsignalled state.
-
         If it's not already signalled, this does nothing.
     */
     void reset() const noexcept;
@@ -101,10 +103,16 @@ public:
 
 private:
     //==============================================================================
-    void* internal;
+   #if JUCE_WINDOWS
+    void* handle;
+   #else
+    mutable pthread_cond_t condition;
+    mutable pthread_mutex_t mutex;
+    mutable bool triggered, manualReset;
+   #endif
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WaitableEvent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WaitableEvent)
 };
 
 
-#endif   // __JUCE_WAITABLEEVENT_JUCEHEADER__
+#endif   // JUCE_WAITABLEEVENT_H_INCLUDED

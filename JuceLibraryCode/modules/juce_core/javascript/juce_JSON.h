@@ -1,36 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_JSON_JUCEHEADER__
-#define __JUCE_JSON_JUCEHEADER__
-
-#include "../misc/juce_Result.h"
-#include "../containers/juce_Variant.h"
-class InputStream;
-class OutputStream;
-class File;
+#ifndef JUCE_JSON_H_INCLUDED
+#define JUCE_JSON_H_INCLUDED
 
 
 //==============================================================================
@@ -43,7 +40,7 @@ class File;
 
     @see var
 */
-class JSON
+class JUCE_API  JSON
 {
 public:
     //==============================================================================
@@ -56,6 +53,10 @@ public:
 
         If you're not interested in the error message, you can use one of the other
         shortcut parse methods, which simply return a var::null if the parsing fails.
+
+        Note that this will only parse valid JSON, which means that the item given must
+        be either an object or an array definition. If you want to also be able to parse
+        any kind of primitive JSON object, use the fromString() method.
     */
     static Result parse (const String& text, var& parsedResult);
 
@@ -63,6 +64,10 @@ public:
 
         If the parsing fails, this simply returns var::null - if you need to find out more
         detail about the parse error, use the alternative parse() method which returns a Result.
+
+        Note that this will only parse valid JSON, which means that the item given must
+        be either an object or an array definition. If you want to also be able to parse
+        any kind of primitive JSON object, use the fromString() method.
     */
     static var parse (const String& text);
 
@@ -97,6 +102,13 @@ public:
     static String toString (const var& objectToFormat,
                             bool allOnOneLine = false);
 
+    /** Parses a string that was created with the toString() method.
+        This is slightly different to the parse() methods because they will reject primitive
+        values and only accept array or object definitions, whereas this method will handle
+        either.
+    */
+    static var fromString (StringRef);
+
     /** Writes a JSON-formatted representation of the var object to the given stream.
         If allOnOneLine is true, the result will be compacted into a single line of text
         with no carriage-returns. If false, it will be laid-out in a more human-readable format.
@@ -106,10 +118,19 @@ public:
                                const var& objectToFormat,
                                bool allOnOneLine = false);
 
+    /** Returns a version of a string with any extended characters escaped. */
+    static String escapeString (StringRef);
+
+    /** Parses a quoted string-literal in JSON format, returning the un-escaped result in the
+        result parameter, and an error message in case the content was illegal.
+        This advances the text parameter, leaving it positioned after the closing quote.
+    */
+    static Result parseQuotedString (String::CharPointerType& text, var& result);
+
 private:
     //==============================================================================
-    JSON(); // This class can't be instantiated - just use its static methods.
+    JSON() JUCE_DELETED_FUNCTION; // This class can't be instantiated - just use its static methods.
 };
 
 
-#endif   // __JUCE_JSON_JUCEHEADER__
+#endif   // JUCE_JSON_H_INCLUDED

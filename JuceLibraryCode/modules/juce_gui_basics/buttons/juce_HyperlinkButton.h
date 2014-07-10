@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_HYPERLINKBUTTON_JUCEHEADER__
-#define __JUCE_HYPERLINKBUTTON_JUCEHEADER__
-
-#include "juce_Button.h"
+#ifndef JUCE_HYPERLINKBUTTON_H_INCLUDED
+#define JUCE_HYPERLINKBUTTON_H_INCLUDED
 
 
 //==============================================================================
@@ -64,7 +61,7 @@ public:
     */
     void setFont (const Font& newFont,
                   bool resizeToMatchComponentHeight,
-                  const Justification& justificationType = Justification::horizontallyCentred);
+                  Justification justificationType = Justification::horizontallyCentred);
 
     //==============================================================================
     /** A set of colour IDs to use to change the colour of various aspects of the link.
@@ -93,24 +90,14 @@ public:
     */
     void changeWidthToFitText();
 
-    //==============================================================================
-    struct Ids
-    {
-        static const Identifier tagType, text, url;
-    };
-
-    void refreshFromValueTree (const ValueTree&, ComponentBuilder&);
-
 protected:
     //==============================================================================
     /** @internal */
-    void clicked();
+    void clicked() override;
     /** @internal */
-    void colourChanged();
+    void colourChanged() override;
     /** @internal */
-    void paintButton (Graphics& g,
-                      bool isMouseOverButton,
-                      bool isButtonDown);
+    void paintButton (Graphics&, bool isMouseOver, bool isButtonDown) override;
 
 private:
     //==============================================================================
@@ -121,7 +108,7 @@ private:
 
     Font getFontToUse() const;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HyperlinkButton);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HyperlinkButton)
 };
 
-#endif   // __JUCE_HYPERLINKBUTTON_JUCEHEADER__
+#endif   // JUCE_HYPERLINKBUTTON_H_INCLUDED

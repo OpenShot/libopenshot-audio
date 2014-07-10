@@ -1,35 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_TOOLBARITEMCOMPONENT_JUCEHEADER__
-#define __JUCE_TOOLBARITEMCOMPONENT_JUCEHEADER__
-
-#include "../buttons/juce_Button.h"
-#include "../drawables/juce_Drawable.h"
-#include "juce_Toolbar.h"
-class ItemDragAndDropOverlayComponent;
+#ifndef JUCE_TOOLBARITEMCOMPONENT_H_INCLUDED
+#define JUCE_TOOLBARITEMCOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -76,7 +70,7 @@ public:
     */
     int getItemId() const noexcept                                  { return itemId; }
 
-    /** Returns the toolbar that contains this component, or 0 if it's not currently
+    /** Returns the toolbar that contains this component, or nullptr if it's not currently
         inside one.
     */
     Toolbar* getToolbar() const;
@@ -188,12 +182,13 @@ public:
 
     //==============================================================================
     /** @internal */
-    void paintButton (Graphics& g, bool isMouseOver, bool isMouseDown);
+    void paintButton (Graphics&, bool isMouseOver, bool isMouseDown) override;
     /** @internal */
-    void resized();
+    void resized() override;
 
 private:
     friend class Toolbar;
+    class ItemDragAndDropOverlayComponent;
     friend class ItemDragAndDropOverlayComponent;
     const int itemId;
     ToolbarEditingMode mode;
@@ -203,8 +198,8 @@ private:
     bool isActive, isBeingDragged, isBeingUsedAsAButton;
     Rectangle<int> contentArea;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToolbarItemComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToolbarItemComponent)
 };
 
 
-#endif   // __JUCE_TOOLBARITEMCOMPONENT_JUCEHEADER__
+#endif   // JUCE_TOOLBARITEMCOMPONENT_H_INCLUDED

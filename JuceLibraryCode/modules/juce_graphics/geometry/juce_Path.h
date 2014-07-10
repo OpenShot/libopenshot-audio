@@ -1,38 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PATH_JUCEHEADER__
-#define __JUCE_PATH_JUCEHEADER__
-
-#include "juce_AffineTransform.h"
-#include "juce_Line.h"
-#include "juce_Rectangle.h"
-#include "../placement/juce_Justification.h"
-class Image;
-class InputStream;
-class OutputStream;
+#ifndef JUCE_PATH_H_INCLUDED
+#define JUCE_PATH_H_INCLUDED
 
 
 //==============================================================================
@@ -76,21 +67,21 @@ public:
     Path();
 
     /** Creates a copy of another path. */
-    Path (const Path& other);
+    Path (const Path&);
 
     /** Destructor. */
     ~Path();
 
     /** Copies this path from another one. */
-    Path& operator= (const Path& other);
+    Path& operator= (const Path&);
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
-    Path (Path&& other) noexcept;
-    Path& operator= (Path&& other) noexcept;
+    Path (Path&&) noexcept;
+    Path& operator= (Path&&) noexcept;
    #endif
 
-    bool operator== (const Path& other) const noexcept;
-    bool operator!= (const Path& other) const noexcept;
+    bool operator== (const Path&) const noexcept;
+    bool operator!= (const Path&) const noexcept;
 
     //==============================================================================
     /** Returns true if the path doesn't contain any lines or curves. */
@@ -134,7 +125,7 @@ public:
 
         @see closeSubPath, setUsingNonZeroWinding
     */
-    bool contains (const Point<float>& point,
+    bool contains (const Point<float> point,
                    float tolerance = 1.0f) const;
 
     /** Checks whether a line crosses the path.
@@ -181,7 +172,7 @@ public:
         This sets pointOnPath to the nearest point, and returns the distance of this point from the start
         of the path.
     */
-    float getNearestPoint (const Point<float>& targetPoint,
+    float getNearestPoint (const Point<float> targetPoint,
                            Point<float>& pointOnPath,
                            const AffineTransform& transform = AffineTransform::identity) const;
 
@@ -191,7 +182,7 @@ public:
 
     /** Begins a new subpath with a given starting position.
 
-        This will move the path's current position to the co-ordinates passed in and
+        This will move the path's current position to the coordinates passed in and
         make it ready to draw lines or curves starting from this position.
 
         After adding whatever lines and curves are needed, you can either
@@ -204,7 +195,7 @@ public:
 
     /** Begins a new subpath with a given starting position.
 
-        This will move the path's current position to the co-ordinates passed in and
+        This will move the path's current position to the coordinates passed in and
         make it ready to draw lines or curves starting from this position.
 
         After adding whatever lines and curves are needed, you can either
@@ -213,7 +204,7 @@ public:
 
         @see lineTo, quadraticTo, cubicTo, closeSubPath
     */
-    void startNewSubPath (const Point<float>& start);
+    void startNewSubPath (const Point<float> start);
 
     /** Closes a the current sub-path with a line back to its start-point.
 
@@ -249,7 +240,7 @@ public:
 
         @see startNewSubPath, quadraticTo, cubicTo, closeSubPath
     */
-    void lineTo (const Point<float>& end);
+    void lineTo (const Point<float> end);
 
     /** Adds a quadratic bezier curve from the shape's last position to a new position.
 
@@ -274,8 +265,8 @@ public:
 
         @see startNewSubPath, lineTo, cubicTo, closeSubPath
     */
-    void quadraticTo (const Point<float>& controlPoint,
-                      const Point<float>& endPoint);
+    void quadraticTo (const Point<float> controlPoint,
+                      const Point<float> endPoint);
 
     /** Adds a cubic bezier curve from the shape's last position to a new position.
 
@@ -302,9 +293,9 @@ public:
 
         @see startNewSubPath, lineTo, quadraticTo, closeSubPath
     */
-    void cubicTo (const Point<float>& controlPoint1,
-                  const Point<float>& controlPoint2,
-                  const Point<float>& endPoint);
+    void cubicTo (const Point<float> controlPoint1,
+                  const Point<float> controlPoint2,
+                  const Point<float> endPoint);
 
     /** Returns the last point that was added to the path by one of the drawing methods.
     */
@@ -342,6 +333,15 @@ public:
     void addRoundedRectangle (float x, float y, float width, float height,
                               float cornerSizeX,
                               float cornerSizeY);
+
+    /** Adds a rectangle with rounded corners to the path.
+        The rectangle is added as a new sub-path. (Any currently open paths will be left open).
+        @see addRectangle, addTriangle
+    */
+    void addRoundedRectangle (float x, float y, float width, float height,
+                              float cornerSizeX, float cornerSizeY,
+                              bool curveTopLeft, bool curveTopRight,
+                              bool curveBottomLeft, bool curveBottomRight);
 
     /** Adds a rectangle with rounded corners to the path.
         The rectangle is added as a new sub-path. (Any currently open paths will be left open).
@@ -391,12 +391,16 @@ public:
                            float x4, float y4);
 
     /** Adds an ellipse to the path.
-
         The shape is added as a new sub-path. (Any currently open paths will be left open).
-
         @see addArc
     */
     void addEllipse (float x, float y, float width, float height);
+
+    /** Adds an ellipse to the path.
+        The shape is added as a new sub-path. (Any currently open paths will be left open).
+        @see addArc
+    */
+    void addEllipse (Rectangle<float> area);
 
     /** Adds an elliptical arc to the current path.
 
@@ -503,7 +507,7 @@ public:
     /** Adds a polygon shape to the path.
         @see addStar
     */
-    void addPolygon (const Point<float>& centre,
+    void addPolygon (const Point<float> centre,
                      int numberOfSides,
                      float radius,
                      float startAngle = 0.0f);
@@ -511,7 +515,7 @@ public:
     /** Adds a star shape to the path.
         @see addPolygon
     */
-    void addStar (const Point<float>& centre,
+    void addStar (const Point<float> centre,
                   int numberOfPoints,
                   float innerRadius,
                   float outerRadius,
@@ -519,26 +523,19 @@ public:
 
     /** Adds a speech-bubble shape to the path.
 
-        @param bodyX            the left of the main body area of the bubble
-        @param bodyY            the top of the main body area of the bubble
-        @param bodyW            the width of the main body area of the bubble
-        @param bodyH            the height of the main body area of the bubble
-        @param cornerSize       the amount by which to round off the corners of the main body rectangle
-        @param arrowTipX        the x position that the tip of the arrow should connect to
-        @param arrowTipY        the y position that the tip of the arrow should connect to
-        @param whichSide        the side to connect the arrow to: 0 = top, 1 = left, 2 = bottom, 3 = right
-        @param arrowPositionAlongEdgeProportional   how far along the edge of the main rectangle the
-                                arrow's base should be - this is a proportional distance between 0 and 1.0
-        @param arrowWidth       how wide the base of the arrow should be where it joins the main rectangle
+        @param bodyArea         the area of the body of the bubble shape
+        @param maximumArea      an area which encloses the body area and defines the limits within which
+                                the arrow tip can be drawn - if the tip lies outside this area, the bubble
+                                will be drawn without an arrow
+        @param arrowTipPosition the location of the tip of the arrow
+        @param cornerSize       the size of the rounded corners
+        @param arrowBaseWidth   the width of the base of the arrow where it joins the main rectangle
     */
-    void addBubble (float bodyX, float bodyY,
-                    float bodyW, float bodyH,
-                    float cornerSize,
-                    float arrowTipX,
-                    float arrowTipY,
-                    int whichSide,
-                    float arrowPositionAlongEdgeProportional,
-                    float arrowWidth);
+    void addBubble (const Rectangle<float>& bodyArea,
+                    const Rectangle<float>& maximumArea,
+                    const Point<float> arrowTipPosition,
+                    const float cornerSize,
+                    const float arrowBaseWidth);
 
     /** Adds another path to this one.
 
@@ -565,7 +562,19 @@ public:
         The internal data of the two paths is swapped over, so this is much faster than
         copying it to a temp variable and back.
     */
-    void swapWithPath (Path& other) noexcept;
+    void swapWithPath (Path&) noexcept;
+
+    //==============================================================================
+    /** Preallocates enough space for adding the given number of coordinates to the path.
+        If you're about to add a large number of lines or curves to the path, it can make
+        the task much more efficient to call this first and avoid costly reallocations
+        as the structure grows.
+        The actual value to pass is a bit tricky to calculate because the space required
+        depends on what you're adding - e.g. each lineTo() or startNewSubPath() will
+        require 3 coords (x, y and a type marker). Each quadraticTo() will need 5, and
+        a cubicTo() will require 7. Closing a sub-path will require 1.
+    */
+    void preallocateSpace (int numExtraCoordsToMakeSpaceFor);
 
     //==============================================================================
     /** Applies a 2D transform to all the vertices in the path.
@@ -611,7 +620,25 @@ public:
     */
     AffineTransform getTransformToScaleToFit (float x, float y, float width, float height,
                                               bool preserveProportions,
-                                              const Justification& justificationType = Justification::centred) const;
+                                              Justification justificationType = Justification::centred) const;
+
+    /** Returns a transform that can be used to rescale the path to fit into a given space.
+
+        @param area                 the rectangle to fit the path inside
+        @param preserveProportions  if true, it will fit the path into the space without altering its
+                                    horizontal/vertical scale ratio; if false, it will distort the
+                                    path to fill the specified ratio both horizontally and vertically
+        @param justificationType    if the proportions are preseved, the resultant path may be smaller
+                                    than the available rectangle, so this describes how it should be
+                                    positioned within the space.
+        @returns                    an appropriate transformation
+
+        @see applyTransform, scaleToFit
+
+    */
+    AffineTransform getTransformToScaleToFit (const Rectangle<float>& area,
+                                              bool preserveProportions,
+                                              Justification justificationType = Justification::centred) const;
 
     /** Creates a version of this path where all sharp corners have been replaced by curves.
 
@@ -687,7 +714,7 @@ public:
         const Path& path;
         size_t index;
 
-        JUCE_DECLARE_NON_COPYABLE (Iterator);
+        JUCE_DECLARE_NON_COPYABLE (Iterator)
     };
 
     //==============================================================================
@@ -729,14 +756,13 @@ public:
     /** Restores this path from a string that was created with the toString() method.
         @see toString()
     */
-    void restoreFromString (const String& stringVersion);
-
+    void restoreFromString (StringRef stringVersion);
 
 private:
     //==============================================================================
     friend class PathFlatteningIterator;
     friend class Path::Iterator;
-    ArrayAllocationBase <float, DummyCriticalSection> data;
+    ArrayAllocationBase<float, DummyCriticalSection> data;
     size_t numElements;
 
     struct PathBounds
@@ -760,7 +786,7 @@ private:
     static const float cubicMarker;
     static const float closeSubPathMarker;
 
-    JUCE_LEAK_DETECTOR (Path);
+    JUCE_LEAK_DETECTOR (Path)
 };
 
-#endif   // __JUCE_PATH_JUCEHEADER__
+#endif   // JUCE_PATH_H_INCLUDED

@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -46,11 +45,11 @@ public:
         isMoving = (finalBounds != component->getBounds());
         isChangingAlpha = (finalAlpha != component->getAlpha());
 
-        left = component->getX();
-        top = component->getY();
-        right = component->getRight();
-        bottom = component->getBottom();
-        alpha = component->getAlpha();
+        left    = component->getX();
+        top     = component->getY();
+        right   = component->getRight();
+        bottom  = component->getBottom();
+        alpha   = component->getAlpha();
 
         const double invTotalDistance = 4.0 / (startSpeed_ + endSpeed_ + 2.0);
         startSpeed = jmax (0.0, startSpeed_ * invTotalDistance);
@@ -67,10 +66,8 @@ public:
 
     bool useTimeslice (const int elapsed)
     {
-        Component* const c = proxy != nullptr ? static_cast <Component*> (proxy)
-                                              : static_cast <Component*> (component);
-
-        if (c != nullptr)
+        if (Component* const c = proxy != nullptr ? static_cast <Component*> (proxy)
+                                                  : static_cast <Component*> (component))
         {
             msElapsed += elapsed;
             double newProgress = msElapsed / (double) msTotal;
@@ -138,38 +135,38 @@ public:
     class ProxyComponent  : public Component
     {
     public:
-        ProxyComponent (Component& component)
-            : image (component.createComponentSnapshot (component.getLocalBounds()))
+        ProxyComponent (Component& c)
         {
-            setBounds (component.getBounds());
-            setTransform (component.getTransform());
-            setAlpha (component.getAlpha());
+            setWantsKeyboardFocus (false);
+            setBounds (c.getBounds());
+            setTransform (c.getTransform());
+            setAlpha (c.getAlpha());
             setInterceptsMouseClicks (false, false);
 
-            Component* const parent = component.getParentComponent();
-
-            if (parent != nullptr)
+            if (Component* const parent = c.getParentComponent())
                 parent->addAndMakeVisible (this);
-            else if (component.isOnDesktop() && component.getPeer() != nullptr)
-                addToDesktop (component.getPeer()->getStyleFlags() | ComponentPeer::windowIgnoresKeyPresses);
+            else if (c.isOnDesktop() && c.getPeer() != nullptr)
+                addToDesktop (c.getPeer()->getStyleFlags() | ComponentPeer::windowIgnoresKeyPresses);
             else
                 jassertfalse; // seem to be trying to animate a component that's not visible..
 
+            image = c.createComponentSnapshot (c.getLocalBounds(), false, getDesktopScaleFactor());
+
             setVisible (true);
-            toBehind (&component);
+            toBehind (&c);
         }
 
-        void paint (Graphics& g)
+        void paint (Graphics& g) override
         {
             g.setOpacity (1.0f);
-            g.drawImage (image, 0, 0, getWidth(), getHeight(),
-                         0, 0, image.getWidth(), image.getHeight());
+            g.drawImageTransformed (image, AffineTransform::scale (getWidth()  / (float) image.getWidth(),
+                                                                   getHeight() / (float) image.getHeight()), false);
         }
 
     private:
         Image image;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProxyComponent);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProxyComponent)
     };
 
     WeakReference<Component> component;
@@ -282,9 +279,7 @@ void ComponentAnimator::cancelAllAnimations (const bool moveComponentsToTheirFin
 void ComponentAnimator::cancelAnimation (Component* const component,
                                          const bool moveComponentToItsFinalPosition)
 {
-    AnimationTask* const at = findTaskFor (component);
-
-    if (at != nullptr)
+    if (AnimationTask* const at = findTaskFor (component))
     {
         if (moveComponentToItsFinalPosition)
             at->moveToFinalDestination();
@@ -297,9 +292,8 @@ void ComponentAnimator::cancelAnimation (Component* const component,
 Rectangle<int> ComponentAnimator::getComponentDestination (Component* const component)
 {
     jassert (component != nullptr);
-    AnimationTask* const at = findTaskFor (component);
 
-    if (at != nullptr)
+    if (AnimationTask* const at = findTaskFor (component))
         return at->destination;
 
     return component->getBounds();

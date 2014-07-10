@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_BUBBLECOMPONENT_JUCEHEADER__
-#define __JUCE_BUBBLECOMPONENT_JUCEHEADER__
+#ifndef JUCE_BUBBLECOMPONENT_H_INCLUDED
+#define JUCE_BUBBLECOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -58,7 +57,7 @@ public:
     ~BubbleComponent();
 
     //==============================================================================
-    /** A list of permitted placements for the bubble, relative to the co-ordinates
+    /** A list of permitted placements for the bubble, relative to the coordinates
         at which it should be pointing.
 
         @see setAllowedPlacement
@@ -100,23 +99,22 @@ public:
     /** Moves and resizes the bubble to point at a given point.
 
         This will resize the bubble to fit its content, then position it
-        so that the tip of the bubble points to the given co-ordinate. The co-ordinates
+        so that the tip of the bubble points to the given coordinate. The coordinates
         are relative to either the bubble component's parent component if it has one, or
-        they are screen co-ordinates if not.
+        they are screen coordinates if not.
 
         It'll put itself either above, below, or to the side of this point, depending
         on where there's the most space, honouring any restrictions that were set
         with setAllowedPlacement().
     */
-    void setPosition (int arrowTipX,
-                      int arrowTipY);
+    void setPosition (Point<int> arrowTipPosition);
 
     /** Moves and resizes the bubble to point at a given rectangle.
 
         This will resize the bubble to fit its content, then find a position for it
         so that it's next to, but doesn't overlap the given rectangle. The rectangle's
-        co-ordinates are relative to either the bubble component's parent component
-        if it has one, or they are screen co-ordinates if not.
+        coordinates are relative to either the bubble component's parent component
+        if it has one, or they are screen coordinates if not.
 
         It'll put itself either above, below, or to the side of the component depending
         on where there's the most space, honouring any restrictions that were set
@@ -124,6 +122,32 @@ public:
     */
     void setPosition (const Rectangle<int>& rectangleToPointTo);
 
+    //==============================================================================
+    /** A set of colour IDs to use to change the colour of various aspects of the bubble component.
+
+        These constants can be used either via the Component::setColour(), or LookAndFeel::setColour()
+        methods.
+
+        @see Component::setColour, Component::findColour, LookAndFeel::setColour, LookAndFeel::findColour
+    */
+    enum ColourIds
+    {
+        backgroundColourId            = 0x1000af0, /**< A background colour to fill the bubble with. */
+        outlineColourId               = 0x1000af1  /**< The colour to use for an outline around the bubble. */
+    };
+
+
+    //==============================================================================
+    /** This abstract base class is implemented by LookAndFeel classes.
+    */
+    struct JUCE_API  LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {}
+
+        virtual void drawBubble (Graphics&, BubbleComponent&,
+                                 const Point<float>& positionOfTip,
+                                 const Rectangle<float>& body) = 0;
+    };
 
 protected:
     //==============================================================================
@@ -141,16 +165,16 @@ protected:
 
 public:
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
 
 private:
     Rectangle<int> content;
-    int side, allowablePlacements;
-    float arrowTipX, arrowTipY;
+    Point<int> arrowTip;
+    int allowablePlacements;
     DropShadowEffect shadow;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BubbleComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BubbleComponent)
 };
 
 
-#endif   // __JUCE_BUBBLECOMPONENT_JUCEHEADER__
+#endif   // JUCE_BUBBLECOMPONENT_H_INCLUDED

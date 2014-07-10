@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_DRAWABLEIMAGE_JUCEHEADER__
-#define __JUCE_DRAWABLEIMAGE_JUCEHEADER__
-
-#include "juce_Drawable.h"
-#include "../positioning/juce_RelativeParallelogram.h"
+#ifndef JUCE_DRAWABLEIMAGE_H_INCLUDED
+#define JUCE_DRAWABLEIMAGE_H_INCLUDED
 
 
 //==============================================================================
@@ -41,7 +37,7 @@ class JUCE_API  DrawableImage  : public Drawable
 public:
     //==============================================================================
     DrawableImage();
-    DrawableImage (const DrawableImage& other);
+    DrawableImage (const DrawableImage&);
 
     /** Destructor. */
     ~DrawableImage();
@@ -68,10 +64,10 @@ public:
         This is handy for doing things like darkening or lightening an image by overlaying
         it with semi-transparent black or white.
     */
-    void setOverlayColour (const Colour& newOverlayColour);
+    void setOverlayColour (Colour newOverlayColour);
 
     /** Returns the overlay colour. */
-    const Colour& getOverlayColour() const noexcept             { return overlayColour; }
+    Colour getOverlayColour() const noexcept                    { return overlayColour; }
 
     /** Sets the bounding box within which the image should be displayed. */
     void setBoundingBox (const RelativeParallelogram& newBounds);
@@ -84,17 +80,17 @@ public:
 
     //==============================================================================
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
     /** @internal */
-    bool hitTest (int x, int y);
+    bool hitTest (int x, int y) override;
     /** @internal */
-    Drawable* createCopy() const;
+    Drawable* createCopy() const override;
     /** @internal */
-    Rectangle<float> getDrawableBounds() const;
+    Rectangle<float> getDrawableBounds() const override;
     /** @internal */
-    void refreshFromValueTree (const ValueTree& tree, ComponentBuilder& builder);
+    void refreshFromValueTree (const ValueTree& tree, ComponentBuilder&);
     /** @internal */
-    ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
+    ValueTree createValueTree (ComponentBuilder::ImageProvider*) const override;
     /** @internal */
     static const Identifier valueTreeType;
 
@@ -106,19 +102,19 @@ public:
         ValueTreeWrapper (const ValueTree& state);
 
         var getImageIdentifier() const;
-        void setImageIdentifier (const var& newIdentifier, UndoManager* undoManager);
-        Value getImageIdentifierValue (UndoManager* undoManager);
+        void setImageIdentifier (const var&, UndoManager*);
+        Value getImageIdentifierValue (UndoManager*);
 
         float getOpacity() const;
-        void setOpacity (float newOpacity, UndoManager* undoManager);
-        Value getOpacityValue (UndoManager* undoManager);
+        void setOpacity (float newOpacity, UndoManager*);
+        Value getOpacityValue (UndoManager*);
 
         Colour getOverlayColour() const;
-        void setOverlayColour (const Colour& newColour, UndoManager* undoManager);
-        Value getOverlayColourValue (UndoManager* undoManager);
+        void setOverlayColour (Colour newColour, UndoManager*);
+        Value getOverlayColourValue (UndoManager*);
 
         RelativeParallelogram getBoundingBox() const;
-        void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
+        void setBoundingBox (const RelativeParallelogram&, UndoManager*);
 
         static const Identifier opacity, overlay, image, topLeft, topRight, bottomLeft;
     };
@@ -135,8 +131,8 @@ private:
     void recalculateCoordinates (Expression::Scope*);
 
     DrawableImage& operator= (const DrawableImage&);
-    JUCE_LEAK_DETECTOR (DrawableImage);
+    JUCE_LEAK_DETECTOR (DrawableImage)
 };
 
 
-#endif   // __JUCE_DRAWABLEIMAGE_JUCEHEADER__
+#endif   // JUCE_DRAWABLEIMAGE_H_INCLUDED

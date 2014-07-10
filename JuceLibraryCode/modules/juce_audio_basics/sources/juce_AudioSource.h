@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_AUDIOSOURCE_JUCEHEADER__
-#define __JUCE_AUDIOSOURCE_JUCEHEADER__
-
-#include "../buffers/juce_AudioSampleBuffer.h"
+#ifndef JUCE_AUDIOSOURCE_H_INCLUDED
+#define JUCE_AUDIOSOURCE_H_INCLUDED
 
 
 //==============================================================================
@@ -35,6 +32,31 @@
 */
 struct JUCE_API  AudioSourceChannelInfo
 {
+    /** Creates an uninitialised AudioSourceChannelInfo. */
+    AudioSourceChannelInfo() noexcept
+    {
+    }
+
+    /** Creates an AudioSourceChannelInfo. */
+    AudioSourceChannelInfo (AudioSampleBuffer* bufferToUse,
+                            int startSampleOffset, int numSamplesToUse) noexcept
+        : buffer (bufferToUse),
+          startSample (startSampleOffset),
+          numSamples (numSamplesToUse)
+    {
+    }
+
+    /** Creates an AudioSourceChannelInfo that uses the whole of a buffer.
+        Note that the buffer provided must not be deleted while the
+        AudioSourceChannelInfo is still using it.
+    */
+    explicit AudioSourceChannelInfo (AudioSampleBuffer& bufferToUse) noexcept
+        : buffer (&bufferToUse),
+          startSample (0),
+          numSamples (bufferToUse.getNumSamples())
+    {
+    }
+
     /** The destination buffer to fill with audio data.
 
         When the AudioSource::getNextAudioBlock() method is called, the active section
@@ -43,7 +65,7 @@ struct JUCE_API  AudioSourceChannelInfo
         Only the samples specified by the startSample and numSamples members of this structure
         should be affected by the call.
 
-        The contents of the buffer when it is passed to the the AudioSource::getNextAudioBlock()
+        The contents of the buffer when it is passed to the AudioSource::getNextAudioBlock()
         method can be treated as the input if the source is performing some kind of filter operation,
         but should be cleared if this is not the case - the clearActiveBufferRegion() is
         a handy way of doing this.
@@ -156,4 +178,4 @@ public:
 };
 
 
-#endif   // __JUCE_AUDIOSOURCE_JUCEHEADER__
+#endif   // JUCE_AUDIOSOURCE_H_INCLUDED

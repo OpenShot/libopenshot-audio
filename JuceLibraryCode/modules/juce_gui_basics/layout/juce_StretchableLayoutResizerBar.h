@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_STRETCHABLELAYOUTRESIZERBAR_JUCEHEADER__
-#define __JUCE_STRETCHABLELAYOUTRESIZERBAR_JUCEHEADER__
-
-#include "../components/juce_Component.h"
-#include "juce_StretchableLayoutManager.h"
+#ifndef JUCE_STRETCHABLELAYOUTRESIZERBAR_H_INCLUDED
+#define JUCE_STRETCHABLELAYOUTRESIZERBAR_H_INCLUDED
 
 
 //==============================================================================
@@ -77,12 +73,22 @@ public:
     virtual void hasBeenMoved();
 
     //==============================================================================
+    /** This abstract base class is implemented by LookAndFeel classes. */
+    struct JUCE_API  LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {}
+
+        virtual void drawStretchableLayoutResizerBar (Graphics&, int w, int h,
+                                                      bool isVerticalBar, bool isMouseOver, bool isMouseDragging) = 0;
+    };
+
+    //==============================================================================
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
     /** @internal */
-    void mouseDown (const MouseEvent& e);
+    void mouseDown (const MouseEvent&) override;
     /** @internal */
-    void mouseDrag (const MouseEvent& e);
+    void mouseDrag (const MouseEvent&) override;
 
 
 private:
@@ -91,8 +97,8 @@ private:
     int itemIndex, mouseDownPos;
     bool isVertical;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StretchableLayoutResizerBar);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StretchableLayoutResizerBar)
 };
 
 
-#endif   // __JUCE_STRETCHABLELAYOUTRESIZERBAR_JUCEHEADER__
+#endif   // JUCE_STRETCHABLELAYOUTRESIZERBAR_H_INCLUDED

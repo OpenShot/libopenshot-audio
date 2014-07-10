@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_APPLICATIONCOMMANDID_JUCEHEADER__
-#define __JUCE_APPLICATIONCOMMANDID_JUCEHEADER__
+#ifndef JUCE_APPLICATIONCOMMANDID_H_INCLUDED
+#define JUCE_APPLICATIONCOMMANDID_H_INCLUDED
 
 
 //==============================================================================
@@ -52,32 +51,41 @@ typedef int CommandID;
 */
 namespace StandardApplicationCommandIDs
 {
-    /** This command ID should be used to send a "Quit the App" command.
+    enum
+    {
+        /** This command ID should be used to send a "Quit the App" command.
 
-        This command is recognised by the JUCEApplication class, so if it is invoked
-        and no other ApplicationCommandTarget handles the event first, the JUCEApplication
-        object will catch it and call JUCEApplication::systemRequestedQuit().
-    */
-    static const CommandID  quit           = 0x1001;
+            This command is recognised by the JUCEApplication class, so if it is invoked
+            and no other ApplicationCommandTarget handles the event first, the JUCEApplication
+            object will catch it and call JUCEApplicationBase::systemRequestedQuit().
+        */
+        quit           = 0x1001,
 
-    /** The command ID that should be used to send a "Delete" command. */
-    static const CommandID  del            = 0x1002;
+        /** The command ID that should be used to send a "Delete" command. */
+        del            = 0x1002,
 
-    /** The command ID that should be used to send a "Cut" command. */
-    static const CommandID  cut            = 0x1003;
+        /** The command ID that should be used to send a "Cut" command. */
+        cut            = 0x1003,
 
-    /** The command ID that should be used to send a "Copy to clipboard" command. */
-    static const CommandID  copy           = 0x1004;
+        /** The command ID that should be used to send a "Copy to clipboard" command. */
+        copy           = 0x1004,
 
-    /** The command ID that should be used to send a "Paste from clipboard" command. */
-    static const CommandID  paste          = 0x1005;
+        /** The command ID that should be used to send a "Paste from clipboard" command. */
+        paste          = 0x1005,
 
-    /** The command ID that should be used to send a "Select all" command. */
-    static const CommandID  selectAll      = 0x1006;
+        /** The command ID that should be used to send a "Select all" command. */
+        selectAll      = 0x1006,
 
-    /** The command ID that should be used to send a "Deselect all" command. */
-    static const CommandID  deselectAll    = 0x1007;
+        /** The command ID that should be used to send a "Deselect all" command. */
+        deselectAll    = 0x1007,
+
+        /** The command ID that should be used to send a "undo" command. */
+        undo           = 0x1008,
+
+        /** The command ID that should be used to send a "redo" command. */
+        redo           = 0x1009
+    };
 }
 
 
-#endif   // __JUCE_APPLICATIONCOMMANDID_JUCEHEADER__
+#endif   // JUCE_APPLICATIONCOMMANDID_H_INCLUDED

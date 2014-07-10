@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_SELECTEDITEMSET_JUCEHEADER__
-#define __JUCE_SELECTEDITEMSET_JUCEHEADER__
+#ifndef JUCE_SELECTEDITEMSET_H_INCLUDED
+#define JUCE_SELECTEDITEMSET_H_INCLUDED
 
 
 //==============================================================================
@@ -43,11 +42,12 @@
     @see SelectableObject
 */
 template <class SelectableItemType>
-class JUCE_API  SelectedItemSet   : public ChangeBroadcaster
+class SelectedItemSet   : public ChangeBroadcaster
 {
 public:
     //==============================================================================
     typedef SelectableItemType ItemType;
+    typedef Array<SelectableItemType> ItemArray;
     typedef PARAMETER_TYPE (SelectableItemType) ParameterType;
 
     //==============================================================================
@@ -57,7 +57,7 @@ public:
     }
 
     /** Creates a set based on an array of items. */
-    explicit SelectedItemSet (const Array <SelectableItemType>& items)
+    explicit SelectedItemSet (const ItemArray& items)
         : selectedItems (items)
     {
     }
@@ -112,9 +112,7 @@ public:
     }
 
     /** Selects an item.
-
         If the item is already selected, no change notification will be sent out.
-
         @see selectOnly, addToSelectionBasedOnModifiers
     */
     void addToSelection (ParameterType item)
@@ -150,7 +148,7 @@ public:
         @see selectOnly, addToSelection, addToSelectionOnMouseDown, addToSelectionOnMouseUp
     */
     void addToSelectionBasedOnModifiers (ParameterType item,
-                                         const ModifierKeys& modifiers)
+                                         ModifierKeys modifiers)
     {
         if (modifiers.isShiftDown())
         {
@@ -187,7 +185,7 @@ public:
         @see addToSelectionOnMouseUp, addToSelectionBasedOnModifiers
     */
     bool addToSelectionOnMouseDown (ParameterType item,
-                                    const ModifierKeys& modifiers)
+                                    ModifierKeys modifiers)
     {
         if (isSelected (item))
             return ! modifiers.isPopupMenu();
@@ -211,7 +209,7 @@ public:
                                 should have made during the matching mouseDown event
     */
     void addToSelectionOnMouseUp (ParameterType item,
-                                  const ModifierKeys& modifiers,
+                                  ModifierKeys modifiers,
                                   const bool wasItemDragged,
                                   const bool resultOfMouseDownSelectMethod)
     {
@@ -248,32 +246,27 @@ public:
 
     //==============================================================================
     /** Returns the number of currently selected items.
-
         @see getSelectedItem
     */
-    int getNumSelected() const noexcept
-    {
-        return selectedItems.size();
-    }
+    int getNumSelected() const noexcept                         { return selectedItems.size(); }
 
     /** Returns one of the currently selected items.
-
-        Returns 0 if the index is out-of-range.
-
+        If the index is out-of-range, this returns a default-constructed SelectableItemType.
         @see getNumSelected
     */
-    SelectableItemType getSelectedItem (const int index) const noexcept
-    {
-        return selectedItems [index];
-    }
+    SelectableItemType getSelectedItem (const int index) const  { return selectedItems [index]; }
 
     /** True if this item is currently selected. */
-    bool isSelected (ParameterType item) const noexcept
-    {
-        return selectedItems.contains (item);
-    }
+    bool isSelected (ParameterType item) const noexcept         { return selectedItems.contains (item); }
 
-    const Array <SelectableItemType>& getItemArray() const noexcept         { return selectedItems; }
+    /** Provides access to the array of items. */
+    const ItemArray& getItemArray() const noexcept              { return selectedItems; }
+
+    /** Provides iterator access to the array of items. */
+    SelectableItemType* begin() const noexcept                  { return selectedItems.begin(); }
+
+    /** Provides iterator access to the array of items. */
+    SelectableItemType* end() const noexcept                    { return selectedItems.end(); }
 
     //==============================================================================
     /** Can be overridden to do special handling when an item is selected.
@@ -281,18 +274,27 @@ public:
         For example, if the item is an object, you might want to call it and tell
         it that it's being selected.
     */
-    virtual void itemSelected (SelectableItemType item)                     { (void) item; }
+    virtual void itemSelected (SelectableItemType)              {}
 
     /** Can be overridden to do special handling when an item is deselected.
 
         For example, if the item is an object, you might want to call it and tell
         it that it's being deselected.
     */
-    virtual void itemDeselected (SelectableItemType item)                   { (void) item; }
+    virtual void itemDeselected (SelectableItemType)            {}
 
-    /** Used internally, but can be called to force a change message to be sent to the ChangeListeners.
+    /** Used internally, but can be called to force a change message to be sent
+        to the ChangeListeners.
     */
-    void changed (const bool synchronous = false)
+    void changed()
+    {
+        sendChangeMessage();
+    }
+
+    /** Used internally, but can be called to force a change message to be sent
+        to the ChangeListeners.
+    */
+    void changed (const bool synchronous)
     {
         if (synchronous)
             sendSynchronousChangeMessage();
@@ -302,13 +304,10 @@ public:
 
 private:
     //==============================================================================
-    Array <SelectableItemType> selectedItems;
+    ItemArray selectedItems;
 
-    JUCE_LEAK_DETECTOR (SelectedItemSet <SelectableItemType>);
+    JUCE_LEAK_DETECTOR (SelectedItemSet<SelectableItemType>)
 };
 
 
-
-
-
-#endif   // __JUCE_SELECTEDITEMSET_JUCEHEADER__
+#endif   // JUCE_SELECTEDITEMSET_H_INCLUDED

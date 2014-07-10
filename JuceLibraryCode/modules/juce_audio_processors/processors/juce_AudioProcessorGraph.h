@@ -1,34 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_AUDIOPROCESSORGRAPH_JUCEHEADER__
-#define __JUCE_AUDIOPROCESSORGRAPH_JUCEHEADER__
-
-#include "juce_AudioProcessor.h"
-#include "../format/juce_AudioPluginFormatManager.h"
-#include "../scanning/juce_KnownPluginList.h"
+#ifndef JUCE_AUDIOPROCESSORGRAPH_H_INCLUDED
+#define JUCE_AUDIOPROCESSORGRAPH_H_INCLUDED
 
 
 //==============================================================================
@@ -46,12 +41,11 @@
     AudioProcessorPlayer object.
 */
 class JUCE_API  AudioProcessorGraph   : public AudioProcessor,
-                                        public AsyncUpdater
+                                        private AsyncUpdater
 {
 public:
     //==============================================================================
-    /** Creates an empty graph.
-    */
+    /** Creates an empty graph. */
     AudioProcessorGraph();
 
     /** Destructor.
@@ -101,7 +95,7 @@ public:
         void prepare (double sampleRate, int blockSize, AudioProcessorGraph*);
         void unprepare();
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Node);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Node)
     };
 
     //==============================================================================
@@ -147,12 +141,11 @@ public:
 
     private:
         //==============================================================================
-        JUCE_LEAK_DETECTOR (Connection);
+        JUCE_LEAK_DETECTOR (Connection)
     };
 
     //==============================================================================
     /** Deletes all nodes and connections from this graph.
-
         Any processor objects in the graph will be deleted.
     */
     void clear();
@@ -199,7 +192,6 @@ public:
     const Connection* getConnection (int index) const                   { return connections [index]; }
 
     /** Searches for a connection between some specified channels.
-
         If no such connection is found, this returns nullptr.
     */
     const Connection* getConnectionBetween (uint32 sourceNodeId,
@@ -213,8 +205,7 @@ public:
     bool isConnected (uint32 possibleSourceNodeId,
                       uint32 possibleDestNodeId) const;
 
-    /** Returns true if it would be legal to connect the specified points.
-    */
+    /** Returns true if it would be legal to connect the specified points. */
     bool canConnect (uint32 sourceNodeId, int sourceChannelIndex,
                      uint32 destNodeId, int destChannelIndex) const;
 
@@ -226,21 +217,16 @@ public:
     bool addConnection (uint32 sourceNodeId, int sourceChannelIndex,
                         uint32 destNodeId, int destChannelIndex);
 
-    /** Deletes the connection with the specified index.
-
-        Returns true if a connection was actually deleted.
-    */
+    /** Deletes the connection with the specified index. */
     void removeConnection (int index);
 
     /** Deletes any connection between two specified points.
-
         Returns true if a connection was actually deleted.
     */
     bool removeConnection (uint32 sourceNodeId, int sourceChannelIndex,
                            uint32 destNodeId, int destChannelIndex);
 
-    /** Removes all connections from the specified node.
-    */
+    /** Removes all connections from the specified node. */
     bool disconnectNode (uint32 nodeId);
 
     /** Returns true if the given connection's channel numbers map on to valid
@@ -329,6 +315,8 @@ public:
         const String getOutputChannelName (int channelIndex) const;
         bool isInputChannelStereoPair (int index) const;
         bool isOutputChannelStereoPair (int index) const;
+        bool silenceInProducesSilenceOut() const;
+        double getTailLengthSeconds() const;
         bool acceptsMidi() const;
         bool producesMidi() const;
 
@@ -357,7 +345,7 @@ public:
         const IODeviceType type;
         AudioProcessorGraph* graph;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioGraphIOProcessor);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioGraphIOProcessor)
     };
 
     //==============================================================================
@@ -368,11 +356,14 @@ public:
     void prepareToPlay (double sampleRate, int estimatedSamplesPerBlock);
     void releaseResources();
     void processBlock (AudioSampleBuffer&, MidiBuffer&);
+    void reset();
 
     const String getInputChannelName (int channelIndex) const;
     const String getOutputChannelName (int channelIndex) const;
     bool isInputChannelStereoPair (int index) const;
     bool isOutputChannelStereoPair (int index) const;
+    bool silenceInProducesSilenceOut() const;
+    double getTailLengthSeconds() const;
 
     bool acceptsMidi() const;
     bool producesMidi() const;
@@ -381,32 +372,27 @@ public:
     AudioProcessorEditor* createEditor()            { return nullptr; }
 
     int getNumParameters()                          { return 0; }
-    const String getParameterName (int)             { return String::empty; }
+    const String getParameterName (int)             { return String(); }
     float getParameter (int)                        { return 0; }
-    const String getParameterText (int)             { return String::empty; }
+    const String getParameterText (int)             { return String(); }
     void setParameter (int, float)                  { }
 
     int getNumPrograms()                            { return 0; }
     int getCurrentProgram()                         { return 0; }
     void setCurrentProgram (int)                    { }
-    const String getProgramName (int)               { return String::empty; }
+    const String getProgramName (int)               { return String(); }
     void changeProgramName (int, const String&)     { }
 
-    void getStateInformation (juce::MemoryBlock& destData);
+    void getStateInformation (juce::MemoryBlock&);
     void setStateInformation (const void* data, int sizeInBytes);
-
-    /** @internal */
-    void handleAsyncUpdate();
 
 private:
     //==============================================================================
-    ReferenceCountedArray <Node> nodes;
-    OwnedArray <Connection> connections;
+    ReferenceCountedArray<Node> nodes;
+    OwnedArray<Connection> connections;
     uint32 lastNodeId;
     AudioSampleBuffer renderingBuffers;
-    OwnedArray <MidiBuffer> midiBuffers;
-
-    CriticalSection renderLock;
+    OwnedArray<MidiBuffer> midiBuffers;
     Array<void*> renderingOps;
 
     friend class AudioGraphIOProcessor;
@@ -415,13 +401,13 @@ private:
     MidiBuffer* currentMidiInputBuffer;
     MidiBuffer currentMidiOutputBuffer;
 
+    void handleAsyncUpdate() override;
     void clearRenderingSequence();
     void buildRenderingSequence();
-
     bool isAnInputTo (uint32 possibleInputId, uint32 possibleDestinationId, int recursionCheck) const;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessorGraph);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessorGraph)
 };
 
 
-#endif   // __JUCE_AUDIOPROCESSORGRAPH_JUCEHEADER__
+#endif   // JUCE_AUDIOPROCESSORGRAPH_H_INCLUDED

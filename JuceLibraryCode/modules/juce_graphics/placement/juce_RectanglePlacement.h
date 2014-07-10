@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_RECTANGLEPLACEMENT_JUCEHEADER__
-#define __JUCE_RECTANGLEPLACEMENT_JUCEHEADER__
-
-#include "../geometry/juce_AffineTransform.h"
-#include "../geometry/juce_Rectangle.h"
+#ifndef JUCE_RECTANGLEPLACEMENT_H_INCLUDED
+#define JUCE_RECTANGLEPLACEMENT_H_INCLUDED
 
 
 //==============================================================================
@@ -42,21 +38,24 @@ class JUCE_API  RectanglePlacement
 {
 public:
     //==============================================================================
-    /** Creates a RectanglePlacement object using a combination of flags. */
-    inline RectanglePlacement (int flags_) noexcept : flags (flags_) {}
+    /** Creates a RectanglePlacement object using a combination of flags from the Flags enum. */
+    inline RectanglePlacement (int placementFlags) noexcept  : flags (placementFlags) {}
+
+    /** Creates a default RectanglePlacement object, which is equivalent to using the 'centred' flag. */
+    inline RectanglePlacement() noexcept                     : flags (centred) {}
 
     /** Creates a copy of another RectanglePlacement object. */
-    RectanglePlacement (const RectanglePlacement& other) noexcept;
+    RectanglePlacement (const RectanglePlacement&) noexcept;
 
     /** Copies another RectanglePlacement object. */
-    RectanglePlacement& operator= (const RectanglePlacement& other) noexcept;
+    RectanglePlacement& operator= (const RectanglePlacement&) noexcept;
 
-    bool operator== (const RectanglePlacement& other) const noexcept;
-    bool operator!= (const RectanglePlacement& other) const noexcept;
+    bool operator== (const RectanglePlacement&) const noexcept;
+    bool operator!= (const RectanglePlacement&) const noexcept;
 
     //==============================================================================
     /** Flag values that can be combined and used in the constructor. */
-    enum
+    enum Flags
     {
         //==============================================================================
         /** Indicates that the source rectangle's left edge should be aligned with the left edge of the target rectangle. */
@@ -132,7 +131,7 @@ public:
     //==============================================================================
     /** Adjusts the position and size of a rectangle to fit it into a space.
 
-        The source rectangle co-ordinates will be adjusted so that they fit into
+        The source rectangle coordinates will be adjusted so that they fit into
         the destination rectangle based on this object's flags.
     */
     void applyTo (double& sourceX,
@@ -144,12 +143,12 @@ public:
                   double destinationW,
                   double destinationH) const noexcept;
 
-    /** Returns the transform that should be applied to these source co-ordinates to fit them
+    /** Returns the rectangle that should be used to fit the given source rectangle
         into the destination rectangle using the current flags.
     */
     template <typename ValueType>
-    const Rectangle<ValueType> appliedTo (const Rectangle<ValueType>& source,
-                                          const Rectangle<ValueType>& destination) const noexcept
+    Rectangle<ValueType> appliedTo (const Rectangle<ValueType>& source,
+                                    const Rectangle<ValueType>& destination) const noexcept
     {
         double x = source.getX(), y = source.getY(), w = source.getWidth(), h = source.getHeight();
         applyTo (x, y, w, h, static_cast <double> (destination.getX()), static_cast <double> (destination.getY()),
@@ -158,11 +157,11 @@ public:
                                      static_cast <ValueType> (w), static_cast <ValueType> (h));
     }
 
-    /** Returns the transform that should be applied to these source co-ordinates to fit them
+    /** Returns the transform that should be applied to these source coordinates to fit them
         into the destination rectangle using the current flags.
     */
-    const AffineTransform getTransformToFit (const Rectangle<float>& source,
-                                             const Rectangle<float>& destination) const noexcept;
+    AffineTransform getTransformToFit (const Rectangle<float>& source,
+                                       const Rectangle<float>& destination) const noexcept;
 
 
 private:
@@ -170,4 +169,4 @@ private:
     int flags;
 };
 
-#endif   // __JUCE_RECTANGLEPLACEMENT_JUCEHEADER__
+#endif   // JUCE_RECTANGLEPLACEMENT_H_INCLUDED

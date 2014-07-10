@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_THREADWITHPROGRESSWINDOW_JUCEHEADER__
-#define __JUCE_THREADWITHPROGRESSWINDOW_JUCEHEADER__
-
-#include "../windows/juce_AlertWindow.h"
+#ifndef JUCE_THREADWITHPROGRESSWINDOW_H_INCLUDED
+#define JUCE_THREADWITHPROGRESSWINDOW_H_INCLUDED
 
 
 //==============================================================================
@@ -99,18 +96,22 @@ public:
                                         the thread to stop before killing it forcibly (see
                                         Thread::stopThread() )
         @param cancelButtonText         the text that should be shown in the cancel button
-                                        (if it has one)
+                                        (if it has one). Leave this empty for the default "Cancel"
+        @param componentToCentreAround  if this is non-null, the window will be positioned
+                                        so that it's centred around this component.
     */
     ThreadWithProgressWindow (const String& windowTitle,
                               bool hasProgressBar,
                               bool hasCancelButton,
                               int timeOutMsWhenCancelling = 10000,
-                              const String& cancelButtonText = "Cancel");
+                              const String& cancelButtonText = String(),
+                              Component* componentToCentreAround = nullptr);
 
     /** Destructor. */
     ~ThreadWithProgressWindow();
 
     //==============================================================================
+   #if JUCE_MODAL_LOOPS_PERMITTED
     /** Starts the thread and waits for it to finish.
 
         This will start the thread, make the dialog box appear, and wait until either
@@ -123,6 +124,18 @@ public:
         @returns true if the thread finished normally; false if the user pressed cancel
     */
     bool runThread (int threadPriority = 5);
+   #endif
+
+    /** Starts the thread and returns.
+
+        This will start the thread and make the dialog box appear in a modal state. When
+        the thread finishes normally, or the cancel button is pressed, the window will be
+        hidden and the threadComplete() method will be called.
+
+        @param threadPriority   the priority to use when starting the thread - see
+                                Thread::startThread() for values
+    */
+    void launchThread (int threadPriority = 5);
 
     /** The thread should call this periodically to update the position of the progress bar.
 
@@ -131,25 +144,30 @@ public:
     */
     void setProgress (double newProgress);
 
-    /** The thread can call this to change the message that's displayed in the dialog box.
-    */
+    /** The thread can call this to change the message that's displayed in the dialog box. */
     void setStatusMessage (const String& newStatusMessage);
 
-    /** Returns the AlertWindow that is being used.
-    */
+    /** Returns the AlertWindow that is being used. */
     AlertWindow* getAlertWindow() const noexcept        { return alertWindow; }
+
+    //==============================================================================
+    /** This method is called (on the message thread) when the operation has finished.
+        You may choose to use this callback to delete the ThreadWithProgressWindow object.
+    */
+    virtual void threadComplete (bool userPressedCancel);
 
 private:
     //==============================================================================
-    void timerCallback();
+    void timerCallback() override;
 
     double progress;
-    ScopedPointer <AlertWindow> alertWindow;
+    ScopedPointer<AlertWindow> alertWindow;
     String message;
     CriticalSection messageLock;
     const int timeOutMsWhenCancelling;
+    bool wasCancelledByUser;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreadWithProgressWindow);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreadWithProgressWindow)
 };
 
-#endif   // __JUCE_THREADWITHPROGRESSWINDOW_JUCEHEADER__
+#endif   // JUCE_THREADWITHPROGRESSWINDOW_H_INCLUDED

@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_FONT_JUCEHEADER__
-#define __JUCE_FONT_JUCEHEADER__
-
-#include "juce_Typeface.h"
-class LowLevelGraphicsContext;
+#ifndef JUCE_FONT_H_INCLUDED
+#define JUCE_FONT_H_INCLUDED
 
 
 //==============================================================================
@@ -68,7 +64,7 @@ public:
 
     /** Creates a font with a given typeface and parameters.
 
-        @param typefaceName the name of the typeface to use
+        @param typefaceName the font family of the typeface to use
         @param fontHeight   the height in pixels (can be fractional)
         @param styleFlags   the style to use - this can be a combination of the
                             Font::bold, Font::italic and Font::underlined, or
@@ -76,6 +72,14 @@ public:
         @see FontStyleFlags, getDefaultSansSerifFontName
     */
     Font (const String& typefaceName, float fontHeight, int styleFlags);
+
+    /** Creates a font with a given typeface and parameters.
+
+        @param typefaceName  the font family of the typeface to use
+        @param typefaceStyle the font style of the typeface to use
+        @param fontHeight    the height in pixels (can be fractional)
+    */
+    Font (const String& typefaceName, const String& typefaceStyle, float fontHeight);
 
     /** Creates a copy of another Font object. */
     Font (const Font& other) noexcept;
@@ -106,79 +110,101 @@ public:
     ~Font() noexcept;
 
     //==============================================================================
-    /** Changes the name of the typeface family.
+    /** Changes the font family of the typeface.
 
         e.g. "Arial", "Courier", etc.
 
         This may also be set to Font::getDefaultSansSerifFontName(), Font::getDefaultSerifFontName(),
-        or Font::getDefaultMonospacedFontName(), which are not actual platform-specific font names,
-        but are generic names that are used to represent the various default fonts.
-        If you need to know the exact typeface name being used, you can call
-        Font::getTypeface()->getTypefaceName(), which will give you the platform-specific name.
+        or Font::getDefaultMonospacedFontName(), which are not actual platform-specific font family names,
+        but are generic font family names that are used to represent the various default fonts.
+        If you need to know the exact typeface font family being used, you can call
+        Font::getTypeface()->getName(), which will give you the platform-specific font family.
 
         If a suitable font isn't found on the machine, it'll just use a default instead.
     */
     void setTypefaceName (const String& faceName);
 
-    /** Returns the name of the typeface family that this font uses.
+    /** Returns the font family of the typeface that this font uses.
 
         e.g. "Arial", "Courier", etc.
 
         This may also be set to Font::getDefaultSansSerifFontName(), Font::getDefaultSerifFontName(),
-        or Font::getDefaultMonospacedFontName(), which are not actual platform-specific font names,
-        but are generic names that are used to represent the various default fonts.
+        or Font::getDefaultMonospacedFontName(), which are not actual platform-specific font family names,
+        but are generic font familiy names that are used to represent the various default fonts.
 
-        If you need to know the exact typeface name being used, you can call
-        Font::getTypeface()->getTypefaceName(), which will give you the platform-specific name.
+        If you need to know the exact typeface font family being used, you can call
+        Font::getTypeface()->getName(), which will give you the platform-specific font family.
     */
     const String& getTypefaceName() const noexcept;
 
     //==============================================================================
-    /** Returns a typeface name that represents the default sans-serif font.
+    /** Returns the font style of the typeface that this font uses.
+        @see withTypefaceStyle, getAvailableStyles()
+    */
+    const String& getTypefaceStyle() const noexcept;
+
+    /** Changes the font style of the typeface.
+        @see getAvailableStyles()
+    */
+    void setTypefaceStyle (const String& newStyle);
+
+    /** Returns a copy of this font with a new typeface style.
+        @see getAvailableStyles()
+    */
+    Font withTypefaceStyle (const String& newStyle) const;
+
+    /** Returns a list of the styles that this font can use. */
+    StringArray getAvailableStyles() const;
+
+    //==============================================================================
+    /** Returns a typeface font family that represents the default sans-serif font.
 
         This is also the typeface that will be used when a font is created without
         specifying any typeface details.
 
         Note that this method just returns a generic placeholder string that means "the default
-        sans-serif font" - it's not the actual name of this font.
+        sans-serif font" - it's not the actual font family of this font.
 
         @see setTypefaceName, getDefaultSerifFontName, getDefaultMonospacedFontName
     */
     static const String& getDefaultSansSerifFontName();
 
-    /** Returns a typeface name that represents the default sans-serif font.
+    /** Returns a typeface font family that represents the default serif font.
 
         Note that this method just returns a generic placeholder string that means "the default
-        serif font" - it's not the actual name of this font.
+        serif font" - it's not the actual font family of this font.
 
         @see setTypefaceName, getDefaultSansSerifFontName, getDefaultMonospacedFontName
     */
     static const String& getDefaultSerifFontName();
 
-    /** Returns a typeface name that represents the default sans-serif font.
+    /** Returns a typeface font family that represents the default monospaced font.
 
         Note that this method just returns a generic placeholder string that means "the default
-        monospaced font" - it's not the actual name of this font.
+        monospaced font" - it's not the actual font family of this font.
 
         @see setTypefaceName, getDefaultSansSerifFontName, getDefaultSerifFontName
     */
     static const String& getDefaultMonospacedFontName();
 
+    /** Returns a font style name that represents the default style.
+
+        Note that this method just returns a generic placeholder string that means "the default
+        font style" - it's not the actual name of the font style of any particular font.
+
+        @see setTypefaceStyle
+    */
+    static const String& getDefaultStyle();
+
     /** Returns the default system typeface for the given font. */
     static Typeface::Ptr getDefaultTypefaceForFont (const Font& font);
 
     //==============================================================================
-    /** Returns the total height of this font.
-
-        This is the maximum height, from the top of the ascent to the bottom of the
-        descenders.
-
-        @see withHeight, setHeightWithoutChangingWidth, getAscent
-    */
-    float getHeight() const noexcept;
-
     /** Returns a copy of this font with a new height. */
     Font withHeight (float height) const;
+
+    /** Returns a copy of this font with a new height, specified in points. */
+    Font withPointHeight (float heightInPoints) const;
 
     /** Changes the font's height.
         @see getHeight, withHeight, setHeightWithoutChangingWidth
@@ -190,17 +216,45 @@ public:
     */
     void setHeightWithoutChangingWidth (float newHeight);
 
-    /** Returns the height of the font above its baseline.
+    /** Returns the total height of this font, in pixels.
+        This is the maximum height, from the top of the ascent to the bottom of the
+        descenders.
+
+        @see withHeight, setHeightWithoutChangingWidth, getAscent
+    */
+    float getHeight() const noexcept;
+
+    /** Returns the total height of this font, in points.
+        This is the maximum height, from the top of the ascent to the bottom of the
+        descenders.
+
+        @see withPointHeight, getHeight
+    */
+    float getHeightInPoints() const;
+
+    /** Returns the height of the font above its baseline, in pixels.
         This is the maximum height from the baseline to the top.
         @see getHeight, getDescent
     */
     float getAscent() const;
 
-    /** Returns the amount that the font descends below its baseline.
+    /** Returns the height of the font above its baseline, in points.
+        This is the maximum height from the baseline to the top.
+        @see getHeight, getDescent
+    */
+    float getAscentInPoints() const;
+
+    /** Returns the amount that the font descends below its baseline, in pixels.
         This is calculated as (getHeight() - getAscent()).
         @see getAscent, getHeight
     */
     float getDescent() const;
+
+    /** Returns the amount that the font descends below its baseline, in points.
+        This is calculated as (getHeight() - getAscent()).
+        @see getAscent, getHeight
+    */
+    float getDescentInPoints() const;
 
     //==============================================================================
     /** Returns the font's style flags.
@@ -245,7 +299,6 @@ public:
 
     //==============================================================================
     /** Returns the font's horizontal scale.
-
         A value of 1.0 is the normal scale, less than this will be narrower, greater
         than 1.0 will be stretched out.
 
@@ -299,15 +352,19 @@ public:
                           float newHorizontalScale,
                           float newKerningAmount);
 
+    /** Changes all the font's characteristics with one call. */
+    void setSizeAndStyle (float newHeight,
+                          const String& newStyle,
+                          float newHorizontalScale,
+                          float newKerningAmount);
+
     //==============================================================================
     /** Returns the total width of a string as it would be drawn using this font.
-
         For a more accurate floating-point result, use getStringWidthFloat().
     */
     int getStringWidth (const String& text) const;
 
     /** Returns the total width of a string as it would be drawn using this font.
-
         @see getStringWidth
     */
     float getStringWidthFloat (const String& text) const;
@@ -329,32 +386,51 @@ public:
 
     /** Creates an array of Font objects to represent all the fonts on the system.
 
-        If you just need the names of the typefaces, you can also use
+        If you just need the font family names of the typefaces, you can also use
         findAllTypefaceNames() instead.
 
         @param results  the array to which new Font objects will be added.
     */
     static void findFonts (Array<Font>& results);
 
-    /** Returns a list of all the available typeface names.
+    /** Returns a list of all the available typeface font families.
 
         The names returned can be passed into setTypefaceName().
 
-        You can use this instead of findFonts() if you only need their names, and not
-        font objects.
+        You can use this instead of findFonts() if you only need their font family names,
+        and not font objects.
     */
     static StringArray findAllTypefaceNames();
 
+    /** Returns a list of all the available typeface font styles.
+
+        The names returned can be passed into setTypefaceStyle().
+
+        You can use this instead of findFonts() if you only need their styles, and not
+        font objects.
+    */
+    static StringArray findAllTypefaceStyles (const String& family);
+
     //==============================================================================
-    /** Returns the name of the typeface to be used for rendering glyphs that aren't found
-        in the requested typeface.
+    /** Returns the font family of the typeface to be used for rendering glyphs that aren't
+        found in the requested typeface.
     */
     static const String& getFallbackFontName();
 
-    /** Sets the (platform-specific) name of the typeface to use to find glyphs that aren't
-        available in whatever font you're trying to use.
+    /** Sets the (platform-specific) font family of the typeface to use to find glyphs that
+        aren't available in whatever font you're trying to use.
     */
     static void setFallbackFontName (const String& name);
+
+    /** Returns the font style of the typeface to be used for rendering glyphs that aren't
+        found in the requested typeface.
+    */
+    static const String& getFallbackFontStyle();
+
+    /** Sets the (platform-specific) font style of the typeface to use to find glyphs that
+        aren't available in whatever font you're trying to use.
+    */
+    static void setFallbackFontStyle (const String& style);
 
     //==============================================================================
     /** Creates a string to describe this font.
@@ -375,8 +451,10 @@ private:
     class SharedFontInternal;
     ReferenceCountedObjectPtr <SharedFontInternal> font;
     void dupeInternalIfShared();
+    void checkTypefaceSuitability();
+    float getHeightToPointsFactor() const;
 
-    JUCE_LEAK_DETECTOR (Font);
+    JUCE_LEAK_DETECTOR (Font)
 };
 
-#endif   // __JUCE_FONT_JUCEHEADER__
+#endif   // JUCE_FONT_H_INCLUDED

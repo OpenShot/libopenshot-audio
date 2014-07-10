@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_DRAGANDDROPCONTAINER_JUCEHEADER__
-#define __JUCE_DRAGANDDROPCONTAINER_JUCEHEADER__
-
-#include "juce_DragAndDropTarget.h"
+#ifndef JUCE_DRAGANDDROPCONTAINER_H_INCLUDED
+#define JUCE_DRAGANDDROPCONTAINER_H_INCLUDED
 
 
 //==============================================================================
@@ -89,7 +86,7 @@ public:
     */
     void startDragging (const var& sourceDescription,
                         Component* sourceComponent,
-                        const Image& dragImage = Image::null,
+                        Image dragImage = Image::null,
                         bool allowDraggingToOtherJuceWindows = false,
                         const Point<int>* imageOffsetFromMouse = nullptr);
 
@@ -98,12 +95,12 @@ public:
 
     /** Returns the description of the thing that's currently being dragged.
 
-        If nothing's being dragged, this will return an empty string, otherwise it's the
-        string that was passed into startDragging().
+        If nothing's being dragged, this will return a null var, otherwise it'll return
+        the var that was passed into startDragging().
 
         @see startDragging
     */
-    String getCurrentDragDescription() const;
+    var getCurrentDragDescription() const;
 
     /** Utility to find the DragAndDropContainer for a given Component.
 
@@ -113,7 +110,7 @@ public:
         It's useful when a component wants to call startDragging but doesn't know
         the DragAndDropContainer it should to use.
 
-        Obviously this may return 0 if it doesn't find a suitable component.
+        Obviously this may return nullptr if it doesn't find a suitable component.
     */
     static DragAndDropContainer* findParentDragContainerFor (Component* childComponent);
 
@@ -170,14 +167,15 @@ protected:
 
 private:
     //==============================================================================
+    class DragImageComponent;
     friend class DragImageComponent;
-    ScopedPointer <Component> dragImageComponent;
-    String currentDragDesc;
+    friend struct ContainerDeletePolicy<DragImageComponent>;
+    ScopedPointer<DragImageComponent> dragImageComponent;
 
     JUCE_DEPRECATED (virtual bool shouldDropFilesWhenDraggedExternally (const String&, Component*, StringArray&, bool&)) { return false; }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DragAndDropContainer);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DragAndDropContainer)
 };
 
 
-#endif   // __JUCE_DRAGANDDROPCONTAINER_JUCEHEADER__
+#endif   // JUCE_DRAGANDDROPCONTAINER_H_INCLUDED

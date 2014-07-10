@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_AUDIOTRANSPORTSOURCE_JUCEHEADER__
-#define __JUCE_AUDIOTRANSPORTSOURCE_JUCEHEADER__
+#ifndef JUCE_AUDIOTRANSPORTSOURCE_H_INCLUDED
+#define JUCE_AUDIOTRANSPORTSOURCE_H_INCLUDED
 
 
 //==============================================================================
@@ -46,7 +45,6 @@ class JUCE_API  AudioTransportSource  : public PositionableAudioSource,
 public:
     //==============================================================================
     /** Creates an AudioTransportSource.
-
         After creating one of these, use the setSource() method to select an input source.
     */
     AudioTransportSource();
@@ -95,7 +93,6 @@ public:
     void setPosition (double newPosition);
 
     /** Returns the position that the next data block will be read from
-
         This is a time in seconds.
     */
     double getCurrentPosition() const;
@@ -103,8 +100,7 @@ public:
     /** Returns the stream's length in seconds. */
     double getLengthInSeconds() const;
 
-    /** Returns true if the player has stopped because its input stream ran out of data.
-    */
+    /** Returns true if the player has stopped because its input stream ran out of data. */
     bool hasStreamFinished() const noexcept             { return inputStreamEOF; }
 
     //==============================================================================
@@ -127,41 +123,38 @@ public:
 
     //==============================================================================
     /** Changes the gain to apply to the output.
-
         @param newGain  a factor by which to multiply the outgoing samples,
                         so 1.0 = 0dB, 0.5 = -6dB, 2.0 = 6dB, etc.
     */
     void setGain (float newGain) noexcept;
 
     /** Returns the current gain setting.
-
         @see setGain
     */
     float getGain() const noexcept      { return gain; }
 
-
     //==============================================================================
     /** Implementation of the AudioSource method. */
-    void prepareToPlay (int samplesPerBlockExpected, double sampleRate);
+    void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override;
 
     /** Implementation of the AudioSource method. */
-    void releaseResources();
+    void releaseResources() override;
 
     /** Implementation of the AudioSource method. */
-    void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
+    void getNextAudioBlock (const AudioSourceChannelInfo&) override;
 
     //==============================================================================
     /** Implements the PositionableAudioSource method. */
-    void setNextReadPosition (int64 newPosition);
+    void setNextReadPosition (int64 newPosition) override;
 
     /** Implements the PositionableAudioSource method. */
-    int64 getNextReadPosition() const;
+    int64 getNextReadPosition() const override;
 
     /** Implements the PositionableAudioSource method. */
-    int64 getTotalLength() const;
+    int64 getTotalLength() const override;
 
     /** Implements the PositionableAudioSource method. */
-    bool isLooping() const;
+    bool isLooping() const override;
 
 private:
     //==============================================================================
@@ -176,12 +169,12 @@ private:
     bool volatile playing, stopped;
     double sampleRate, sourceSampleRate;
     int blockSize, readAheadBufferSize;
-    bool isPrepared, inputStreamEOF;
+    bool volatile isPrepared, inputStreamEOF;
 
     void releaseMasterResources();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioTransportSource);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioTransportSource)
 };
 
 
-#endif   // __JUCE_AUDIOTRANSPORTSOURCE_JUCEHEADER__
+#endif   // JUCE_AUDIOTRANSPORTSOURCE_H_INCLUDED

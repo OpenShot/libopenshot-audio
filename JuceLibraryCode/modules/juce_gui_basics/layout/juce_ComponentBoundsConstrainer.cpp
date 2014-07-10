@@ -1,33 +1,30 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
 ComponentBoundsConstrainer::ComponentBoundsConstrainer() noexcept
-    : minW (0),
-      maxW (0x3fffffff),
-      minH (0),
-      maxH (0x3fffffff),
+    : minW (0), maxW (0x3fffffff),
+      minH (0), maxH (0x3fffffff),
       minOffTop (0),
       minOffLeft (0),
       minOffBottom (0),
@@ -41,25 +38,10 @@ ComponentBoundsConstrainer::~ComponentBoundsConstrainer()
 }
 
 //==============================================================================
-void ComponentBoundsConstrainer::setMinimumWidth (const int minimumWidth) noexcept
-{
-    minW = minimumWidth;
-}
-
-void ComponentBoundsConstrainer::setMaximumWidth (const int maximumWidth) noexcept
-{
-    maxW = maximumWidth;
-}
-
-void ComponentBoundsConstrainer::setMinimumHeight (const int minimumHeight) noexcept
-{
-    minH = minimumHeight;
-}
-
-void ComponentBoundsConstrainer::setMaximumHeight (const int maximumHeight) noexcept
-{
-    maxH = maximumHeight;
-}
+void ComponentBoundsConstrainer::setMinimumWidth  (const int minimumWidth) noexcept   { minW = minimumWidth; }
+void ComponentBoundsConstrainer::setMaximumWidth  (const int maximumWidth) noexcept   { maxW = maximumWidth; }
+void ComponentBoundsConstrainer::setMinimumHeight (const int minimumHeight) noexcept  { minH = minimumHeight; }
+void ComponentBoundsConstrainer::setMaximumHeight (const int maximumHeight) noexcept  { maxH = maximumHeight; }
 
 void ComponentBoundsConstrainer::setMinimumSize (const int minimumWidth, const int minimumHeight) noexcept
 {
@@ -70,11 +52,8 @@ void ComponentBoundsConstrainer::setMinimumSize (const int minimumWidth, const i
     minW = minimumWidth;
     minH = minimumHeight;
 
-    if (minW > maxW)
-        maxW = minW;
-
-    if (minH > maxH)
-        maxH = minH;
+    if (minW > maxW)  maxW = minW;
+    if (minH > maxH)  maxH = minH;
 }
 
 void ComponentBoundsConstrainer::setMaximumSize (const int maximumWidth, const int maximumHeight) noexcept
@@ -108,10 +87,10 @@ void ComponentBoundsConstrainer::setMinimumOnscreenAmounts (const int minimumWhe
                                                             const int minimumWhenOffTheBottom,
                                                             const int minimumWhenOffTheRight) noexcept
 {
-    minOffTop = minimumWhenOffTheTop;
-    minOffLeft = minimumWhenOffTheLeft;
+    minOffTop    = minimumWhenOffTheTop;
+    minOffLeft   = minimumWhenOffTheLeft;
     minOffBottom = minimumWhenOffTheBottom;
-    minOffRight = minimumWhenOffTheRight;
+    minOffRight  = minimumWhenOffTheRight;
 }
 
 void ComponentBoundsConstrainer::setFixedAspectRatio (const double widthOverHeight) noexcept
@@ -136,19 +115,16 @@ void ComponentBoundsConstrainer::setBoundsForComponent (Component* const compone
     Rectangle<int> limits, bounds (targetBounds);
     BorderSize<int> border;
 
-    Component* const parent = component->getParentComponent();
-
-    if (parent == nullptr)
+    if (Component* const parent = component->getParentComponent())
     {
-        ComponentPeer* peer = component->getPeer();
-        if (peer != nullptr)
-            border = peer->getFrameSize();
-
-        limits = Desktop::getInstance().getMonitorAreaContaining (bounds.getCentre());
+        limits.setSize (parent->getWidth(), parent->getHeight());
     }
     else
     {
-        limits.setSize (parent->getWidth(), parent->getHeight());
+        if (ComponentPeer* const peer = component->getPeer())
+            border = peer->getFrameSize();
+
+        limits = Desktop::getInstance().getDisplays().getDisplayContaining (bounds.getCentre()).userArea;
     }
 
     border.addTo (bounds);
@@ -172,9 +148,7 @@ void ComponentBoundsConstrainer::checkComponentBounds (Component* component)
 void ComponentBoundsConstrainer::applyBoundsToComponent (Component* component,
                                                          const Rectangle<int>& bounds)
 {
-    Component::Positioner* const positioner = component->getPositioner();
-
-    if (positioner != nullptr)
+    if (Component::Positioner* const positioner = component->getPositioner())
         positioner->applyNewBounds (bounds);
     else
         component->setBounds (bounds);

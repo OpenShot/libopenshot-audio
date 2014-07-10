@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -61,9 +64,9 @@ struct RegistryKeyWrapper
     }
 
     static bool setValue (const String& regValuePath, const DWORD type,
-                          const void* data, size_t dataSize)
+                          const void* data, size_t dataSize, const DWORD wow64Flags)
     {
-        const RegistryKeyWrapper key (regValuePath, true, 0);
+        const RegistryKeyWrapper key (regValuePath, true, wow64Flags);
 
         return key.key != 0
                 && RegSetValueEx (key.key, key.wideCharValueName, 0, type,
@@ -112,97 +115,113 @@ struct RegistryKeyWrapper
         return defaultValue;
     }
 
+    static bool keyExists (const String& regValuePath, const DWORD wow64Flags)
+    {
+        return RegistryKeyWrapper (regValuePath, false, wow64Flags).key != 0;
+    }
+
+    static bool valueExists (const String& regValuePath, const DWORD wow64Flags)
+    {
+        const RegistryKeyWrapper key (regValuePath, false, wow64Flags);
+
+        if (key.key == 0)
+            return false;
+
+        unsigned char buffer [512];
+        unsigned long bufferSize = sizeof (buffer);
+        DWORD type = 0;
+
+        const LONG result = RegQueryValueEx (key.key, key.wideCharValueName,
+                                             0, &type, buffer, &bufferSize);
+
+        return result == ERROR_SUCCESS || result == ERROR_MORE_DATA;
+    }
+
     HKEY key;
     const wchar_t* wideCharValueName;
     String valueName;
 
-    JUCE_DECLARE_NON_COPYABLE (RegistryKeyWrapper);
+    JUCE_DECLARE_NON_COPYABLE (RegistryKeyWrapper)
 };
 
-uint32 WindowsRegistry::getBinaryValue (const String& regValuePath, MemoryBlock& result)
+uint32 JUCE_CALLTYPE WindowsRegistry::getBinaryValue (const String& regValuePath, MemoryBlock& result, WoW64Mode mode)
 {
-    return RegistryKeyWrapper::getBinaryValue (regValuePath, result, 0);
+    return RegistryKeyWrapper::getBinaryValue (regValuePath, result, (DWORD) mode);
 }
 
-String WindowsRegistry::getValue (const String& regValuePath, const String& defaultValue)
+String JUCE_CALLTYPE WindowsRegistry::getValue (const String& regValuePath, const String& defaultValue, WoW64Mode mode)
 {
-    return RegistryKeyWrapper::getValue (regValuePath, defaultValue, 0);
+    return RegistryKeyWrapper::getValue (regValuePath, defaultValue, (DWORD) mode);
 }
 
-String WindowsRegistry::getValueWow64 (const String& regValuePath, const String& defaultValue)
-{
-    return RegistryKeyWrapper::getValue (regValuePath, defaultValue, KEY_WOW64_64KEY);
-}
-
-bool WindowsRegistry::setValue (const String& regValuePath, const String& value)
+bool JUCE_CALLTYPE WindowsRegistry::setValue (const String& regValuePath, const String& value, WoW64Mode mode)
 {
     return RegistryKeyWrapper::setValue (regValuePath, REG_SZ, value.toWideCharPointer(),
-                                         CharPointer_UTF16::getBytesRequiredFor (value.getCharPointer()));
+                                         CharPointer_UTF16::getBytesRequiredFor (value.getCharPointer()), mode);
 }
 
-bool WindowsRegistry::setValue (const String& regValuePath, const uint32 value)
+bool JUCE_CALLTYPE WindowsRegistry::setValue (const String& regValuePath, const uint32 value, WoW64Mode mode)
 {
-    return RegistryKeyWrapper::setValue (regValuePath, REG_DWORD, &value, sizeof (value));
+    return RegistryKeyWrapper::setValue (regValuePath, REG_DWORD, &value, sizeof (value), (DWORD) mode);
 }
 
-bool WindowsRegistry::setValue (const String& regValuePath, const uint64 value)
+bool JUCE_CALLTYPE WindowsRegistry::setValue (const String& regValuePath, const uint64 value, WoW64Mode mode)
 {
-    return RegistryKeyWrapper::setValue (regValuePath, REG_QWORD, &value, sizeof (value));
+    return RegistryKeyWrapper::setValue (regValuePath, REG_QWORD, &value, sizeof (value), (DWORD) mode);
 }
 
-bool WindowsRegistry::setValue (const String& regValuePath, const MemoryBlock& value)
+bool JUCE_CALLTYPE WindowsRegistry::setValue (const String& regValuePath, const MemoryBlock& value, WoW64Mode mode)
 {
-    return RegistryKeyWrapper::setValue (regValuePath, REG_BINARY, value.getData(), value.getSize());
+    return RegistryKeyWrapper::setValue (regValuePath, REG_BINARY, value.getData(), value.getSize(), (DWORD) mode);
 }
 
-bool WindowsRegistry::valueExists (const String& regValuePath)
+bool JUCE_CALLTYPE WindowsRegistry::valueExists (const String& regValuePath, WoW64Mode mode)
 {
-    const RegistryKeyWrapper key (regValuePath, false, 0);
-
-    if (key.key == 0)
-        return false;
-
-    unsigned char buffer [512];
-    unsigned long bufferSize = sizeof (buffer);
-    DWORD type = 0;
-
-    const LONG result = RegQueryValueEx (key.key, key.wideCharValueName,
-                                         0, &type, buffer, &bufferSize);
-
-    return result == ERROR_SUCCESS || result == ERROR_MORE_DATA;
+    return RegistryKeyWrapper::valueExists (regValuePath, (DWORD) mode);
 }
 
-void WindowsRegistry::deleteValue (const String& regValuePath)
+bool JUCE_CALLTYPE WindowsRegistry::keyExists (const String& regValuePath, WoW64Mode mode)
 {
-    const RegistryKeyWrapper key (regValuePath, true, 0);
+    return RegistryKeyWrapper::keyExists (regValuePath, (DWORD) mode);
+}
+
+void JUCE_CALLTYPE WindowsRegistry::deleteValue (const String& regValuePath, WoW64Mode mode)
+{
+    const RegistryKeyWrapper key (regValuePath, true, (DWORD) mode);
 
     if (key.key != 0)
         RegDeleteValue (key.key, key.wideCharValueName);
 }
 
-void WindowsRegistry::deleteKey (const String& regKeyPath)
+void JUCE_CALLTYPE WindowsRegistry::deleteKey (const String& regKeyPath, WoW64Mode mode)
 {
-    const RegistryKeyWrapper key (regKeyPath, true, 0);
+    const RegistryKeyWrapper key (regKeyPath, true, (DWORD) mode);
 
     if (key.key != 0)
         RegDeleteKey (key.key, key.wideCharValueName);
 }
 
-bool WindowsRegistry::registerFileAssociation (const String& fileExtension,
-                                               const String& symbolicDescription,
-                                               const String& fullDescription,
-                                               const File& targetExecutable,
-                                               const int iconResourceNumber,
-                                               const bool registerForCurrentUserOnly)
+bool JUCE_CALLTYPE WindowsRegistry::registerFileAssociation (const String& fileExtension,
+                                                             const String& symbolicDescription,
+                                                             const String& fullDescription,
+                                                             const File& targetExecutable,
+                                                             const int iconResourceNumber,
+                                                             const bool registerForCurrentUserOnly,
+                                                             WoW64Mode mode)
 {
     const char* const root = registerForCurrentUserOnly ? "HKEY_CURRENT_USER\\Software\\Classes\\"
                                                         : "HKEY_CLASSES_ROOT\\";
     const String key (root + symbolicDescription);
 
-    return setValue (root + fileExtension + "\\", symbolicDescription)
-        && setValue (key + "\\", fullDescription)
-        && setValue (key + "\\shell\\open\\command\\", targetExecutable.getFullPathName() + " \"%1\"")
+    return setValue (root + fileExtension + "\\", symbolicDescription, mode)
+        && setValue (key + "\\", fullDescription, mode)
+        && setValue (key + "\\shell\\open\\command\\", targetExecutable.getFullPathName() + " \"%1\"", mode)
         && (iconResourceNumber == 0
               || setValue (key + "\\DefaultIcon\\",
-                           targetExecutable.getFullPathName() + "," + String (-iconResourceNumber)));
+                           targetExecutable.getFullPathName() + "," + String (iconResourceNumber)));
 }
+
+// These methods are deprecated:
+String WindowsRegistry::getValueWow64 (const String& p, const String& defVal)  { return getValue (p, defVal, WoW64_64bit); }
+bool WindowsRegistry::valueExistsWow64 (const String& p)                       { return valueExists (p, WoW64_64bit); }
+bool WindowsRegistry::keyExistsWow64 (const String& p)                         { return keyExists (p, WoW64_64bit); }

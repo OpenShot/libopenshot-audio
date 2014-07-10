@@ -1,34 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PROPERTYSET_JUCEHEADER__
-#define __JUCE_PROPERTYSET_JUCEHEADER__
-
-#include "../text/juce_StringPairArray.h"
-#include "../xml/juce_XmlElement.h"
-#include "../containers/juce_Variant.h"
+#ifndef JUCE_PROPERTYSET_H_INCLUDED
+#define JUCE_PROPERTYSET_H_INCLUDED
 
 
 //==============================================================================
@@ -46,18 +45,15 @@ class JUCE_API  PropertySet
 public:
     //==============================================================================
     /** Creates an empty PropertySet.
-
-        @param ignoreCaseOfKeyNames         if true, the names of properties are compared in a
-                                            case-insensitive way
+        @param ignoreCaseOfKeyNames   if true, the names of properties are compared in a
+                                      case-insensitive way
     */
     PropertySet (bool ignoreCaseOfKeyNames = false);
 
-    /** Creates a copy of another PropertySet.
-    */
+    /** Creates a copy of another PropertySet. */
     PropertySet (const PropertySet& other);
 
-    /** Copies another PropertySet over this one.
-    */
+    /** Copies another PropertySet over this one. */
     PropertySet& operator= (const PropertySet& other);
 
     /** Destructor. */
@@ -73,8 +69,7 @@ public:
         @param keyName              the name of the property to retrieve
         @param defaultReturnValue   a value to return if the named property doesn't actually exist
     */
-    String getValue (const String& keyName,
-                     const String& defaultReturnValue = String::empty) const noexcept;
+    String getValue (StringRef keyName, const String& defaultReturnValue = String()) const noexcept;
 
     /** Returns one of the properties as an integer.
 
@@ -85,8 +80,7 @@ public:
         @param keyName              the name of the property to retrieve
         @param defaultReturnValue   a value to return if the named property doesn't actually exist
     */
-    int getIntValue (const String& keyName,
-                     const int defaultReturnValue = 0) const noexcept;
+    int getIntValue (StringRef keyName, int defaultReturnValue = 0) const noexcept;
 
     /** Returns one of the properties as an double.
 
@@ -97,8 +91,7 @@ public:
         @param keyName              the name of the property to retrieve
         @param defaultReturnValue   a value to return if the named property doesn't actually exist
     */
-    double getDoubleValue (const String& keyName,
-                           const double defaultReturnValue = 0.0) const noexcept;
+    double getDoubleValue (StringRef keyName, double defaultReturnValue = 0.0) const noexcept;
 
     /** Returns one of the properties as an boolean.
 
@@ -112,13 +105,12 @@ public:
         @param keyName              the name of the property to retrieve
         @param defaultReturnValue   a value to return if the named property doesn't actually exist
     */
-    bool getBoolValue (const String& keyName,
-                       const bool defaultReturnValue = false) const noexcept;
+    bool getBoolValue (StringRef keyName, bool defaultReturnValue = false) const noexcept;
 
     /** Returns one of the properties as an XML element.
 
-        The result will a new XMLElement object that the caller must delete. If may return 0 if the
-        key isn't found, or if the entry contains an string that isn't valid XML.
+        The result will a new XMLElement object that the caller must delete. If may return nullptr
+        if the key isn't found, or if the entry contains an string that isn't valid XML.
 
         If the value isn't found in this set, then this will look for it in a fallback
         property set (if you've specified one with the setFallbackPropertySet() method),
@@ -126,7 +118,7 @@ public:
 
         @param keyName              the name of the property to retrieve
     */
-    XmlElement* getXmlValue (const String& keyName) const;
+    XmlElement* getXmlValue (StringRef keyName) const;
 
     //==============================================================================
     /** Sets a named property.
@@ -152,13 +144,12 @@ public:
 
     //==============================================================================
     /** Deletes a property.
-
         @param keyName      the name of the property to delete. (This mustn't be an empty string)
     */
-    void removeValue (const String& keyName);
+    void removeValue (StringRef keyName);
 
     /** Returns true if the properies include the given key. */
-    bool containsKey (const String& keyName) const noexcept;
+    bool containsKey (StringRef keyName) const noexcept;
 
     /** Removes all values. */
     void clear();
@@ -172,17 +163,13 @@ public:
 
     //==============================================================================
     /** Returns an XML element which encapsulates all the items in this property set.
-
         The string parameter is the tag name that should be used for the node.
-
         @see restoreFromXml
     */
     XmlElement* createXml (const String& nodeName) const;
 
     /** Reloads a set of properties that were previously stored as XML.
-
         The node passed in must have been created by the createXml() method.
-
         @see createXml
     */
     void restoreFromXml (const XmlElement& xml);
@@ -208,19 +195,17 @@ public:
     PropertySet* getFallbackPropertySet() const noexcept                { return fallbackProperties; }
 
 protected:
-    //==============================================================================
     /** Subclasses can override this to be told when one of the properies has been changed. */
     virtual void propertyChanged();
 
 private:
-    //==============================================================================
     StringPairArray properties;
     PropertySet* fallbackProperties;
     CriticalSection lock;
     bool ignoreCaseOfKeys;
 
-    JUCE_LEAK_DETECTOR (PropertySet);
+    JUCE_LEAK_DETECTOR (PropertySet)
 };
 
 
-#endif   // __JUCE_PROPERTYSET_JUCEHEADER__
+#endif   // JUCE_PROPERTYSET_H_INCLUDED

@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MIDIDATACONCATENATOR_JUCEHEADER__
-#define __JUCE_MIDIDATACONCATENATOR_JUCEHEADER__
+#ifndef JUCE_MIDIDATACONCATENATOR_H_INCLUDED
+#define JUCE_MIDIDATACONCATENATOR_H_INCLUDED
 
 //==============================================================================
 /**
@@ -37,45 +36,78 @@ public:
     //==============================================================================
     MidiDataConcatenator (const int initialBufferSize)
         : pendingData ((size_t) initialBufferSize),
-          pendingBytes (0), pendingDataTime (0)
+          pendingDataTime (0), pendingBytes (0), runningStatus (0)
     {
     }
 
     void reset()
     {
         pendingBytes = 0;
+        runningStatus = 0;
         pendingDataTime = 0;
     }
 
-    void pushMidiData (const void* data, int numBytes, double time,
-                       MidiInput* input, MidiInputCallback& callback)
+    template <typename UserDataType, typename CallbackType>
+    void pushMidiData (const void* inputData, int numBytes, double time,
+                       UserDataType* input, CallbackType& callback)
     {
-        const uint8* d = static_cast <const uint8*> (data);
+        const uint8* d = static_cast <const uint8*> (inputData);
 
         while (numBytes > 0)
         {
             if (pendingBytes > 0 || d[0] == 0xf0)
             {
                 processSysex (d, numBytes, time, input, callback);
+                runningStatus = 0;
             }
             else
             {
-                int used = 0;
-                const MidiMessage m (d, numBytes, used, 0, time);
+                int len = 0;
+                uint8 data[3];
 
-                if (used <= 0)
-                    break; // malformed message..
+                while (numBytes > 0)
+                {
+                    // If there's a realtime message embedded in the middle of
+                    // the normal message, handle it now..
+                    if (*d >= 0xf8 && *d <= 0xfe)
+                    {
+                        const MidiMessage m (*d++, time);
+                        callback.handleIncomingMidiMessage (input, m);
+                        --numBytes;
+                    }
+                    else
+                    {
+                        if (len == 0 && *d < 0x80 && runningStatus >= 0x80)
+                            data[len++] = runningStatus;
 
-                callback.handleIncomingMidiMessage (input, m);
-                numBytes -= used;
-                d += used;
+                        data[len++] = *d++;
+                        --numBytes;
+
+                        if (len >= MidiMessage::getMessageLengthFromFirstByte (data[0]))
+                            break;
+                    }
+                }
+
+                if (len > 0)
+                {
+                    int used = 0;
+                    const MidiMessage m (data, len, used, 0, time);
+
+                    if (used <= 0)
+                        break; // malformed message..
+
+                    jassert (used == len);
+                    callback.handleIncomingMidiMessage (input, m);
+                    runningStatus = data[0];
+                }
             }
         }
     }
 
 private:
+    template <typename UserDataType, typename CallbackType>
     void processSysex (const uint8*& d, int& numBytes, double time,
-                       MidiInput* input, MidiInputCallback& callback)
+                       UserDataType* input, CallbackType& callback)
     {
         if (*d == 0xf0)
         {
@@ -91,6 +123,14 @@ private:
         {
             if (pendingBytes > 0 && *d >= 0x80)
             {
+                if (*d == 0xf7)
+                {
+                    *dest++ = *d++;
+                    ++pendingBytes;
+                    --numBytes;
+                    break;
+                }
+
                 if (*d >= 0xfa || *d == 0xf8)
                 {
                     callback.handleIncomingMidiMessage (input, MidiMessage (*d, time));
@@ -99,11 +139,15 @@ private:
                 }
                 else
                 {
-                    if (*d == 0xf7)
+                    pendingBytes = 0;
+                    int used = 0;
+                    const MidiMessage m (d, numBytes, used, 0, time);
+
+                    if (used > 0)
                     {
-                        *dest++ = *d++;
-                        pendingBytes++;
-                        --numBytes;
+                        callback.handleIncomingMidiMessage (input, m);
+                        numBytes -= used;
+                        d += used;
                     }
 
                     break;
@@ -112,7 +156,7 @@ private:
             else
             {
                 *dest++ = *d++;
-                pendingBytes++;
+                ++pendingBytes;
                 --numBytes;
             }
         }
@@ -133,10 +177,11 @@ private:
     }
 
     MemoryBlock pendingData;
-    int pendingBytes;
     double pendingDataTime;
+    int pendingBytes;
+    uint8 runningStatus;
 
-    JUCE_DECLARE_NON_COPYABLE (MidiDataConcatenator);
+    JUCE_DECLARE_NON_COPYABLE (MidiDataConcatenator)
 };
 
-#endif   // __JUCE_MIDIDATACONCATENATOR_JUCEHEADER__
+#endif   // JUCE_MIDIDATACONCATENATOR_H_INCLUDED

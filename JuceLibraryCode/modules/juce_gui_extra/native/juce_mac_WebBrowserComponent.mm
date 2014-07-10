@@ -1,87 +1,92 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-} // (juce namespace)
-
-class WebBrowserComponentInternal;
-
 #if JUCE_MAC
 
-#define DownloadClickDetector MakeObjCClassName(DownloadClickDetector)
-
-@interface DownloadClickDetector   : NSObject
+struct DownloadClickDetectorClass  : public ObjCClass <NSObject>
 {
-    juce::WebBrowserComponent* ownerComponent;
-}
-
-- (DownloadClickDetector*) initWithWebBrowserOwner: (juce::WebBrowserComponent*) ownerComponent;
-
-- (void) webView: (WebView*) webView decidePolicyForNavigationAction: (NSDictionary*) actionInformation
-                                                             request: (NSURLRequest*) request
-                                                               frame: (WebFrame*) frame
-                                                    decisionListener: (id <WebPolicyDecisionListener>) listener;
-- (void) webView: (WebView*) webView didFinishLoadForFrame: (WebFrame*) frame;
-
-@end
-
-@implementation DownloadClickDetector
-
-- (DownloadClickDetector*) initWithWebBrowserOwner: (juce::WebBrowserComponent*) ownerComponent_
-{
-    [super init];
-    ownerComponent = ownerComponent_;
-    return self;
-}
-
-- (void) webView: (WebView*) sender decidePolicyForNavigationAction: (NSDictionary*) actionInformation
-                                                            request: (NSURLRequest*) request
-                                                              frame: (WebFrame*) frame
-                                                   decisionListener: (id <WebPolicyDecisionListener>) listener
-{
-    (void) sender; (void) request; (void) frame;
-
-    NSURL* url = [actionInformation valueForKey: nsStringLiteral ("WebActionOriginalURLKey")];
-
-    if (ownerComponent->pageAboutToLoad (nsStringToJuce ([url absoluteString])))
-        [listener use];
-    else
-        [listener ignore];
-}
-
-- (void) webView: (WebView*) sender didFinishLoadForFrame: (WebFrame*) frame
-{
-    if ([frame isEqual: [sender mainFrame]])
+    DownloadClickDetectorClass()  : ObjCClass <NSObject> ("JUCEWebClickDetector_")
     {
-        NSURL* url = [[[frame dataSource] request] URL];
-        ownerComponent->pageFinishedLoading (nsStringToJuce ([url absoluteString]));
-    }
-}
+        addIvar <WebBrowserComponent*> ("owner");
 
-@end
+        addMethod (@selector (webView:decidePolicyForNavigationAction:request:frame:decisionListener:),
+                   decidePolicyForNavigationAction, "v@:@@@@@");
+        addMethod (@selector (webView:didFinishLoadForFrame:), didFinishLoadForFrame, "v@:@@");
+        addMethod (@selector (webView:willCloseFrame:), willCloseFrame, "v@:@@");
+        addMethod (@selector (webView:runOpenPanelForFileButtonWithResultListener:allowMultipleFiles:), runOpenPanel, "v@:@@", @encode (BOOL));
+
+        registerClass();
+    }
+
+    static void setOwner (id self, WebBrowserComponent* owner)   { object_setInstanceVariable (self, "owner", owner); }
+    static WebBrowserComponent* getOwner (id self)               { return getIvar<WebBrowserComponent*> (self, "owner"); }
+
+private:
+    static void decidePolicyForNavigationAction (id self, SEL, WebView*, NSDictionary* actionInformation,
+                                                 NSURLRequest*, WebFrame*, id <WebPolicyDecisionListener> listener)
+    {
+        NSURL* url = [actionInformation valueForKey: nsStringLiteral ("WebActionOriginalURLKey")];
+
+        if (getOwner (self)->pageAboutToLoad (nsStringToJuce ([url absoluteString])))
+            [listener use];
+        else
+            [listener ignore];
+    }
+
+    static void didFinishLoadForFrame (id self, SEL, WebView* sender, WebFrame* frame)
+    {
+        if ([frame isEqual: [sender mainFrame]])
+        {
+            NSURL* url = [[[frame dataSource] request] URL];
+            getOwner (self)->pageFinishedLoading (nsStringToJuce ([url absoluteString]));
+        }
+    }
+
+    static void willCloseFrame (id self, SEL, WebView*, WebFrame*)
+    {
+        getOwner (self)->windowCloseRequest();
+    }
+
+    static void runOpenPanel (id, SEL, WebView*, id<WebOpenPanelResultListener> resultListener, BOOL allowMultipleFiles)
+    {
+        FileChooser chooser (TRANS("Select the file you want to upload..."),
+                             File::getSpecialLocation (File::userHomeDirectory), "*");
+
+        if (allowMultipleFiles ? chooser.browseForMultipleFilesToOpen()
+                               : chooser.browseForFileToOpen())
+        {
+            const Array<File>& files = chooser.getResults();
+
+            for (int i = 0; i < files.size(); ++i)
+                [resultListener chooseFilename: juceStringToNS (files.getReference(i).getFullPathName())];
+        }
+    }
+};
 
 #else
+
+} // (juce namespace)
 
 //==============================================================================
 @interface WebViewTapDetector  : NSObject <UIGestureRecognizerDelegate>
@@ -97,6 +102,8 @@ class WebBrowserComponentInternal;
 - (BOOL) gestureRecognizer: (UIGestureRecognizer*) gestureRecognizer
          shouldRecognizeSimultaneouslyWithGestureRecognizer: (UIGestureRecognizer*) otherGestureRecognizer
 {
+    (void) gestureRecognizer;
+    (void) otherGestureRecognizer;
     return YES;
 }
 
@@ -123,16 +130,18 @@ class WebBrowserComponentInternal;
 
 - (BOOL) webView: (UIWebView*) webView shouldStartLoadWithRequest: (NSURLRequest*) request navigationType: (UIWebViewNavigationType) navigationType
 {
+    (void) webView;
+    (void) navigationType;
     return ownerComponent->pageAboutToLoad (nsStringToJuce (request.URL.absoluteString));
 }
 @end
+
+namespace juce {
+
 #endif
 
-namespace juce
-{
-
 //==============================================================================
-class WebBrowserComponentInternal
+class WebBrowserComponent::Pimpl
                                    #if JUCE_MAC
                                     : public NSViewComponent
                                    #else
@@ -140,7 +149,7 @@ class WebBrowserComponentInternal
                                    #endif
 {
 public:
-    WebBrowserComponentInternal (WebBrowserComponent* owner)
+    Pimpl (WebBrowserComponent* owner)
     {
        #if JUCE_MAC
         webView = [[WebView alloc] initWithFrame: NSMakeRect (0, 0, 100.0f, 100.0f)
@@ -148,9 +157,12 @@ public:
                                        groupName: nsEmptyString()];
         setView (webView);
 
-        clickListener = [[DownloadClickDetector alloc] initWithWebBrowserOwner: owner];
+        static DownloadClickDetectorClass cls;
+        clickListener = [cls.createInstance() init];
+        DownloadClickDetectorClass::setOwner (clickListener, owner);
         [webView setPolicyDelegate: clickListener];
         [webView setFrameLoadDelegate: clickListener];
+        [webView setUIDelegate: clickListener];
        #else
         webView = [[UIWebView alloc] initWithFrame: CGRectMake (0, 0, 1.0f, 1.0f)];
         setView (webView);
@@ -162,11 +174,12 @@ public:
        #endif
     }
 
-    ~WebBrowserComponentInternal()
+    ~Pimpl()
     {
        #if JUCE_MAC
         [webView setPolicyDelegate: nil];
         [webView setFrameLoadDelegate: nil];
+        [webView setUIDelegate: nil];
         [clickListener release];
        #else
         webView.delegate = nil;
@@ -238,7 +251,7 @@ public:
 private:
    #if JUCE_MAC
     WebView* webView;
-    DownloadClickDetector* clickListener;
+    NSObject* clickListener;
    #else
     UIWebView* webView;
     WebViewTapDetector* tapDetector;
@@ -248,14 +261,14 @@ private:
 };
 
 //==============================================================================
-WebBrowserComponent::WebBrowserComponent (const bool unloadPageWhenBrowserIsHidden_)
+WebBrowserComponent::WebBrowserComponent (const bool unloadWhenHidden)
     : browser (nullptr),
       blankPageShown (false),
-      unloadPageWhenBrowserIsHidden (unloadPageWhenBrowserIsHidden_)
+      unloadPageWhenBrowserIsHidden (unloadWhenHidden)
 {
     setOpaque (true);
 
-    addAndMakeVisible (browser = new WebBrowserComponentInternal (this));
+    addAndMakeVisible (browser = new Pimpl (this));
 }
 
 WebBrowserComponent::~WebBrowserComponent()
@@ -270,13 +283,15 @@ void WebBrowserComponent::goToURL (const String& url,
 {
     lastURL = url;
 
-    lastHeaders.clear();
     if (headers != nullptr)
         lastHeaders = *headers;
+    else
+        lastHeaders.clear();
 
-    lastPostData.setSize (0);
     if (postData != nullptr)
         lastPostData = *postData;
+    else
+        lastPostData.reset();
 
     blankPageShown = false;
 
@@ -290,14 +305,14 @@ void WebBrowserComponent::stop()
 
 void WebBrowserComponent::goBack()
 {
-    lastURL = String::empty;
+    lastURL.clear();
     blankPageShown = false;
     browser->goBack();
 }
 
 void WebBrowserComponent::goForward()
 {
-    lastURL = String::empty;
+    lastURL.clear();
     browser->goForward();
 }
 
@@ -315,6 +330,8 @@ void WebBrowserComponent::checkWindowAssociation()
 {
     if (isShowing())
     {
+        reloadLastURL();
+
         if (blankPageShown)
             goBack();
     }
@@ -337,7 +354,7 @@ void WebBrowserComponent::reloadLastURL()
     if (lastURL.isNotEmpty())
     {
         goToURL (lastURL, &lastHeaders, &lastPostData);
-        lastURL = String::empty;
+        lastURL.clear();
     }
 }
 
@@ -355,6 +372,3 @@ void WebBrowserComponent::visibilityChanged()
 {
     checkWindowAssociation();
 }
-
-bool WebBrowserComponent::pageAboutToLoad (const String&)  { return true; }
-void WebBrowserComponent::pageFinishedLoading (const String&) {}

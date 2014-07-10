@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_COMBOBOX_JUCEHEADER__
-#define __JUCE_COMBOBOX_JUCEHEADER__
-
-#include "juce_Label.h"
+#ifndef JUCE_COMBOBOX_H_INCLUDED
+#define JUCE_COMBOBOX_H_INCLUDED
 
 
 //==============================================================================
@@ -83,7 +80,7 @@ public:
         The default is Justification::centredLeft. The text is displayed using a
         Label component inside the ComboBox.
     */
-    void setJustificationType (const Justification& justification);
+    void setJustificationType (Justification justification);
 
     /** Returns the current justification for the text box.
         @see setJustificationType
@@ -142,12 +139,12 @@ public:
 
     /** Removes all the items from the drop-down list.
 
-        If this call causes the content to be cleared, then a change-message
-        will be broadcast unless dontSendChangeMessage is true.
+        If this call causes the content to be cleared, and a change-message
+        will be broadcast according to the notification parameter.
 
         @see addItem, removeItem, getNumItems
     */
-    void clear (bool dontSendChangeMessage = false);
+    void clear (NotificationType notification = sendNotificationAsync);
 
     /** Returns the number of items that have been added to the list.
 
@@ -162,9 +159,7 @@ public:
     String getItemText (int index) const;
 
     /** Returns the ID for one of the items in the list.
-
         Note that this doesn't include headers or separators.
-
         @param index    the item's index from 0 to (getNumItems() - 1)
     */
     int getItemId (int index) const noexcept;
@@ -197,12 +192,13 @@ public:
         This will set the ComboBox's text to that of the item that matches
         this ID.
 
-        @param newItemId                the new item to select
-        @param dontSendChangeMessage    if set to true, this method won't trigger a
-                                        change notification
+        @param newItemId        the new item to select
+        @param notification     determines the type of change notification that will
+                                be sent to listeners if the value changes
         @see getSelectedId, setSelectedItemIndex, setText
     */
-    void setSelectedId (int newItemId, bool dontSendChangeMessage = false);
+    void setSelectedId (int newItemId,
+                        NotificationType notification = sendNotificationAsync);
 
     //==============================================================================
     /** Returns the index of the item that's currently shown in the box.
@@ -220,12 +216,13 @@ public:
         This will set the ComboBox's text to that of the item at the given
         index in the list.
 
-        @param newItemIndex             the new item to select
-        @param dontSendChangeMessage    if set to true, this method won't trigger a
-                                        change notification
+        @param newItemIndex     the new item to select
+        @param notification     determines the type of change notification that will
+                                be sent to listeners if the value changes
         @see getSelectedItemIndex, setSelectedId, setText
     */
-    void setSelectedItemIndex (int newItemIndex, bool dontSendChangeMessage = false);
+    void setSelectedItemIndex (int newItemIndex,
+                               NotificationType notification = sendNotificationAsync);
 
     //==============================================================================
     /** Returns the text that is currently shown in the combo-box's text field.
@@ -245,12 +242,13 @@ public:
         items, then getSelectedId() will return -1, otherwise it wil return
         the approriate ID.
 
-        @param newText                  the text to select
-        @param dontSendChangeMessage    if set to true, this method won't trigger a
-                                        change notification
+        @param newText          the text to select
+        @param notification     determines the type of change notification that will
+                                be sent to listeners if the text changes
         @see getText
     */
-    void setText (const String& newText, bool dontSendChangeMessage = false);
+    void setText (const String& newText,
+                  NotificationType notification = sendNotificationAsync);
 
     /** Programmatically opens the text editor to allow the user to edit the current item.
 
@@ -289,17 +287,14 @@ public:
 
     //==============================================================================
     /** Sets a message to display when there is no item currently selected.
-
         @see getTextWhenNothingSelected
     */
     void setTextWhenNothingSelected (const String& newMessage);
 
     /** Returns the text that is shown when no item is selected.
-
         @see setTextWhenNothingSelected
     */
     String getTextWhenNothingSelected() const;
-
 
     /** Sets the message to show when there are no items in the list, and the user clicks
         on the drop-down box.
@@ -316,7 +311,13 @@ public:
 
     //==============================================================================
     /** Gives the ComboBox a tooltip. */
-    void setTooltip (const String& newTooltip);
+    void setTooltip (const String& newTooltip) override;
+
+    /** This can be used to allow the scroll-wheel to nudge the chosen item.
+        By default it's disabled, and I'd recommend leaving it disabled if there's any
+        chance that the control might be inside a scrollable list or viewport.
+    */
+    void setScrollWheelEnabled (bool enabled) noexcept;
 
 
     //==============================================================================
@@ -339,52 +340,73 @@ public:
     };
 
     //==============================================================================
-    struct Ids
+    /** This abstract base class is implemented by LookAndFeel classes to provide
+        ComboBox functionality.
+    */
+    struct JUCE_API  LookAndFeelMethods
     {
-        static const Identifier tagType, items, editable, textJustification, unselectedText, noItemsText;
-    };
+        virtual ~LookAndFeelMethods() {}
 
-    void refreshFromValueTree (const ValueTree&, ComponentBuilder&);
+        virtual void drawComboBox (Graphics&, int width, int height, bool isButtonDown,
+                                   int buttonX, int buttonY, int buttonW, int buttonH,
+                                   ComboBox&) = 0;
+
+        virtual Font getComboBoxFont (ComboBox&) = 0;
+
+        virtual Label* createComboBoxTextBox (ComboBox&) = 0;
+
+        virtual void positionComboBoxText (ComboBox&, Label& labelToPosition) = 0;
+    };
 
     //==============================================================================
     /** @internal */
-    void labelTextChanged (Label*);
+    void labelTextChanged (Label*) override;
     /** @internal */
-    void enablementChanged();
+    void enablementChanged() override;
     /** @internal */
-    void colourChanged();
+    void colourChanged() override;
     /** @internal */
-    void focusGained (Component::FocusChangeType cause);
+    void focusGained (Component::FocusChangeType) override;
     /** @internal */
-    void focusLost (Component::FocusChangeType cause);
+    void focusLost (Component::FocusChangeType) override;
     /** @internal */
-    void handleAsyncUpdate();
+    void handleAsyncUpdate() override;
     /** @internal */
-    String getTooltip()                                       { return label->getTooltip(); }
+    String getTooltip() override                        { return label->getTooltip(); }
     /** @internal */
-    void mouseDown (const MouseEvent&);
+    void mouseDown (const MouseEvent&) override;
     /** @internal */
-    void mouseDrag (const MouseEvent&);
+    void mouseDrag (const MouseEvent&) override;
     /** @internal */
-    void mouseUp (const MouseEvent&);
+    void mouseUp (const MouseEvent&) override;
     /** @internal */
-    void lookAndFeelChanged();
+    void mouseWheelMove (const MouseEvent&, const MouseWheelDetails&) override;
     /** @internal */
-    void paint (Graphics&);
+    void lookAndFeelChanged() override;
     /** @internal */
-    void resized();
+    void paint (Graphics&) override;
     /** @internal */
-    bool keyStateChanged (bool isKeyDown);
+    void resized() override;
     /** @internal */
-    bool keyPressed (const KeyPress&);
+    bool keyStateChanged (bool) override;
     /** @internal */
-    void valueChanged (Value&);
+    bool keyPressed (const KeyPress&) override;
+    /** @internal */
+    void valueChanged (Value&) override;
+    /** @internal */
+    void parentHierarchyChanged() override;
+
+    // These methods' bool parameters have changed: see their new method signatures.
+    JUCE_DEPRECATED (void clear (bool));
+    JUCE_DEPRECATED (void setSelectedId (int, bool));
+    JUCE_DEPRECATED (void setSelectedItemIndex (int, bool));
+    JUCE_DEPRECATED (void setText (const String&, bool));
 
 private:
     //==============================================================================
     struct ItemInfo
     {
-        ItemInfo (const String& name, int itemId, bool isEnabled, bool isHeading);
+        ItemInfo (const String&, int itemId, bool isEnabled, bool isHeading);
         bool isSeparator() const noexcept;
         bool isRealItem() const noexcept;
 
@@ -396,20 +418,23 @@ private:
     OwnedArray <ItemInfo> items;
     Value currentId;
     int lastCurrentId;
-    bool isButtonDown, separatorPending, menuActive, textIsCustom;
+    bool isButtonDown, separatorPending, menuActive, scrollWheelEnabled;
+    float mouseWheelAccumulator;
     ListenerList <Listener> listeners;
     ScopedPointer<Label> label;
     String textWhenNothingSelected, noChoicesMessage;
 
-    ItemInfo* getItemForId (int itemId) const noexcept;
-    ItemInfo* getItemForIndex (int index) const noexcept;
+    ItemInfo* getItemForId (int) const noexcept;
+    ItemInfo* getItemForIndex (int) const noexcept;
     bool selectIfEnabled (int index);
+    bool nudgeSelectedItem (int delta);
+    void sendChange (NotificationType);
     static void popupMenuFinishedCallback (int, ComboBox*);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComboBox);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComboBox)
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the ComboBox::Listener class directly. */
 typedef ComboBox::Listener ComboBoxListener;
 
-#endif   // __JUCE_COMBOBOX_JUCEHEADER__
+#endif   // JUCE_COMBOBOX_H_INCLUDED

@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -30,85 +29,38 @@
 #endif
 
 //==============================================================================
-IIRFilter::IIRFilter()
-    : active (false)
+IIRCoefficients::IIRCoefficients() noexcept
 {
-    reset();
+    zeromem (coefficients, sizeof (coefficients));
 }
 
-IIRFilter::IIRFilter (const IIRFilter& other)
-    : active (other.active)
+IIRCoefficients::~IIRCoefficients() noexcept {}
+
+IIRCoefficients::IIRCoefficients (const IIRCoefficients& other) noexcept
 {
-    const ScopedLock sl (other.processLock);
     memcpy (coefficients, other.coefficients, sizeof (coefficients));
-    reset();
 }
 
-IIRFilter::~IIRFilter()
+IIRCoefficients& IIRCoefficients::operator= (const IIRCoefficients& other) noexcept
 {
+    memcpy (coefficients, other.coefficients, sizeof (coefficients));
+    return *this;
 }
 
-//==============================================================================
-void IIRFilter::reset() noexcept
+IIRCoefficients::IIRCoefficients (double c1, double c2, double c3,
+                                  double c4, double c5, double c6) noexcept
 {
-    const ScopedLock sl (processLock);
+    const double a = 1.0 / c4;
 
-    x1 = 0;
-    x2 = 0;
-    y1 = 0;
-    y2 = 0;
+    coefficients[0] = (float) (c1 * a);
+    coefficients[1] = (float) (c2 * a);
+    coefficients[2] = (float) (c3 * a);
+    coefficients[3] = (float) (c5 * a);
+    coefficients[4] = (float) (c6 * a);
 }
 
-float IIRFilter::processSingleSampleRaw (const float in) noexcept
-{
-    float out = coefficients[0] * in
-                 + coefficients[1] * x1
-                 + coefficients[2] * x2
-                 - coefficients[4] * y1
-                 - coefficients[5] * y2;
-
-    JUCE_SNAP_TO_ZERO (out);
-
-    x2 = x1;
-    x1 = in;
-    y2 = y1;
-    y1 = out;
-
-    return out;
-}
-
-void IIRFilter::processSamples (float* const samples,
-                                const int numSamples) noexcept
-{
-    const ScopedLock sl (processLock);
-
-    if (active)
-    {
-        for (int i = 0; i < numSamples; ++i)
-        {
-            const float in = samples[i];
-
-            float out = coefficients[0] * in
-                         + coefficients[1] * x1
-                         + coefficients[2] * x2
-                         - coefficients[4] * y1
-                         - coefficients[5] * y2;
-
-            JUCE_SNAP_TO_ZERO (out);
-
-            x2 = x1;
-            x1 = in;
-            y2 = y1;
-            y1 = out;
-
-            samples[i] = out;
-        }
-    }
-}
-
-//==============================================================================
-void IIRFilter::makeLowPass (const double sampleRate,
-                             const double frequency) noexcept
+IIRCoefficients IIRCoefficients::makeLowPass (const double sampleRate,
+                                              const double frequency) noexcept
 {
     jassert (sampleRate > 0);
 
@@ -116,38 +68,38 @@ void IIRFilter::makeLowPass (const double sampleRate,
     const double nSquared = n * n;
     const double c1 = 1.0 / (1.0 + std::sqrt (2.0) * n + nSquared);
 
-    setCoefficients (c1,
-                     c1 * 2.0f,
-                     c1,
-                     1.0,
-                     c1 * 2.0 * (1.0 - nSquared),
-                     c1 * (1.0 - std::sqrt (2.0) * n + nSquared));
+    return IIRCoefficients (c1,
+                            c1 * 2.0,
+                            c1,
+                            1.0,
+                            c1 * 2.0 * (1.0 - nSquared),
+                            c1 * (1.0 - std::sqrt (2.0) * n + nSquared));
 }
 
-void IIRFilter::makeHighPass (const double sampleRate,
-                              const double frequency) noexcept
+IIRCoefficients IIRCoefficients::makeHighPass (const double sampleRate,
+                                               const double frequency) noexcept
 {
     const double n = tan (double_Pi * frequency / sampleRate);
     const double nSquared = n * n;
     const double c1 = 1.0 / (1.0 + std::sqrt (2.0) * n + nSquared);
 
-    setCoefficients (c1,
-                     c1 * -2.0f,
-                     c1,
-                     1.0,
-                     c1 * 2.0 * (nSquared - 1.0),
-                     c1 * (1.0 - std::sqrt (2.0) * n + nSquared));
+    return IIRCoefficients (c1,
+                            c1 * -2.0,
+                            c1,
+                            1.0,
+                            c1 * 2.0 * (nSquared - 1.0),
+                            c1 * (1.0 - std::sqrt (2.0) * n + nSquared));
 }
 
-void IIRFilter::makeLowShelf (const double sampleRate,
-                              const double cutOffFrequency,
-                              const double Q,
-                              const float gainFactor) noexcept
+IIRCoefficients IIRCoefficients::makeLowShelf (const double sampleRate,
+                                               const double cutOffFrequency,
+                                               const double Q,
+                                               const float gainFactor) noexcept
 {
     jassert (sampleRate > 0);
     jassert (Q > 0);
 
-    const double A = jmax (0.0f, gainFactor);
+    const double A = jmax (0.0f, std::sqrt (gainFactor));
     const double aminus1 = A - 1.0;
     const double aplus1 = A + 1.0;
     const double omega = (double_Pi * 2.0 * jmax (cutOffFrequency, 2.0)) / sampleRate;
@@ -155,23 +107,23 @@ void IIRFilter::makeLowShelf (const double sampleRate,
     const double beta = std::sin (omega) * std::sqrt (A) / Q;
     const double aminus1TimesCoso = aminus1 * coso;
 
-    setCoefficients (A * (aplus1 - aminus1TimesCoso + beta),
-                     A * 2.0 * (aminus1 - aplus1 * coso),
-                     A * (aplus1 - aminus1TimesCoso - beta),
-                     aplus1 + aminus1TimesCoso + beta,
-                     -2.0 * (aminus1 + aplus1 * coso),
-                     aplus1 + aminus1TimesCoso - beta);
+    return IIRCoefficients (A * (aplus1 - aminus1TimesCoso + beta),
+                            A * 2.0 * (aminus1 - aplus1 * coso),
+                            A * (aplus1 - aminus1TimesCoso - beta),
+                            aplus1 + aminus1TimesCoso + beta,
+                            -2.0 * (aminus1 + aplus1 * coso),
+                            aplus1 + aminus1TimesCoso - beta);
 }
 
-void IIRFilter::makeHighShelf (const double sampleRate,
-                               const double cutOffFrequency,
-                               const double Q,
-                               const float gainFactor) noexcept
+IIRCoefficients IIRCoefficients::makeHighShelf (const double sampleRate,
+                                                const double cutOffFrequency,
+                                                const double Q,
+                                                const float gainFactor) noexcept
 {
     jassert (sampleRate > 0);
     jassert (Q > 0);
 
-    const double A = jmax (0.0f, gainFactor);
+    const double A = jmax (0.0f, std::sqrt (gainFactor));
     const double aminus1 = A - 1.0;
     const double aplus1 = A + 1.0;
     const double omega = (double_Pi * 2.0 * jmax (cutOffFrequency, 2.0)) / sampleRate;
@@ -179,74 +131,114 @@ void IIRFilter::makeHighShelf (const double sampleRate,
     const double beta = std::sin (omega) * std::sqrt (A) / Q;
     const double aminus1TimesCoso = aminus1 * coso;
 
-    setCoefficients (A * (aplus1 + aminus1TimesCoso + beta),
-                     A * -2.0 * (aminus1 + aplus1 * coso),
-                     A * (aplus1 + aminus1TimesCoso - beta),
-                     aplus1 - aminus1TimesCoso + beta,
-                     2.0 * (aminus1 - aplus1 * coso),
-                     aplus1 - aminus1TimesCoso - beta);
+    return IIRCoefficients (A * (aplus1 + aminus1TimesCoso + beta),
+                            A * -2.0 * (aminus1 + aplus1 * coso),
+                            A * (aplus1 + aminus1TimesCoso - beta),
+                            aplus1 - aminus1TimesCoso + beta,
+                            2.0 * (aminus1 - aplus1 * coso),
+                            aplus1 - aminus1TimesCoso - beta);
 }
 
-void IIRFilter::makeBandPass (const double sampleRate,
-                              const double centreFrequency,
-                              const double Q,
-                              const float gainFactor) noexcept
+IIRCoefficients IIRCoefficients::makePeakFilter (const double sampleRate,
+                                                 const double centreFrequency,
+                                                 const double Q,
+                                                 const float gainFactor) noexcept
 {
     jassert (sampleRate > 0);
     jassert (Q > 0);
 
-    const double A = jmax (0.0f, gainFactor);
+    const double A = jmax (0.0f, std::sqrt (gainFactor));
     const double omega = (double_Pi * 2.0 * jmax (centreFrequency, 2.0)) / sampleRate;
     const double alpha = 0.5 * std::sin (omega) / Q;
     const double c2 = -2.0 * std::cos (omega);
     const double alphaTimesA = alpha * A;
     const double alphaOverA = alpha / A;
 
-    setCoefficients (1.0 + alphaTimesA,
-                     c2,
-                     1.0 - alphaTimesA,
-                     1.0 + alphaOverA,
-                     c2,
-                     1.0 - alphaOverA);
+    return IIRCoefficients (1.0 + alphaTimesA,
+                            c2,
+                            1.0 - alphaTimesA,
+                            1.0 + alphaOverA,
+                            c2,
+                            1.0 - alphaOverA);
 }
 
+//==============================================================================
+IIRFilter::IIRFilter() noexcept
+    : v1 (0), v2 (0), active (false)
+{
+}
+
+IIRFilter::IIRFilter (const IIRFilter& other) noexcept
+    : v1 (0), v2 (0), active (other.active)
+{
+    const SpinLock::ScopedLockType sl (other.processLock);
+    coefficients = other.coefficients;
+}
+
+IIRFilter::~IIRFilter() noexcept
+{
+}
+
+//==============================================================================
 void IIRFilter::makeInactive() noexcept
 {
-    const ScopedLock sl (processLock);
+    const SpinLock::ScopedLockType sl (processLock);
     active = false;
 }
 
-//==============================================================================
-void IIRFilter::copyCoefficientsFrom (const IIRFilter& other) noexcept
+void IIRFilter::setCoefficients (const IIRCoefficients& newCoefficients) noexcept
 {
-    const ScopedLock sl (processLock);
+    const SpinLock::ScopedLockType sl (processLock);
 
-    memcpy (coefficients, other.coefficients, sizeof (coefficients));
-    active = other.active;
+    coefficients = newCoefficients;
+    active = true;
 }
 
 //==============================================================================
-void IIRFilter::setCoefficients (double c1, double c2, double c3,
-                                 double c4, double c5, double c6) noexcept
+void IIRFilter::reset() noexcept
 {
-    const double a = 1.0 / c4;
+    const SpinLock::ScopedLockType sl (processLock);
+    v1 = v2 = 0;
+}
 
-    c1 *= a;
-    c2 *= a;
-    c3 *= a;
-    c5 *= a;
-    c6 *= a;
+float IIRFilter::processSingleSampleRaw (const float in) noexcept
+{
+    float out = coefficients.coefficients[0] * in + v1;
 
-    const ScopedLock sl (processLock);
+    JUCE_SNAP_TO_ZERO (out);
 
-    coefficients[0] = (float) c1;
-    coefficients[1] = (float) c2;
-    coefficients[2] = (float) c3;
-    coefficients[3] = (float) c4;
-    coefficients[4] = (float) c5;
-    coefficients[5] = (float) c6;
+    v1 = coefficients.coefficients[1] * in - coefficients.coefficients[3] * out + v2;
+    v2 = coefficients.coefficients[2] * in - coefficients.coefficients[4] * out;
 
-    active = true;
+    return out;
+}
+
+void IIRFilter::processSamples (float* const samples, const int numSamples) noexcept
+{
+    const SpinLock::ScopedLockType sl (processLock);
+
+    if (active)
+    {
+        const float c0 = coefficients.coefficients[0];
+        const float c1 = coefficients.coefficients[1];
+        const float c2 = coefficients.coefficients[2];
+        const float c3 = coefficients.coefficients[3];
+        const float c4 = coefficients.coefficients[4];
+        float lv1 = v1, lv2 = v2;
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float in = samples[i];
+            const float out = c0 * in + lv1;
+            samples[i] = out;
+
+            lv1 = c1 * in - c3 * out + lv2;
+            lv2 = c2 * in - c4 * out;
+        }
+
+        JUCE_SNAP_TO_ZERO (lv1);  v1 = lv1;
+        JUCE_SNAP_TO_ZERO (lv2);  v2 = lv2;
+    }
 }
 
 #undef JUCE_SNAP_TO_ZERO

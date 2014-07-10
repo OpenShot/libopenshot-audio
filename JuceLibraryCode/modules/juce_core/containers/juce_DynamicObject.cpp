@@ -1,29 +1,37 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
 DynamicObject::DynamicObject()
+{
+}
+
+DynamicObject::DynamicObject (const DynamicObject& other)
+   : ReferenceCountedObject(), properties (other.properties)
 {
 }
 
@@ -57,20 +65,69 @@ bool DynamicObject::hasMethod (const Identifier& methodName) const
     return getProperty (methodName).isMethod();
 }
 
-var DynamicObject::invokeMethod (const Identifier& methodName,
-                                 const var* parameters,
-                                 int numParameters)
+var DynamicObject::invokeMethod (Identifier method, const var::NativeFunctionArgs& args)
 {
-    return properties [methodName].invokeMethod (this, parameters, numParameters);
+    if (var::NativeFunction function = properties [method].getNativeFunction())
+        return function (args);
+
+    return var();
 }
 
-void DynamicObject::setMethod (const Identifier& name,
-                               var::MethodFunction methodFunction)
+void DynamicObject::setMethod (Identifier name, var::NativeFunction function)
 {
-    properties.set (name, var (methodFunction));
+    properties.set (name, var (function));
 }
 
 void DynamicObject::clear()
 {
     properties.clear();
+}
+
+void DynamicObject::cloneAllProperties()
+{
+    for (int i = properties.size(); --i >= 0;)
+        if (var* v = properties.getVarPointerAt (i))
+            *v = v->clone();
+}
+
+DynamicObject::Ptr DynamicObject::clone()
+{
+    Ptr d (new DynamicObject (*this));
+    d->cloneAllProperties();
+    return d;
+}
+
+void DynamicObject::writeAsJSON (OutputStream& out, const int indentLevel, const bool allOnOneLine)
+{
+    out << '{';
+    if (! allOnOneLine)
+        out << newLine;
+
+    const int numValues = properties.size();
+
+    for (int i = 0; i < numValues; ++i)
+    {
+        if (! allOnOneLine)
+            JSONFormatter::writeSpaces (out, indentLevel + JSONFormatter::indentSize);
+
+        out << '"';
+        JSONFormatter::writeString (out, properties.getName (i));
+        out << "\": ";
+        JSONFormatter::write (out, properties.getValueAt (i), indentLevel + JSONFormatter::indentSize, allOnOneLine);
+
+        if (i < numValues - 1)
+        {
+            if (allOnOneLine)
+                out << ", ";
+            else
+                out << ',' << newLine;
+        }
+        else if (! allOnOneLine)
+            out << newLine;
+    }
+
+    if (! allOnOneLine)
+        JSONFormatter::writeSpaces (out, indentLevel);
+
+    out << '}';
 }

@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_DRAWABLEPATH_JUCEHEADER__
-#define __JUCE_DRAWABLEPATH_JUCEHEADER__
-
-#include "juce_DrawableShape.h"
-#include "../positioning/juce_RelativePointPath.h"
+#ifndef JUCE_DRAWABLEPATH_H_INCLUDED
+#define JUCE_DRAWABLEPATH_H_INCLUDED
 
 
 //==============================================================================
@@ -44,7 +40,7 @@ public:
     //==============================================================================
     /** Creates a DrawablePath. */
     DrawablePath();
-    DrawablePath (const DrawablePath& other);
+    DrawablePath (const DrawablePath&);
 
     /** Destructor. */
     ~DrawablePath();
@@ -112,9 +108,9 @@ public:
             void convertToLine (UndoManager*);
             void convertToCubic (Expression::Scope*, UndoManager*);
             void convertToPathBreak (UndoManager* undoManager);
-            ValueTree insertPoint (const Point<float>& targetPoint, Expression::Scope*, UndoManager*);
+            ValueTree insertPoint (Point<float> targetPoint, Expression::Scope*, UndoManager*);
             void removePoint (UndoManager* undoManager);
-            float findProportionAlongLine (const Point<float>& targetPoint, Expression::Scope*) const;
+            float findProportionAlongLine (Point<float> targetPoint, Expression::Scope*) const;
 
             static const Identifier mode, startSubPathElement, closeSubPathElement,
                                     lineToElement, quadraticToElement, cubicToElement;
@@ -142,8 +138,8 @@ private:
     void applyRelativePath (const RelativePointPath&, Expression::Scope*);
 
     DrawablePath& operator= (const DrawablePath&);
-    JUCE_LEAK_DETECTOR (DrawablePath);
+    JUCE_LEAK_DETECTOR (DrawablePath)
 };
 
 
-#endif   // __JUCE_DRAWABLEPATH_JUCEHEADER__
+#endif   // JUCE_DRAWABLEPATH_H_INCLUDED

@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -29,10 +28,9 @@ namespace WindowsMediaCodec
 class JuceIStream   : public ComBaseClassHelper <IStream>
 {
 public:
-    JuceIStream (InputStream& source_) noexcept
-        : source (source_)
+    JuceIStream (InputStream& in) noexcept
+        : ComBaseClassHelper <IStream> (0), source (in)
     {
-        resetReferenceCount();
     }
 
     JUCE_COMRESULT Commit (DWORD)                        { return S_OK; }
@@ -113,11 +111,10 @@ public:
         return S_OK;
     }
 
-
 private:
     InputStream& source;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JuceIStream);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JuceIStream)
 };
 
 //==============================================================================
@@ -130,13 +127,10 @@ class WMAudioReader   : public AudioFormatReader
 public:
     WMAudioReader (InputStream* const input_)
         : AudioFormatReader (input_, TRANS (wmFormatName)),
-          wmvCoreLib ("Wmvcore.dll"),
-          currentPosition (0),
-          bufferStart (0), bufferEnd (0)
+          wmvCoreLib ("Wmvcore.dll")
     {
-        typedef HRESULT (*WMCreateSyncReaderType) (IUnknown*, DWORD, IWMSyncReader**);
-        WMCreateSyncReaderType wmCreateSyncReader = nullptr;
-        wmCreateSyncReader = (WMCreateSyncReaderType) wmvCoreLib.getFunction ("WMCreateSyncReader");
+        JUCE_LOAD_WINAPI_FUNCTION (wmvCoreLib, WMCreateSyncReader, wmCreateSyncReader,
+                                   HRESULT, (IUnknown*, DWORD, IWMSyncReader**))
 
         if (wmCreateSyncReader != nullptr)
         {
@@ -161,67 +155,71 @@ public:
     ~WMAudioReader()
     {
         if (wmSyncReader != nullptr)
-        {
             wmSyncReader->Close();
-            wmSyncReader = nullptr;
-        }
     }
 
     bool readSamples (int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
-                      int64 startSampleInFile, int numSamples)
+                      int64 startSampleInFile, int numSamples) override
     {
         if (sampleRate <= 0)
             return false;
 
         checkCoInitialiseCalled();
 
-        if (startSampleInFile != currentPosition)
-        {
-            currentPosition = startSampleInFile;
-            wmSyncReader->SetRange (((QWORD) startSampleInFile * 10000000) / (int) sampleRate, 0);
-            bufferStart = bufferEnd = 0;
-        }
+        const int stride = numChannels * sizeof (int16);
 
         while (numSamples > 0)
         {
-            if (bufferEnd <= bufferStart)
+            if (! bufferedRange.contains (startSampleInFile))
             {
-                INSSBuffer* sampleBuffer = nullptr;
+                const bool hasJumped = (startSampleInFile != bufferedRange.getEnd());
+
+                if (hasJumped)
+                    wmSyncReader->SetRange ((QWORD) (startSampleInFile * 10000000 / (int64) sampleRate), 0);
+
+                ComSmartPtr<INSSBuffer> sampleBuffer;
                 QWORD sampleTime, duration;
                 DWORD flags, outputNum;
                 WORD streamNum;
 
-                HRESULT hr = wmSyncReader->GetNextSample (0, &sampleBuffer, &sampleTime,
-                                                          &duration, &flags, &outputNum, &streamNum);
+                HRESULT hr = wmSyncReader->GetNextSample (1, sampleBuffer.resetAndGetPointerAddress(),
+                                                          &sampleTime, &duration, &flags, &outputNum, &streamNum);
 
-                if (SUCCEEDED (hr))
+                if (sampleBuffer != nullptr)
                 {
                     BYTE* rawData = nullptr;
                     DWORD dataLength = 0;
                     hr = sampleBuffer->GetBufferAndLength (&rawData, &dataLength);
-                    jassert (SUCCEEDED (hr));
 
-                    bufferStart = 0;
-                    bufferEnd = (int) dataLength;
-
-                    if (bufferEnd <= 0)
+                    if (dataLength == 0)
                         return false;
 
-                    buffer.ensureSize (bufferEnd);
-                    memcpy (buffer.getData(), rawData, bufferEnd);
+                    if (hasJumped)
+                        bufferedRange.setStart ((int64) ((sampleTime * (int64) sampleRate) / 10000000));
+                    else
+                        bufferedRange.setStart (bufferedRange.getEnd()); // (because the positions returned often aren't continguous)
+
+                    bufferedRange.setLength ((int64) (dataLength / stride));
+
+                    buffer.ensureSize ((int) dataLength);
+                    memcpy (buffer.getData(), rawData, (size_t) dataLength);
+                }
+                else if (hr == NS_E_NO_MORE_SAMPLES)
+                {
+                    bufferedRange.setStart (startSampleInFile);
+                    bufferedRange.setLength (256);
+                    buffer.ensureSize (256 * stride);
+                    buffer.fillWith (0);
                 }
                 else
                 {
-                    bufferStart = 0;
-                    bufferEnd = 512;
-                    buffer.ensureSize (bufferEnd);
-                    buffer.fillWith (0);
+                    return false;
                 }
             }
 
-            const int stride = numChannels * sizeof (int16);
-            const int16* const rawData = static_cast <const int16*> (addBytesToPointer (buffer.getData(), bufferStart));
-            const int numToDo = jmin (numSamples, (bufferEnd - bufferStart) / stride);
+            const int offsetInBuffer = (int) (startSampleInFile - bufferedRange.getStart());
+            const int16* const rawData = static_cast<const int16*> (addBytesToPointer (buffer.getData(), offsetInBuffer * stride));
+            const int numToDo = jmin (numSamples, (int) (bufferedRange.getLength() - offsetInBuffer));
 
             for (int i = 0; i < numDestChannels; ++i)
             {
@@ -238,10 +236,9 @@ public:
                 }
             }
 
-            bufferStart += numToDo * stride;
+            startSampleInFile += numToDo;
             startOffsetInDestBuffer += numToDo;
             numSamples -= numToDo;
-            currentPosition += numToDo;
         }
 
         return true;
@@ -250,9 +247,8 @@ public:
 private:
     DynamicLibrary wmvCoreLib;
     ComSmartPtr<IWMSyncReader> wmSyncReader;
-    int64 currentPosition;
     MemoryBlock buffer;
-    int bufferStart, bufferEnd;
+    Range<int64> bufferedRange;
 
     void checkCoInitialiseCalled()
     {
@@ -310,14 +306,15 @@ private:
         }
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WMAudioReader);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WMAudioReader)
 };
 
 }
 
 //==============================================================================
 WindowsMediaAudioFormat::WindowsMediaAudioFormat()
-    : AudioFormat (TRANS (WindowsMediaCodec::wmFormatName), StringArray (WindowsMediaCodec::extensions))
+    : AudioFormat (TRANS (WindowsMediaCodec::wmFormatName),
+                   StringArray (WindowsMediaCodec::extensions))
 {
 }
 
@@ -328,6 +325,7 @@ Array<int> WindowsMediaAudioFormat::getPossibleBitDepths()      { return Array<i
 
 bool WindowsMediaAudioFormat::canDoStereo()     { return true; }
 bool WindowsMediaAudioFormat::canDoMono()       { return true; }
+bool WindowsMediaAudioFormat::isCompressed()    { return true; }
 
 //==============================================================================
 AudioFormatReader* WindowsMediaAudioFormat::createReaderFor (InputStream* sourceStream, bool deleteStreamIfOpeningFails)

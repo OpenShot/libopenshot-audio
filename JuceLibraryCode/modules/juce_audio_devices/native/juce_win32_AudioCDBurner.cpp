@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -148,7 +147,7 @@ public:
     private:
         Pimpl& pimpl;
 
-        JUCE_DECLARE_NON_COPYABLE (ScopedDiscOpener);
+        JUCE_DECLARE_NON_COPYABLE (ScopedDiscOpener)
     };
 
     DiskState getDiskState()
@@ -166,8 +165,8 @@ public:
 
         if (type == 0)
             return noDisc;
-        else
-            return readOnlyDiskPresent;
+
+        return readOnlyDiskPresent;
     }
 
     int getIntProperty (const LPOLESTR name, const int defaultReturn) const
@@ -204,7 +203,7 @@ public:
                 && SUCCEEDED (discRecorder->SetRecorderProperties (prop));
     }
 
-    void timerCallback()
+    void timerCallback() override
     {
         const DiskState state = getDiskState();
 
@@ -377,10 +376,7 @@ bool AudioCDBurner::addAudioTrack (AudioSource* audioSource, int numSamples)
     while (ok)
     {
         {
-            AudioSourceChannelInfo info;
-            info.buffer = &sourceBuffer;
-            info.numSamples = samplesPerBlock;
-            info.startSample = 0;
+            AudioSourceChannelInfo info (&sourceBuffer, 0, samplesPerBlock);
             sourceBuffer.clear();
 
             source->getNextAudioBlock (info);
@@ -395,9 +391,9 @@ bool AudioCDBurner::addAudioTrack (AudioSource* audioSource, int numSamples)
                                     AudioData::NonInterleaved, AudioData::Const> SourceSampleFormat;
 
         CDSampleFormat left (buffer, 2);
-        left.convertSamples (SourceSampleFormat (sourceBuffer.getSampleData (0)), samplesPerBlock);
+        left.convertSamples (SourceSampleFormat (sourceBuffer.getReadPointer (0)), samplesPerBlock);
         CDSampleFormat right (buffer + 2, 2);
-        right.convertSamples (SourceSampleFormat (sourceBuffer.getSampleData (1)), samplesPerBlock);
+        right.convertSamples (SourceSampleFormat (sourceBuffer.getReadPointer (1)), samplesPerBlock);
 
         hr = pimpl->redbook->AddAudioTrackBlocks (buffer, bytesPerBlock);
 

@@ -175,7 +175,7 @@ static vorbis_info_floor *floor1_unpack (vorbis_info *vi,oggpack_buffer *opb){
   return(NULL);
 }
 
-static vorbis_look_floor *floor1_look(vorbis_dsp_state *vd,
+static vorbis_look_floor *floor1_look(vorbis_dsp_state* /* vd */,
                                       vorbis_info_floor *in){
 
   int *sortpointer[VIF_POSIT+2];
@@ -471,7 +471,7 @@ static int fit_line(lsfit_acc *a,int fits,int *y0,int *y1,
     xb+=   x0;
     yb+=  *y0;
     x2b+=  x0 *  x0;
-    y2b+= *y0 * *y0;
+    //y2b+= *y0 * *y0;
     xyb+= *y0 *  x0;
     bn++;
   }
@@ -480,7 +480,7 @@ static int fit_line(lsfit_acc *a,int fits,int *y0,int *y1,
     xb+=   x1;
     yb+=  *y1;
     x2b+=  x1 *  x1;
-    y2b+= *y1 * *y1;
+    //y2b+= *y1 * *y1;
     xyb+= *y1 *  x1;
     bn++;
   }
@@ -1016,7 +1016,7 @@ static void *floor1_inverse1(vorbis_block *vb,vorbis_look_floor *in){
           }
         }
 
-        fit_value[i]=val+predicted&0x7fff;
+        fit_value[i] = (val + predicted) & 0x7fff;
         fit_value[look->loneighbor[i-2]]&=0x7fff;
         fit_value[look->hineighbor[i-2]]&=0x7fff;
 

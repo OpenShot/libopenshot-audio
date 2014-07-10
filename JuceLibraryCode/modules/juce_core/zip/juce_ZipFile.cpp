@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -111,21 +114,21 @@ namespace
 class ZipFile::ZipInputStream  : public InputStream
 {
 public:
-    ZipInputStream (ZipFile& file_, ZipFile::ZipEntryHolder& zei)
-        : file (file_),
+    ZipInputStream (ZipFile& zf, ZipFile::ZipEntryHolder& zei)
+        : file (zf),
           zipEntryHolder (zei),
           pos (0),
           headerSize (0),
-          inputStream (file_.inputStream)
+          inputStream (zf.inputStream)
     {
-        if (file_.inputSource != nullptr)
+        if (zf.inputSource != nullptr)
         {
             inputStream = streamToDelete = file.inputSource->createInputStream();
         }
         else
         {
            #if JUCE_DEBUG
-            file_.streamCounter.numOpenStreams++;
+            zf.streamCounter.numOpenStreams++;
            #endif
         }
 
@@ -206,7 +209,7 @@ private:
     InputStream* inputStream;
     ScopedPointer<InputStream> streamToDelete;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZipInputStream);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZipInputStream)
 };
 
 
@@ -233,9 +236,9 @@ ZipFile::ZipFile (const File& file)
     init();
 }
 
-ZipFile::ZipFile (InputSource* const inputSource_)
+ZipFile::ZipFile (InputSource* const source)
     : inputStream (nullptr),
-      inputSource (inputSource_)
+      inputSource (source)
 {
     init();
 }
@@ -265,8 +268,10 @@ int ZipFile::getNumEntries() const noexcept
 
 const ZipFile::ZipEntry* ZipFile::getEntry (const int index) const noexcept
 {
-    ZipEntryHolder* const zei = entries [index];
-    return zei != nullptr ? &(zei->entry) : nullptr;
+    if (ZipEntryHolder* const zei = entries [index])
+        return &(zei->entry);
+
+    return nullptr;
 }
 
 int ZipFile::getIndexOfFileName (const String& fileName) const noexcept
@@ -285,10 +290,9 @@ const ZipFile::ZipEntry* ZipFile::getEntry (const String& fileName) const noexce
 
 InputStream* ZipFile::createStreamForEntry (const int index)
 {
-    ZipEntryHolder* const zei = entries[index];
     InputStream* stream = nullptr;
 
-    if (zei != nullptr)
+    if (ZipEntryHolder* const zei = entries[index])
     {
         stream = new ZipInputStream (*this, *zei);
 
@@ -303,6 +307,15 @@ InputStream* ZipFile::createStreamForEntry (const int index)
     }
 
     return stream;
+}
+
+InputStream* ZipFile::createStreamForEntry (const ZipEntry& entry)
+{
+    for (int i = 0; i < entries.size(); ++i)
+        if (&entries.getUnchecked (i)->entry == &entry)
+            return createStreamForEntry (i);
+
+    return nullptr;
 }
 
 void ZipFile::sortEntriesByFilename()
@@ -381,9 +394,15 @@ Result ZipFile::uncompressEntry (const int index,
 {
     const ZipEntryHolder* zei = entries.getUnchecked (index);
 
-    const File targetFile (targetDirectory.getChildFile (zei->entry.filename));
+   #if JUCE_WINDOWS
+    const String entryPath (zei->entry.filename);
+   #else
+    const String entryPath (zei->entry.filename.replaceCharacter ('\\', '/'));
+   #endif
 
-    if (zei->entry.filename.endsWithChar ('/'))
+    const File targetFile (targetDirectory.getChildFile (entryPath));
+
+    if (entryPath.endsWithChar ('/') || entryPath.endsWithChar ('\\'))
         return targetFile.createDirectory(); // (entry is a directory, not a file)
 
     ScopedPointer<InputStream> in (createStreamForEntry (index));
@@ -421,23 +440,19 @@ Result ZipFile::uncompressEntry (const int index,
 
 
 //=============================================================================
-extern unsigned long juce_crc32 (unsigned long crc, const unsigned char* buf, unsigned len);
-
 class ZipFile::Builder::Item
 {
 public:
-    Item (const File& file_, const int compressionLevel_, const String& storedPathName_)
-        : file (file_),
-          storedPathname (storedPathName_.isEmpty() ? file_.getFileName() : storedPathName_),
-          compressionLevel (compressionLevel_),
-          compressedSize (0),
-          headerStart (0)
+    Item (const File& f, InputStream* s, const int compression, const String& storedPath, Time time)
+        : file (f), stream (s), storedPathname (storedPath),
+          fileTime (time), compressionLevel (compression),
+          compressedSize (0), uncompressedSize (0), headerStart (0), checksum (0)
     {
     }
 
     bool writeData (OutputStream& target, const int64 overallStartPosition)
     {
-        MemoryOutputStream compressedData;
+        MemoryOutputStream compressedData ((size_t) file.getSize());
 
         if (compressionLevel > 0)
         {
@@ -480,65 +495,81 @@ public:
 
 private:
     const File file;
+    ScopedPointer<InputStream> stream;
     String storedPathname;
-    int compressionLevel, compressedSize, headerStart;
+    Time fileTime;
+    int compressionLevel, compressedSize, uncompressedSize, headerStart;
     unsigned long checksum;
 
-    void writeTimeAndDate (OutputStream& target) const
+    static void writeTimeAndDate (OutputStream& target, Time t)
     {
-        const Time t (file.getLastModificationTime());
         target.writeShort ((short) (t.getSeconds() + (t.getMinutes() << 5) + (t.getHours() << 11)));
         target.writeShort ((short) (t.getDayOfMonth() + ((t.getMonth() + 1) << 5) + ((t.getYear() - 1980) << 9)));
     }
 
     bool writeSource (OutputStream& target)
     {
+        if (stream == nullptr)
+        {
+            stream = file.createInputStream();
+
+            if (stream == nullptr)
+                return false;
+        }
+
         checksum = 0;
-        FileInputStream input (file);
-
-        if (input.failedToOpen())
-            return false;
-
-        const int bufferSize = 2048;
+        uncompressedSize = 0;
+        const int bufferSize = 4096;
         HeapBlock<unsigned char> buffer (bufferSize);
 
-        while (! input.isExhausted())
+        while (! stream->isExhausted())
         {
-            const int bytesRead = input.read (buffer, bufferSize);
+            const int bytesRead = stream->read (buffer, bufferSize);
 
             if (bytesRead < 0)
                 return false;
 
-            checksum = juce_crc32 (checksum, buffer, (unsigned int) bytesRead);
-            target.write (buffer, bytesRead);
+            checksum = zlibNamespace::crc32 (checksum, buffer, (unsigned int) bytesRead);
+            target.write (buffer, (size_t) bytesRead);
+            uncompressedSize += bytesRead;
         }
 
+        stream = nullptr;
         return true;
     }
 
     void writeFlagsAndSizes (OutputStream& target) const
     {
         target.writeShort (10); // version needed
-        target.writeShort (0); // flags
+        target.writeShort ((short) (1 << 11)); // this flag indicates UTF-8 filename encoding
         target.writeShort (compressionLevel > 0 ? (short) 8 : (short) 0);
-        writeTimeAndDate (target);
+        writeTimeAndDate (target, fileTime);
         target.writeInt ((int) checksum);
         target.writeInt (compressedSize);
-        target.writeInt ((int) file.getSize());
+        target.writeInt (uncompressedSize);
         target.writeShort ((short) storedPathname.toUTF8().sizeInBytes() - 1);
         target.writeShort (0); // extra field length
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Item);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Item)
 };
 
 //=============================================================================
 ZipFile::Builder::Builder() {}
 ZipFile::Builder::~Builder() {}
 
-void ZipFile::Builder::addFile (const File& fileToAdd, const int compressionLevel, const String& storedPathName)
+void ZipFile::Builder::addFile (const File& file, const int compression, const String& path)
 {
-    items.add (new Item (fileToAdd, compressionLevel, storedPathName));
+    items.add (new Item (file, nullptr, compression,
+                         path.isEmpty() ? file.getFileName() : path,
+                         file.getLastModificationTime()));
+}
+
+void ZipFile::Builder::addEntry (InputStream* stream, int compression, const String& path, Time time)
+{
+    jassert (stream != nullptr); // must not be null!
+    jassert (path.isNotEmpty());
+    items.add (new Item (File(), stream, compression, path, time));
 }
 
 bool ZipFile::Builder::writeToStream (OutputStream& target, double* const progress) const

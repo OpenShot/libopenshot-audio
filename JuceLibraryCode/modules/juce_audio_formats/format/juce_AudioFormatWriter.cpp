@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -42,6 +41,23 @@ AudioFormatWriter::~AudioFormatWriter()
     delete output;
 }
 
+static void convertFloatsToInts (int* dest, const float* src, int numSamples) noexcept
+{
+    while (--numSamples >= 0)
+    {
+        const double samp = *src++;
+
+        if (samp <= -1.0)
+            *dest = std::numeric_limits<int>::min();
+        else if (samp >= 1.0)
+            *dest = std::numeric_limits<int>::max();
+        else
+            *dest = roundToInt (std::numeric_limits<int>::max() * samp);
+
+        ++dest;
+    }
+}
+
 bool AudioFormatWriter::writeFromAudioReader (AudioFormatReader& reader,
                                               int64 startSample,
                                               int64 numSamplesToRead)
@@ -52,7 +68,7 @@ bool AudioFormatWriter::writeFromAudioReader (AudioFormatReader& reader,
     int* buffers [128] = { 0 };
 
     for (int i = tempBuffer.getNumChannels(); --i >= 0;)
-        buffers[i] = reinterpret_cast<int*> (tempBuffer.getSampleData (i, 0));
+        buffers[i] = reinterpret_cast<int*> (tempBuffer.getWritePointer (i, 0));
 
     if (numSamplesToRead < 0)
         numSamplesToRead = reader.lengthInSamples;
@@ -70,31 +86,12 @@ bool AudioFormatWriter::writeFromAudioReader (AudioFormatReader& reader,
 
             while (*bufferChan != nullptr)
             {
-                int* b = *bufferChan++;
+                void* const b = *bufferChan++;
 
                 if (isFloatingPoint())
-                {
-                    // int -> float
-                    const double factor = 1.0 / std::numeric_limits<int>::max();
-
-                    for (int i = 0; i < numToDo; ++i)
-                        reinterpret_cast<float*> (b)[i] = (float) (factor * b[i]);
-                }
+                    FloatVectorOperations::convertFixedToFloat ((float*) b, (int*) b, 1.0f / 0x7fffffff, numToDo);
                 else
-                {
-                    // float -> int
-                    for (int i = 0; i < numToDo; ++i)
-                    {
-                        const double samp = *(const float*) b;
-
-                        if (samp <= -1.0)
-                            *b++ = std::numeric_limits<int>::min();
-                        else if (samp >= 1.0)
-                            *b++ = std::numeric_limits<int>::max();
-                        else
-                            *b++ = roundToInt (std::numeric_limits<int>::max() * samp);
-                    }
-                }
+                    convertFloatsToInts ((int*) b, (float*) b, numToDo);
             }
         }
 
@@ -116,10 +113,7 @@ bool AudioFormatWriter::writeFromAudioSource (AudioSource& source, int numSample
     {
         const int numToDo = jmin (numSamplesToRead, samplesPerBlock);
 
-        AudioSourceChannelInfo info;
-        info.buffer = &tempBuffer;
-        info.startSample = 0;
-        info.numSamples = numToDo;
+        AudioSourceChannelInfo info (&tempBuffer, 0, numToDo);
         info.clearActiveBufferRegion();
 
         source.getNextAudioBlock (info);
@@ -133,51 +127,71 @@ bool AudioFormatWriter::writeFromAudioSource (AudioSource& source, int numSample
     return true;
 }
 
-bool AudioFormatWriter::writeFromAudioSampleBuffer (const AudioSampleBuffer& source, int startSample, int numSamples)
+bool AudioFormatWriter::writeFromFloatArrays (const float* const* channels, int numSourceChannels, int numSamples)
 {
-    jassert (startSample >= 0 && startSample + numSamples <= source.getNumSamples() && source.getNumChannels() > 0);
-
     if (numSamples <= 0)
         return true;
 
-    HeapBlock<int> tempBuffer;
-    HeapBlock<int*> chans (numChannels + 1);
-    chans [numChannels] = 0;
-
     if (isFloatingPoint())
+        return write ((const int**) channels, numSamples);
+
+    int* chans [256];
+    int scratch [4096];
+
+    jassert (numSourceChannels < numElementsInArray (chans));
+    const int maxSamples = (int) (numElementsInArray (scratch) / numSourceChannels);
+
+    for (int i = 0; i < numSourceChannels; ++i)
+        chans[i] = scratch + (i * maxSamples);
+
+    chans[numSourceChannels] = nullptr;
+    int startSample = 0;
+
+    while (numSamples > 0)
     {
-        for (int i = (int) numChannels; --i >= 0;)
-            chans[i] = reinterpret_cast<int*> (source.getSampleData (i, startSample));
-    }
-    else
-    {
-        tempBuffer.malloc (((size_t) numSamples) * (size_t) numChannels);
+        const int numToDo = jmin (numSamples, maxSamples);
 
-        for (unsigned int i = 0; i < numChannels; ++i)
-        {
-            typedef AudioData::Pointer <AudioData::Int32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst> DestSampleType;
-            typedef AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::Const> SourceSampleType;
+        for (int i = 0; i < numSourceChannels; ++i)
+            convertFloatsToInts (chans[i], channels[i] + startSample, numToDo);
 
-            chans[i] = tempBuffer + (int) i * numSamples;
-            DestSampleType destData (chans[i]);
-            SourceSampleType sourceData (source.getSampleData ((int) i, startSample));
-            destData.convertSamples (sourceData, numSamples);
-        }
+        if (! write ((const int**) chans, numToDo))
+            return false;
+
+        startSample += numToDo;
+        numSamples  -= numToDo;
     }
 
-    return write ((const int**) chans.getData(), numSamples);
+    return true;
+}
+
+bool AudioFormatWriter::writeFromAudioSampleBuffer (const AudioSampleBuffer& source, int startSample, int numSamples)
+{
+    const int numSourceChannels = source.getNumChannels();
+    jassert (startSample >= 0 && startSample + numSamples <= source.getNumSamples() && numSourceChannels > 0);
+
+    if (startSample == 0)
+        return writeFromFloatArrays (source.getArrayOfReadPointers(), numSourceChannels, numSamples);
+
+    const float* chans [256];
+    jassert ((int) numChannels < numElementsInArray (chans));
+
+    for (int i = 0; i < numSourceChannels; ++i)
+        chans[i] = source.getReadPointer (i, startSample);
+
+    chans[numSourceChannels] = nullptr;
+
+    return writeFromFloatArrays (chans, numSourceChannels, numSamples);
 }
 
 //==============================================================================
-class AudioFormatWriter::ThreadedWriter::Buffer   : public TimeSliceClient,
-                                                    public AbstractFifo
+class AudioFormatWriter::ThreadedWriter::Buffer   : private TimeSliceClient
 {
 public:
-    Buffer (TimeSliceThread& timeSliceThread_, AudioFormatWriter* writer_, int numChannels, int bufferSize_)
-        : AbstractFifo (bufferSize_),
-          buffer (numChannels, bufferSize_),
-          timeSliceThread (timeSliceThread_),
-          writer (writer_),
+    Buffer (TimeSliceThread& tst, AudioFormatWriter* w, int channels, int numSamples)
+        : fifo (numSamples),
+          buffer (channels, numSamples),
+          timeSliceThread (tst),
+          writer (w),
           receiver (nullptr),
           samplesWritten (0),
           isRunning (true)
@@ -194,7 +208,7 @@ public:
         {}
     }
 
-    bool write (const float** data, int numSamples)
+    bool write (const float* const* data, int numSamples)
     {
         if (numSamples <= 0 || ! isRunning)
             return true;
@@ -202,7 +216,7 @@ public:
         jassert (timeSliceThread.isThreadRunning());  // you need to get your thread running before pumping data into this!
 
         int start1, size1, start2, size2;
-        prepareToWrite (numSamples, start1, size1, start2, size2);
+        fifo.prepareToWrite (numSamples, start1, size1, start2, size2);
 
         if (size1 + size2 < numSamples)
             return false;
@@ -213,22 +227,22 @@ public:
             buffer.copyFrom (i, start2, data[i] + size1, size2);
         }
 
-        finishedWrite (size1 + size2);
+        fifo.finishedWrite (size1 + size2);
         timeSliceThread.notify();
         return true;
     }
 
-    int useTimeSlice()
+    int useTimeSlice() override
     {
         return writePendingData();
     }
 
     int writePendingData()
     {
-        const int numToDo = getTotalSize() / 4;
+        const int numToDo = fifo.getTotalSize() / 4;
 
         int start1, size1, start2, size2;
-        prepareToRead (numToDo, start1, size1, start2, size2);
+        fifo.prepareToRead (numToDo, start1, size1, start2, size2);
 
         if (size1 <= 0)
             return 10;
@@ -251,7 +265,7 @@ public:
             samplesWritten += size2;
         }
 
-        finishedRead (size1 + size2);
+        fifo.finishedRead (size1 + size2);
         return 0;
     }
 
@@ -266,6 +280,7 @@ public:
     }
 
 private:
+    AbstractFifo fifo;
     AudioSampleBuffer buffer;
     TimeSliceThread& timeSliceThread;
     ScopedPointer<AudioFormatWriter> writer;
@@ -274,7 +289,7 @@ private:
     int64 samplesWritten;
     volatile bool isRunning;
 
-    JUCE_DECLARE_NON_COPYABLE (Buffer);
+    JUCE_DECLARE_NON_COPYABLE (Buffer)
 };
 
 AudioFormatWriter::ThreadedWriter::ThreadedWriter (AudioFormatWriter* writer, TimeSliceThread& backgroundThread, int numSamplesToBuffer)
@@ -286,7 +301,7 @@ AudioFormatWriter::ThreadedWriter::~ThreadedWriter()
 {
 }
 
-bool AudioFormatWriter::ThreadedWriter::write (const float** data, int numSamples)
+bool AudioFormatWriter::ThreadedWriter::write (const float* const* data, int numSamples)
 {
     return buffer->write (data, numSamples);
 }

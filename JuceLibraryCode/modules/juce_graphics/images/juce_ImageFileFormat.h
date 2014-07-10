@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_IMAGEFILEFORMAT_JUCEHEADER__
-#define __JUCE_IMAGEFILEFORMAT_JUCEHEADER__
-
-#include "juce_Image.h"
+#ifndef JUCE_IMAGEFILEFORMAT_H_INCLUDED
+#define JUCE_IMAGEFILEFORMAT_H_INCLUDED
 
 
 //==============================================================================
@@ -57,15 +54,20 @@ public:
     */
     virtual String getFormatName() = 0;
 
-    /** Returns true if the given stream seems to contain data that this format
-        understands.
+    /** Returns true if the given stream seems to contain data that this format understands.
 
         The format class should only read the first few bytes of the stream and sniff
         for header bytes that it understands.
 
+        Note that this will advance the stream and leave it in a new position, so if you're
+        planning on re-using it, you may want to rewind it after calling this method.
+
         @see decodeImage
     */
     virtual bool canUnderstand (InputStream& input) = 0;
+
+    /** Returns true if this format uses the file extension of the given file. */
+    virtual bool usesFileExtension (const File& possibleFile) = 0;
 
     /** Tries to decode and return an image from the given stream.
 
@@ -92,15 +94,18 @@ public:
                                      OutputStream& destStream) = 0;
 
     //==============================================================================
-    /** Tries the built-in decoders to see if it can find one to read this stream.
-
+    /** Tries the built-in formats to see if it can find one to read this stream.
         There are currently built-in decoders for PNG, JPEG and GIF formats.
-
         The object that is returned should not be deleted by the caller.
-
         @see canUnderstand, decodeImage, loadFrom
     */
     static ImageFileFormat* findImageFormatForStream (InputStream& input);
+
+    /** Looks for a format that can handle the given file extension.
+        There are currently built-in formats for PNG, JPEG and GIF formats.
+        The object that is returned should not be deleted by the caller.
+    */
+    static ImageFileFormat* findImageFormatForFileExtension (const File& file);
 
     //==============================================================================
     /** Tries to load an image from a stream.
@@ -130,7 +135,6 @@ public:
     */
     static Image loadFrom (const void* rawData,
                            size_t numBytesOfData);
-
 };
 
 //==============================================================================
@@ -147,10 +151,11 @@ public:
     ~PNGImageFormat();
 
     //==============================================================================
-    String getFormatName();
-    bool canUnderstand (InputStream& input);
-    Image decodeImage (InputStream& input);
-    bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
+    String getFormatName() override;
+    bool usesFileExtension (const File&) override;
+    bool canUnderstand (InputStream&) override;
+    Image decodeImage (InputStream&) override;
+    bool writeImageToStream (const Image&, OutputStream&) override;
 };
 
 
@@ -176,10 +181,11 @@ public:
     void setQuality (float newQuality);
 
     //==============================================================================
-    String getFormatName();
-    bool canUnderstand (InputStream& input);
-    Image decodeImage (InputStream& input);
-    bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
+    String getFormatName() override;
+    bool usesFileExtension (const File&) override;
+    bool canUnderstand (InputStream&) override;
+    Image decodeImage (InputStream&) override;
+    bool writeImageToStream (const Image&, OutputStream&) override;
 
 private:
     float quality;
@@ -199,11 +205,12 @@ public:
     ~GIFImageFormat();
 
     //==============================================================================
-    String getFormatName();
-    bool canUnderstand (InputStream& input);
-    Image decodeImage (InputStream& input);
-    bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
+    String getFormatName() override;
+    bool usesFileExtension (const File&) override;
+    bool canUnderstand (InputStream&) override;
+    Image decodeImage (InputStream&) override;
+    bool writeImageToStream (const Image&, OutputStream&) override;
 };
 
 
-#endif   // __JUCE_IMAGEFILEFORMAT_JUCEHEADER__
+#endif   // JUCE_IMAGEFILEFORMAT_H_INCLUDED

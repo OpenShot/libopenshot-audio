@@ -1,40 +1,38 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-//==============================================================================
-class WebBrowserComponentInternal   : public ActiveXControlComponent
+class WebBrowserComponent::Pimpl   : public ActiveXControlComponent
 {
 public:
-    WebBrowserComponentInternal()
-        : browser (nullptr),
-          connectionPoint (nullptr),
-          adviseCookie (0)
+    Pimpl()
+      : browser (nullptr),
+        connectionPoint (nullptr),
+        adviseCookie (0)
     {
     }
 
-    ~WebBrowserComponentInternal()
+    ~Pimpl()
     {
         if (connectionPoint != nullptr)
             connectionPoint->Unadvise (adviseCookie);
@@ -48,12 +46,10 @@ public:
         createControl (&CLSID_WebBrowser);
         browser = (IWebBrowser2*) queryInterface (&IID_IWebBrowser2);
 
-        IConnectionPointContainer* connectionPointContainer = (IConnectionPointContainer*) queryInterface (&IID_IConnectionPointContainer);
-
-        if (connectionPointContainer != nullptr)
+        if (IConnectionPointContainer* connectionPointContainer
+                = (IConnectionPointContainer*) queryInterface (&IID_IConnectionPointContainer))
         {
-            connectionPointContainer->FindConnectionPoint (DIID_DWebBrowserEvents2,
-                                                           &connectionPoint);
+            connectionPointContainer->FindConnectionPoint (DIID_DWebBrowserEvents2, &connectionPoint);
 
             if (connectionPoint != nullptr)
             {
@@ -89,9 +85,9 @@ public:
 
             if (postData != nullptr && postData->getSize() > 0)
             {
-                LPSAFEARRAY sa = SafeArrayCreateVector (VT_UI1, 0, (ULONG) postData->getSize());
+                sa = SafeArrayCreateVector (VT_UI1, 0, (ULONG) postData->getSize());
 
-                if (sa != 0)
+                if (sa != nullptr)
                 {
                     void* data = nullptr;
                     SafeArrayAccessData (sa, &data);
@@ -113,10 +109,9 @@ public:
             }
 
             browser->Navigate ((BSTR) (const OLECHAR*) url.toWideCharPointer(),
-                               &flags, &frame,
-                               &postDataVar, &headersVar);
+                               &flags, &frame, &postDataVar, &headersVar);
 
-            if (sa != 0)
+            if (sa != nullptr)
                 SafeArrayDestroy (sa);
 
             VariantClear (&flags);
@@ -163,13 +158,23 @@ private:
                 owner.pageFinishedLoading (getStringFromVariant (pDispParams->rgvarg[0].pvarVal));
                 return S_OK;
             }
+            else if (dispIdMember == 263 /*DISPID_WINDOWCLOSING*/)
+            {
+                owner.windowCloseRequest();
+
+                // setting this bool tells the browser to ignore the event - we'll handle it.
+                if (pDispParams->cArgs > 0 && pDispParams->rgvarg[0].vt == (VT_BYREF | VT_BOOL))
+                    *pDispParams->rgvarg[0].pboolVal = VARIANT_TRUE;
+
+                return S_OK;
+            }
 
             return E_NOTIMPL;
         }
 
-        void componentMovedOrResized (bool, bool )  {}
-        void componentPeerChanged()                 {}
-        void componentVisibilityChanged()           { owner.visibilityChanged(); }
+        void componentMovedOrResized (bool, bool) override   {}
+        void componentPeerChanged() override                 {}
+        void componentVisibilityChanged() override           { owner.visibilityChanged(); }
 
     private:
         WebBrowserComponent& owner;
@@ -180,10 +185,10 @@ private:
                                            : v->bstrVal;
         }
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EventHandler);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EventHandler)
     };
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebBrowserComponentInternal);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
 };
 
 
@@ -194,7 +199,7 @@ WebBrowserComponent::WebBrowserComponent (const bool unloadPageWhenBrowserIsHidd
       unloadPageWhenBrowserIsHidden (unloadPageWhenBrowserIsHidden_)
 {
     setOpaque (true);
-    addAndMakeVisible (browser = new WebBrowserComponentInternal());
+    addAndMakeVisible (browser = new Pimpl());
 }
 
 WebBrowserComponent::~WebBrowserComponent()
@@ -209,13 +214,15 @@ void WebBrowserComponent::goToURL (const String& url,
 {
     lastURL = url;
 
-    lastHeaders.clear();
     if (headers != nullptr)
         lastHeaders = *headers;
+    else
+        lastHeaders.clear();
 
-    lastPostData.setSize (0);
     if (postData != nullptr)
         lastPostData = *postData;
+    else
+        lastPostData.reset();
 
     blankPageShown = false;
 
@@ -230,7 +237,7 @@ void WebBrowserComponent::stop()
 
 void WebBrowserComponent::goBack()
 {
-    lastURL = String::empty;
+    lastURL.clear();
     blankPageShown = false;
 
     if (browser->browser != nullptr)
@@ -239,7 +246,7 @@ void WebBrowserComponent::goBack()
 
 void WebBrowserComponent::goForward()
 {
-    lastURL = String::empty;
+    lastURL.clear();
 
     if (browser->browser != nullptr)
         browser->browser->GoForward();
@@ -292,7 +299,7 @@ void WebBrowserComponent::reloadLastURL()
     if (lastURL.isNotEmpty())
     {
         goToURL (lastURL, &lastHeaders, &lastPostData);
-        lastURL = String::empty;
+        lastURL.clear();
     }
 }
 
@@ -310,6 +317,3 @@ void WebBrowserComponent::visibilityChanged()
 {
     checkWindowAssociation();
 }
-
-bool WebBrowserComponent::pageAboutToLoad (const String&)  { return true; }
-void WebBrowserComponent::pageFinishedLoading (const String&) {}

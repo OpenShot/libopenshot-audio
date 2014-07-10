@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_KEYMAPPINGEDITORCOMPONENT_JUCEHEADER__
-#define __JUCE_KEYMAPPINGEDITORCOMPONENT_JUCEHEADER__
+#ifndef JUCE_KEYMAPPINGEDITORCOMPONENT_H_INCLUDED
+#define JUCE_KEYMAPPINGEDITORCOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -49,7 +48,7 @@ public:
                                bool showResetToDefaultButton);
 
     /** Destructor. */
-    virtual ~KeyMappingEditorComponent();
+    ~KeyMappingEditorComponent();
 
     //==============================================================================
     /** Sets up the colours to use for parts of the component.
@@ -57,11 +56,14 @@ public:
         @param mainBackground       colour to use for most of the background
         @param textColour           colour to use for the text
     */
-    void setColours (const Colour& mainBackground,
-                     const Colour& textColour);
+    void setColours (Colour mainBackground,
+                     Colour textColour);
 
     /** Returns the KeyPressMappingSet that this component is acting upon. */
     KeyPressMappingSet& getMappings() const noexcept                { return mappings; }
+
+    /** Returns the ApplicationCommandManager that this component is connected to. */
+    ApplicationCommandManager& getCommandManager() const noexcept   { return mappings.getCommandManager(); }
 
 
     //==============================================================================
@@ -107,9 +109,9 @@ public:
 
     //==============================================================================
     /** @internal */
-    void parentHierarchyChanged();
+    void parentHierarchyChanged() override;
     /** @internal */
-    void resized();
+    void resized() override;
 
 private:
     //==============================================================================
@@ -123,12 +125,12 @@ private:
     class CategoryItem;
     class ItemComponent;
     friend class TopLevelItem;
-    friend class OwnedArray <ChangeKeyButton>;
-    friend class ScopedPointer<TopLevelItem>;
+    friend struct ContainerDeletePolicy<ChangeKeyButton>;
+    friend struct ContainerDeletePolicy<TopLevelItem>;
     ScopedPointer<TopLevelItem> treeItem;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KeyMappingEditorComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KeyMappingEditorComponent)
 };
 
 
-#endif   // __JUCE_KEYMAPPINGEDITORCOMPONENT_JUCEHEADER__
+#endif   // JUCE_KEYMAPPINGEDITORCOMPONENT_H_INCLUDED

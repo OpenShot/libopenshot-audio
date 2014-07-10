@@ -1,34 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_HASHMAP_JUCEHEADER__
-#define __JUCE_HASHMAP_JUCEHEADER__
-
-#include "juce_OwnedArray.h"
-#include "juce_LinkedListPointer.h"
-#include "../memory/juce_ScopedPointer.h"
+#ifndef JUCE_HASHMAP_H_INCLUDED
+#define JUCE_HASHMAP_H_INCLUDED
 
 
 //==============================================================================
@@ -37,15 +36,16 @@
     use with the HashMap class.
     @see HashMap
 */
-class DefaultHashFunctions
+struct DefaultHashFunctions
 {
-public:
     /** Generates a simple hash from an integer. */
-    static int generateHash (const int key, const int upperLimit) noexcept        { return std::abs (key) % upperLimit; }
+    int generateHash (const int key, const int upperLimit) const noexcept        { return std::abs (key) % upperLimit; }
+    /** Generates a simple hash from an int64. */
+    int generateHash (const int64 key, const int upperLimit) const noexcept      { return std::abs ((int) key) % upperLimit; }
     /** Generates a simple hash from a string. */
-    static int generateHash (const String& key, const int upperLimit) noexcept    { return (int) (((uint32) key.hashCode()) % (uint32) upperLimit); }
+    int generateHash (const String& key, const int upperLimit) const noexcept    { return (int) (((uint32) key.hashCode()) % (uint32) upperLimit); }
     /** Generates a simple hash from a variant. */
-    static int generateHash (const var& key, const int upperLimit) noexcept       { return generateHash (key.toString(), upperLimit); }
+    int generateHash (const var& key, const int upperLimit) const noexcept       { return generateHash (key.toString(), upperLimit); }
 };
 
 
@@ -60,7 +60,7 @@ public:
     @code
     struct MyHashGenerator
     {
-        static int generateHash (MyKeyType key, int upperLimit)
+        int generateHash (MyKeyType key, int upperLimit) const
         {
             // The function must return a value 0 <= x < upperLimit
             return someFunctionOfMyKeyType (key) % upperLimit;
@@ -68,11 +68,11 @@ public:
     };
     @endcode
 
-    Like the Array class, the key and value types are expected to be copy-by-value types, so
-    if you define them to be pointer types, this class won't delete the objects that they
-    point to.
+    Like the Array class, the key and value types are expected to be copy-by-value
+    types, so if you define them to be pointer types, this class won't delete the
+    objects that they point to.
 
-    If you don't supply a class for the HashFunctionToUse template parameter, the
+    If you don't supply a class for the HashFunctionType template parameter, the
     default one provides some simple mappings for strings and ints.
 
     @code
@@ -88,11 +88,12 @@ public:
         DBG (i.getKey() << " -> " << i.getValue());
     @endcode
 
+    @tparam HashFunctionType The class of hash function, which must be copy-constructible.
     @see CriticalSection, DefaultHashFunctions, NamedValueSet, SortedSet
 */
 template <typename KeyType,
           typename ValueType,
-          class HashFunctionToUse = DefaultHashFunctions,
+          class HashFunctionType = DefaultHashFunctions,
           class TypeOfCriticalSectionToUse = DummyCriticalSection>
 class HashMap
 {
@@ -104,14 +105,19 @@ public:
     //==============================================================================
     /** Creates an empty hash-map.
 
-        The numberOfSlots parameter specifies the number of hash entries the map will use. This
-        will be the "upperLimit" parameter that is passed to your generateHash() function. The number
-        of hash slots will grow automatically if necessary, or it can be remapped manually using remapTable().
+        @param numberOfSlots Specifies the number of hash entries the map will use. This will be
+                            the "upperLimit" parameter that is passed to your generateHash()
+                            function. The number of hash slots will grow automatically if necessary,
+                            or it can be remapped manually using remapTable().
+        @param hashFunction An instance of HashFunctionType, which will be copied and
+                            stored to use with the HashMap. This parameter can be omitted
+                            if HashFunctionType has a default constructor.
     */
-    explicit HashMap (const int numberOfSlots = defaultHashTableSize)
-       : totalNumItems (0)
+    explicit HashMap (int numberOfSlots = defaultHashTableSize,
+                      HashFunctionType hashFunction = HashFunctionType())
+       : hashFunctionToUse (hashFunction), totalNumItems (0)
     {
-        slots.insertMultiple (0, nullptr, numberOfSlots);
+        hashSlots.insertMultiple (0, nullptr, numberOfSlots);
     }
 
     /** Destructor. */
@@ -129,9 +135,9 @@ public:
     {
         const ScopedLockType sl (getLock());
 
-        for (int i = slots.size(); --i >= 0;)
+        for (int i = hashSlots.size(); --i >= 0;)
         {
-            HashEntry* h = slots.getUnchecked(i);
+            HashEntry* h = hashSlots.getUnchecked(i);
 
             while (h != nullptr)
             {
@@ -139,7 +145,7 @@ public:
                 h = h->nextEntry;
             }
 
-            slots.set (i, nullptr);
+            hashSlots.set (i, nullptr);
         }
 
         totalNumItems = 0;
@@ -156,11 +162,11 @@ public:
         If the map doesn't contain the key, a default instance of the value type is returned.
         @param keyToLookFor    the key of the item being requested
     */
-    inline const ValueType operator[] (KeyTypeParameter keyToLookFor) const
+    inline ValueType operator[] (KeyTypeParameter keyToLookFor) const
     {
         const ScopedLockType sl (getLock());
 
-        for (const HashEntry* entry = slots.getUnchecked (generateHashFor (keyToLookFor)); entry != nullptr; entry = entry->nextEntry)
+        for (const HashEntry* entry = hashSlots.getUnchecked (generateHashFor (keyToLookFor)); entry != nullptr; entry = entry->nextEntry)
             if (entry->key == keyToLookFor)
                 return entry->value;
 
@@ -173,7 +179,7 @@ public:
     {
         const ScopedLockType sl (getLock());
 
-        for (const HashEntry* entry = slots.getUnchecked (generateHashFor (keyToLookFor)); entry != nullptr; entry = entry->nextEntry)
+        for (const HashEntry* entry = hashSlots.getUnchecked (generateHashFor (keyToLookFor)); entry != nullptr; entry = entry->nextEntry)
             if (entry->key == keyToLookFor)
                 return true;
 
@@ -186,7 +192,7 @@ public:
         const ScopedLockType sl (getLock());
 
         for (int i = getNumSlots(); --i >= 0;)
-            for (const HashEntry* entry = slots.getUnchecked(i); entry != nullptr; entry = entry->nextEntry)
+            for (const HashEntry* entry = hashSlots.getUnchecked(i); entry != nullptr; entry = entry->nextEntry)
                 if (entry->value == valueToLookFor)
                     return true;
 
@@ -203,7 +209,7 @@ public:
         const ScopedLockType sl (getLock());
         const int hashIndex = generateHashFor (newKey);
 
-        HashEntry* const firstEntry = slots.getUnchecked (hashIndex);
+        HashEntry* const firstEntry = hashSlots.getUnchecked (hashIndex);
 
         for (HashEntry* entry = firstEntry; entry != nullptr; entry = entry->nextEntry)
         {
@@ -214,7 +220,7 @@ public:
             }
         }
 
-        slots.set (hashIndex, new HashEntry (newKey, newValue, firstEntry));
+        hashSlots.set (hashIndex, new HashEntry (newKey, newValue, firstEntry));
         ++totalNumItems;
 
         if (totalNumItems > (getNumSlots() * 3) / 2)
@@ -226,7 +232,7 @@ public:
     {
         const ScopedLockType sl (getLock());
         const int hashIndex = generateHashFor (keyToRemove);
-        HashEntry* entry = slots.getUnchecked (hashIndex);
+        HashEntry* entry = hashSlots.getUnchecked (hashIndex);
         HashEntry* previous = nullptr;
 
         while (entry != nullptr)
@@ -240,7 +246,7 @@ public:
                 if (previous != nullptr)
                     previous->nextEntry = entry;
                 else
-                    slots.set (hashIndex, entry);
+                    hashSlots.set (hashIndex, entry);
 
                 --totalNumItems;
             }
@@ -259,7 +265,7 @@ public:
 
         for (int i = getNumSlots(); --i >= 0;)
         {
-            HashEntry* entry = slots.getUnchecked(i);
+            HashEntry* entry = hashSlots.getUnchecked(i);
             HashEntry* previous = nullptr;
 
             while (entry != nullptr)
@@ -273,7 +279,7 @@ public:
                     if (previous != nullptr)
                         previous->nextEntry = entry;
                     else
-                        slots.set (i, entry);
+                        hashSlots.set (i, entry);
 
                     --totalNumItems;
                 }
@@ -295,7 +301,7 @@ public:
         HashMap newTable (newNumberOfSlots);
 
         for (int i = getNumSlots(); --i >= 0;)
-            for (const HashEntry* entry = slots.getUnchecked(i); entry != nullptr; entry = entry->nextEntry)
+            for (const HashEntry* entry = hashSlots.getUnchecked(i); entry != nullptr; entry = entry->nextEntry)
                 newTable.set (entry->key, entry->value);
 
         swapWith (newTable);
@@ -307,17 +313,18 @@ public:
     */
     inline int getNumSlots() const noexcept
     {
-        return slots.size();
+        return hashSlots.size();
     }
 
     //==============================================================================
     /** Efficiently swaps the contents of two hash-maps. */
-    void swapWith (HashMap& otherHashMap) noexcept
+    template <class OtherHashMapType>
+    void swapWith (OtherHashMapType& otherHashMap) noexcept
     {
         const ScopedLockType lock1 (getLock());
-        const ScopedLockType lock2 (otherHashMap.getLock());
+        const typename OtherHashMapType::ScopedLockType lock2 (otherHashMap.getLock());
 
-        slots.swapWithArray (otherHashMap.slots);
+        hashSlots.swapWith (otherHashMap.hashSlots);
         std::swap (totalNumItems, otherHashMap.totalNumItems);
     }
 
@@ -336,15 +343,15 @@ private:
     class HashEntry
     {
     public:
-        HashEntry (KeyTypeParameter key_, ValueTypeParameter value_, HashEntry* const nextEntry_)
-            : key (key_), value (value_), nextEntry (nextEntry_)
+        HashEntry (KeyTypeParameter k, ValueTypeParameter val, HashEntry* const next)
+            : key (k), value (val), nextEntry (next)
         {}
 
         const KeyType key;
         ValueType value;
         HashEntry* nextEntry;
 
-        JUCE_DECLARE_NON_COPYABLE (HashEntry);
+        JUCE_DECLARE_NON_COPYABLE (HashEntry)
     };
 
 public:
@@ -393,7 +400,7 @@ public:
                 if (index >= hashMap.getNumSlots())
                     return false;
 
-                entry = hashMap.slots.getUnchecked (index++);
+                entry = hashMap.hashSlots.getUnchecked (index++);
             }
 
             return true;
@@ -421,7 +428,7 @@ public:
         HashEntry* entry;
         int index;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Iterator);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Iterator)
     };
 
 private:
@@ -429,19 +436,20 @@ private:
     enum { defaultHashTableSize = 101 };
     friend class Iterator;
 
-    Array <HashEntry*> slots;
+    HashFunctionType hashFunctionToUse;
+    Array<HashEntry*> hashSlots;
     int totalNumItems;
     TypeOfCriticalSectionToUse lock;
 
     int generateHashFor (KeyTypeParameter key) const
     {
-        const int hash = HashFunctionToUse::generateHash (key, getNumSlots());
+        const int hash = hashFunctionToUse.generateHash (key, getNumSlots());
         jassert (isPositiveAndBelow (hash, getNumSlots())); // your hash function is generating out-of-range numbers!
         return hash;
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HashMap);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HashMap)
 };
 
 
-#endif   // __JUCE_HASHMAP_JUCEHEADER__
+#endif   // JUCE_HASHMAP_H_INCLUDED

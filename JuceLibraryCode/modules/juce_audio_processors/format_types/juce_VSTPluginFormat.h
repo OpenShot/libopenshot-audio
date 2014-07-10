@@ -1,35 +1,28 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_VSTPLUGINFORMAT_JUCEHEADER__
-#define __JUCE_VSTPLUGINFORMAT_JUCEHEADER__
-
-#include "../format/juce_AudioPluginFormat.h"
-
-
-#if JUCE_PLUGINHOST_VST
+#if JUCE_PLUGINHOST_VST || DOXYGEN
 
 //==============================================================================
 /**
@@ -43,22 +36,78 @@ public:
     ~VSTPluginFormat();
 
     //==============================================================================
-    String getName() const                { return "VST"; }
-    void findAllTypesForFile (OwnedArray <PluginDescription>& results, const String& fileOrIdentifier);
-    AudioPluginInstance* createInstanceFromDescription (const PluginDescription& desc);
-    bool fileMightContainThisPluginType (const String& fileOrIdentifier);
-    String getNameOfPluginFromIdentifier (const String& fileOrIdentifier);
-    StringArray searchPathsForPlugins (const FileSearchPath& directoriesToSearch, bool recursive);
-    bool doesPluginStillExist (const PluginDescription& desc);
-    FileSearchPath getDefaultLocationsToSearch();
+    /** Attempts to retreive the VSTXML data from a plugin.
+        Will return nullptr if the plugin isn't a VST, or if it doesn't have any VSTXML.
+    */
+    static const XmlElement* getVSTXML (AudioPluginInstance* plugin);
+
+    /** Attempts to reload a VST plugin's state from some FXB or FXP data. */
+    static bool loadFromFXBFile (AudioPluginInstance* plugin, const void* data, size_t dataSize);
+
+    /** Attempts to save a VST's state to some FXP or FXB data. */
+    static bool saveToFXBFile (AudioPluginInstance* plugin, MemoryBlock& result, bool asFXB);
+
+    /** Attempts to get a VST's state as a chunk of memory. */
+    static bool getChunkData (AudioPluginInstance* plugin, MemoryBlock& result, bool isPreset);
+
+    /** Attempts to set a VST's state from a chunk of memory. */
+    static bool setChunkData (AudioPluginInstance* plugin, const void* data, int size, bool isPreset);
+
+    //==============================================================================
+    /** Base class for some extra functions that can be attached to a VST plugin instance. */
+    class ExtraFunctions
+    {
+    public:
+        virtual ~ExtraFunctions() {}
+
+        /** This should return 10000 * the BPM at this position in the current edit. */
+        virtual int64 getTempoAt (int64 samplePos) = 0;
+
+        /** This should return the host's automation state.
+            @returns 0 = not supported, 1 = off, 2 = read, 3 = write, 4 = read/write
+        */
+        virtual int getAutomationState() = 0;
+    };
+
+    /** Provides an ExtraFunctions callback object for a plugin to use.
+        The plugin will take ownership of the object and will delete it automatically.
+    */
+    static void setExtraFunctions (AudioPluginInstance* plugin, ExtraFunctions* functions);
+
+    //==============================================================================
+   #if JUCE_64BIT
+    typedef int64 VstIntPtr;
+   #else
+    typedef int32 VstIntPtr;
+   #endif
+
+    /** This simply calls directly to the VST's AEffect::dispatcher() function. */
+    static VstIntPtr JUCE_CALLTYPE dispatcher (AudioPluginInstance*, int32, int32, VstIntPtr, void*, float);
+
+    //==============================================================================
+    String getName() const override                { return "VST"; }
+    void findAllTypesForFile (OwnedArray<PluginDescription>&, const String& fileOrIdentifier) override;
+    AudioPluginInstance* createInstanceFromDescription (const PluginDescription&, double, int) override;
+    bool fileMightContainThisPluginType (const String& fileOrIdentifier) override;
+    String getNameOfPluginFromIdentifier (const String& fileOrIdentifier) override;
+    bool pluginNeedsRescanning (const PluginDescription&) override;
+    StringArray searchPathsForPlugins (const FileSearchPath&, bool recursive) override;
+    bool doesPluginStillExist (const PluginDescription&) override;
+    FileSearchPath getDefaultLocationsToSearch() override;
+    bool canScanForPlugins() const override        { return true; }
+
+    /** Can be overridden to receive a callback when each member of a shell plugin is about to be
+        tested during a call to findAllTypesForFile().
+        Only the name and uid members of the PluginDescription are guaranteed to be valid when
+        this is called.
+    */
+    virtual void aboutToScanVSTShellPlugin (const PluginDescription&);
 
 private:
-    //==============================================================================
-    void recursiveFileSearch (StringArray& results, const File& dir, const bool recursive);
+    void recursiveFileSearch (StringArray&, const File&, bool recursive);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VSTPluginFormat);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VSTPluginFormat)
 };
 
 
 #endif
-#endif   // __JUCE_VSTPLUGINFORMAT_JUCEHEADER__

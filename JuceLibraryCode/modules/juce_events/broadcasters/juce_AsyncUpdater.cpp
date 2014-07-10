@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -26,12 +25,9 @@
 class AsyncUpdater::AsyncUpdaterMessage  : public CallbackMessage
 {
 public:
-    AsyncUpdaterMessage (AsyncUpdater& owner_)
-        : owner (owner_)
-    {
-    }
+    AsyncUpdaterMessage (AsyncUpdater& au)  : owner (au) {}
 
-    void messageCallback()
+    void messageCallback() override
     {
         if (shouldDeliver.compareAndSetBool (0, 1))
             owner.handleAsyncUpdate();
@@ -42,13 +38,13 @@ public:
 private:
     AsyncUpdater& owner;
 
-    JUCE_DECLARE_NON_COPYABLE (AsyncUpdaterMessage);
+    JUCE_DECLARE_NON_COPYABLE (AsyncUpdaterMessage)
 };
 
 //==============================================================================
 AsyncUpdater::AsyncUpdater()
 {
-    message = new AsyncUpdaterMessage (*this);
+    activeMessage = new AsyncUpdaterMessage (*this);
 }
 
 AsyncUpdater::~AsyncUpdater()
@@ -59,18 +55,18 @@ AsyncUpdater::~AsyncUpdater()
     // deleting this object, or find some other way to avoid such a race condition.
     jassert ((! isUpdatePending()) || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-    message->shouldDeliver.set (0);
+    activeMessage->shouldDeliver.set (0);
 }
 
 void AsyncUpdater::triggerAsyncUpdate()
 {
-    if (message->shouldDeliver.compareAndSetBool (1, 0))
-        message->post();
+    if (activeMessage->shouldDeliver.compareAndSetBool (1, 0))
+        activeMessage->post();
 }
 
 void AsyncUpdater::cancelPendingUpdate() noexcept
 {
-    message->shouldDeliver.set (0);
+    activeMessage->shouldDeliver.set (0);
 }
 
 void AsyncUpdater::handleUpdateNowIfNeeded()
@@ -78,11 +74,11 @@ void AsyncUpdater::handleUpdateNowIfNeeded()
     // This can only be called by the event thread.
     jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-    if (message->shouldDeliver.exchange (0) != 0)
+    if (activeMessage->shouldDeliver.exchange (0) != 0)
         handleAsyncUpdate();
 }
 
 bool AsyncUpdater::isUpdatePending() const noexcept
 {
-    return message->shouldDeliver.value != 0;
+    return activeMessage->shouldDeliver.value != 0;
 }

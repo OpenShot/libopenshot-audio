@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -54,7 +53,7 @@ namespace ActiveXHelpers
     class JuceOleInPlaceFrame   : public ComBaseClassHelper <IOleInPlaceFrame>
     {
     public:
-        JuceOleInPlaceFrame (HWND window_)   : window (window_) {}
+        JuceOleInPlaceFrame (HWND hwnd)   : window (hwnd) {}
 
         JUCE_COMRESULT GetWindow (HWND* lphwnd)                      { *lphwnd = window; return S_OK; }
         JUCE_COMRESULT ContextSensitiveHelp (BOOL)                   { return E_NOTIMPL; }
@@ -77,8 +76,8 @@ namespace ActiveXHelpers
     class JuceIOleInPlaceSite   : public ComBaseClassHelper <IOleInPlaceSite>
     {
     public:
-        JuceIOleInPlaceSite (HWND window_)
-            : window (window_),
+        JuceIOleInPlaceSite (HWND hwnd)
+            : window (hwnd),
               frame (new JuceOleInPlaceFrame (window))
         {}
 
@@ -161,11 +160,9 @@ namespace ActiveXHelpers
     HWND getHWND (const ActiveXControlComponent* const component)
     {
         HWND hwnd = 0;
-
         const IID iid = IID_IOleWindow;
-        IOleWindow* const window = (IOleWindow*) component->queryInterface (&iid);
 
-        if (window != nullptr)
+        if (IOleWindow* const window = (IOleWindow*) component->queryInterface (&iid))
         {
             window->GetWindow (&hwnd);
             window->Release();
@@ -205,9 +202,9 @@ namespace ActiveXHelpers
 class ActiveXControlComponent::Pimpl  : public ComponentMovementWatcher
 {
 public:
-    Pimpl (HWND hwnd, ActiveXControlComponent& owner_)
-        : ComponentMovementWatcher (&owner_),
-          owner (owner_),
+    Pimpl (HWND hwnd, ActiveXControlComponent& activeXComp)
+        : ComponentMovementWatcher (&activeXComp),
+          owner (activeXComp),
           controlHWND (0),
           storage (new ActiveXHelpers::JuceIStorage()),
           clientSite (new ActiveXHelpers::JuceIOleClientSite (hwnd)),
@@ -241,20 +238,18 @@ public:
     }
 
     //==============================================================================
-    void componentMovedOrResized (bool /*wasMoved*/, bool /*wasResized*/)
+    void componentMovedOrResized (bool /*wasMoved*/, bool /*wasResized*/) override
     {
-        Component* const topComp = owner.getTopLevelComponent();
-
-        if (topComp->getPeer() != nullptr)
-            setControlBounds (topComp->getLocalArea (&owner, owner.getLocalBounds()));
+        if (ComponentPeer* const peer = owner.getTopLevelComponent()->getPeer())
+            setControlBounds (peer->getAreaCoveredBy (owner));
     }
 
-    void componentPeerChanged()
+    void componentPeerChanged() override
     {
         componentMovedOrResized (true, true);
     }
 
-    void componentVisibilityChanged()
+    void componentVisibilityChanged() override
     {
         setControlVisible (owner.isShowing());
         componentPeerChanged();
@@ -283,9 +278,7 @@ public:
                 case WM_RBUTTONDBLCLK:
                     if (ax->isShowing())
                     {
-                        ComponentPeer* const peer = ax->getPeer();
-
-                        if (peer != nullptr)
+                        if (ComponentPeer* const peer = ax->getPeer())
                         {
                             ActiveXHelpers::offerActiveXMouseEventToPeer (peer, hwnd, message, lParam);
 
@@ -306,16 +299,12 @@ public:
         return DefWindowProc (hwnd, message, wParam, lParam);
     }
 
-private:
     ActiveXControlComponent& owner;
-
-public:
     HWND controlHWND;
     IStorage* storage;
     IOleClientSite* clientSite;
     IOleObject* control;
     WNDPROC originalWndProc;
-
 };
 
 //==============================================================================
@@ -328,7 +317,7 @@ ActiveXControlComponent::ActiveXControlComponent()
 ActiveXControlComponent::~ActiveXControlComponent()
 {
     deleteControl();
-    ActiveXHelpers::activeXComps.removeValue (this);
+    ActiveXHelpers::activeXComps.removeFirstMatchingValue (this);
 }
 
 void ActiveXControlComponent::paint (Graphics& g)
@@ -340,14 +329,11 @@ void ActiveXControlComponent::paint (Graphics& g)
 bool ActiveXControlComponent::createControl (const void* controlIID)
 {
     deleteControl();
-    ComponentPeer* const peer = getPeer();
 
-    // the component must have already been added to a real window when you call this!
-    jassert (peer != nullptr);
-
-    if (peer != nullptr)
+    if (ComponentPeer* const peer = getPeer())
     {
-        const Rectangle<int> bounds (getTopLevelComponent()->getLocalArea (this, getLocalBounds()));
+        const Rectangle<int> bounds (peer->getAreaCoveredBy (*this));
+
         HWND hwnd = (HWND) peer->getNativeHandle();
 
         ScopedPointer<Pimpl> newControl (new Pimpl (hwnd, *this));
@@ -357,7 +343,7 @@ bool ActiveXControlComponent::createControl (const void* controlIID)
                              newControl->clientSite, newControl->storage,
                              (void**) &(newControl->control))) == S_OK)
         {
-            newControl->control->SetHostNames (L"Juce", 0);
+            newControl->control->SetHostNames (L"JUCE", 0);
 
             if (OleSetContainedObject (newControl->control, TRUE) == S_OK)
             {
@@ -384,6 +370,11 @@ bool ActiveXControlComponent::createControl (const void* controlIID)
                 }
             }
         }
+    }
+    else
+    {
+        // the component must have already been added to a real window when you call this!
+        jassertfalse;
     }
 
     return false;

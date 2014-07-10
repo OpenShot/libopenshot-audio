@@ -1,71 +1,45 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-ArrowButton::ArrowButton (const String& name,
-                          float arrowDirectionInRadians,
-                          const Colour& arrowColour)
-   : Button (name),
-     colour (arrowColour)
+ArrowButton::ArrowButton (const String& name, float arrowDirectionInRadians, Colour arrowColour)
+   : Button (name), colour (arrowColour)
 {
-    path.lineTo (0.0f, 1.0f);
-    path.lineTo (1.0f, 0.5f);
-    path.closeSubPath();
-
-    path.applyTransform (AffineTransform::rotation (float_Pi * 2.0f * arrowDirectionInRadians,
-                                                    0.5f, 0.5f));
-
-    setComponentEffect (&shadow);
-    updateShadowAndOffset();
+    path.addTriangle (0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.5f);
+    path.applyTransform (AffineTransform::rotation (float_Pi * 2.0f * arrowDirectionInRadians, 0.5f, 0.5f));
 }
 
-ArrowButton::~ArrowButton()
-{
-}
+ArrowButton::~ArrowButton() {}
 
-void ArrowButton::paintButton (Graphics& g,
-                               bool /*isMouseOverButton*/,
-                               bool /*isButtonDown*/)
+void ArrowButton::paintButton (Graphics& g, bool /*isMouseOverButton*/, bool isButtonDown)
 {
+    Path p (path);
+
+    const float offset = isButtonDown ? 1.0f : 0.0f;
+    p.applyTransform (path.getTransformToScaleToFit (offset, offset, getWidth() - 3.0f, getHeight() - 3.0f, false));
+
+    DropShadow (Colours::black.withAlpha (0.3f), isButtonDown ? 2 : 4, Point<int>()).drawForPath (g, p);
+
     g.setColour (colour);
-
-    g.fillPath (path, path.getTransformToScaleToFit ((float) offset,
-                                                     (float) offset,
-                                                     (float) (getWidth() - 3),
-                                                     (float) (getHeight() - 3),
-                                                     false));
-}
-
-void ArrowButton::buttonStateChanged()
-{
-    updateShadowAndOffset();
-}
-
-void ArrowButton::updateShadowAndOffset()
-{
-    offset = (isDown()) ? 1 : 0;
-
-    shadow.setShadowProperties ((isDown()) ? 1.2f : 3.0f,
-                                0.3f, -1, 0);
+    g.fillPath (p);
 }

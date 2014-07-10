@@ -1,30 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_BASICNATIVEHEADERS_JUCEHEADER__
-#define __JUCE_BASICNATIVEHEADERS_JUCEHEADER__
+#ifndef JUCE_BASICNATIVEHEADERS_H_INCLUDED
+#define JUCE_BASICNATIVEHEADERS_H_INCLUDED
 
 #include "../system/juce_TargetPlatform.h"
 #undef T
@@ -62,6 +65,9 @@
  #include <net/if_dl.h>
  #include <mach/mach_time.h>
  #include <mach-o/dyld.h>
+ #include <objc/runtime.h>
+ #include <objc/objc.h>
+ #include <objc/message.h>
 
 //==============================================================================
 #elif JUCE_WINDOWS
@@ -80,17 +86,17 @@
 
  #define STRICT 1
  #define WIN32_LEAN_AND_MEAN 1
- #define _WIN32_WINNT 0x0600
+ #if JUCE_MINGW
+  #define _WIN32_WINNT 0x0501
+ #else
+  #define _WIN32_WINNT 0x0600
+ #endif
  #define _UNICODE 1
  #define UNICODE 1
  #ifndef _WIN32_IE
-  #define _WIN32_IE 0x0400
+  #define _WIN32_IE 0x0500
  #endif
 
- #if JUCE_MINGW
-  #include <basetyps.h>
- #endif
- 
  #include <windows.h>
  #include <shellapi.h>
  #include <tchar.h>
@@ -106,7 +112,9 @@
  #include <shlwapi.h>
  #include <mmsystem.h>
 
- #if ! JUCE_MINGW
+ #if JUCE_MINGW
+  #include <basetyps.h>
+ #else
   #include <crtdbg.h>
   #include <comutil.h>
  #endif
@@ -121,7 +129,6 @@
  #if JUCE_MSVC && ! JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
   #pragma comment (lib, "kernel32.lib")
   #pragma comment (lib, "user32.lib")
-  #pragma comment (lib, "shell32.lib")
   #pragma comment (lib, "wininet.lib")
   #pragma comment (lib, "advapi32.lib")
   #pragma comment (lib, "ws2_32.lib")
@@ -144,17 +151,17 @@
   #endif
  #endif
 
- /* Used with DynamicLibrary to simplify importing functions
+ /* Used with DynamicLibrary to simplify importing functions from a win32 DLL.
 
+    dll: the DynamicLibrary object
     functionName: function to import
     localFunctionName: name you want to use to actually call it (must be different)
     returnType: the return type
-    object: the DynamicLibrary to use
     params: list of params (bracketed)
  */
- #define JUCE_DLL_FUNCTION(functionName, localFunctionName, returnType, object, params) \
+ #define JUCE_LOAD_WINAPI_FUNCTION(dll, functionName, localFunctionName, returnType, params) \
     typedef returnType (WINAPI *type##localFunctionName) params; \
-    type##localFunctionName localFunctionName = (type##localFunctionName)object.getFunction (#functionName);
+    type##localFunctionName localFunctionName = (type##localFunctionName) dll.getFunction (#functionName);
 
 //==============================================================================
 #elif JUCE_LINUX
@@ -184,6 +191,7 @@
  #include <sys/file.h>
  #include <sys/prctl.h>
  #include <signal.h>
+ #include <stddef.h>
 
 //==============================================================================
 #elif JUCE_ANDROID
@@ -212,4 +220,4 @@
 #undef direct
 #undef check
 
-#endif   // __JUCE_BASICNATIVEHEADERS_JUCEHEADER__
+#endif   // JUCE_BASICNATIVEHEADERS_H_INCLUDED

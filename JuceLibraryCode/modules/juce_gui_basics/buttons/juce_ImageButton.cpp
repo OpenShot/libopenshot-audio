@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -40,13 +39,13 @@ void ImageButton::setImages (const bool resizeButtonNowToFitThisImage,
                              const bool preserveImageProportions,
                              const Image& normalImage_,
                              const float imageOpacityWhenNormal,
-                             const Colour& overlayColourWhenNormal,
+                             Colour overlayColourWhenNormal,
                              const Image& overImage_,
                              const float imageOpacityWhenOver,
-                             const Colour& overlayColourWhenOver,
+                             Colour overlayColourWhenOver,
                              const Image& downImage_,
                              const float imageOpacityWhenDown,
-                             const Colour& overlayColourWhenDown,
+                             Colour overlayColourWhenDown,
                              const float hitTestAlphaThreshold)
 {
     normalImage = normalImage_;
@@ -187,57 +186,4 @@ bool ImageButton::hitTest (int x, int y)
     return im.isNull() || ((! imageBounds.isEmpty())
                             && alphaThreshold < im.getPixelAt (((x - imageBounds.getX()) * im.getWidth()) / imageBounds.getWidth(),
                                                                ((y - imageBounds.getY()) * im.getHeight()) / imageBounds.getHeight()).getAlpha());
-}
-
-const Identifier ImageButton::Ids::tagType     ("IMAGEBUTTON");
-const Identifier ImageButton::Ids::upImage     ("upImage");
-const Identifier ImageButton::Ids::overImage   ("overImage");
-const Identifier ImageButton::Ids::downImage   ("downImage");
-const Identifier ImageButton::Ids::upOverlay   ("upOverlay");
-const Identifier ImageButton::Ids::overOverlay ("overOverlay");
-const Identifier ImageButton::Ids::downOverlay ("downOverlay");
-const Identifier ImageButton::Ids::upOpacity   ("upOpacity");
-const Identifier ImageButton::Ids::overOpacity ("overOpacity");
-const Identifier ImageButton::Ids::downOpacity ("downOpacity");
-
-namespace ImageButtonHelpers
-{
-    static Colour getColourFromVar (const var& col)
-    {
-        return col.isString() ? Colour::fromString (col.toString())
-                              : Colours::transparentBlack;
-    }
-
-    static float getOpacityFromVar (const var& v)
-    {
-        return v.isVoid() ? 1.0f : static_cast<float> (v);
-    }
-}
-
-void ImageButton::refreshFromValueTree (const ValueTree& state, ComponentBuilder& builder)
-{
-    Button::refreshFromValueTree (state, builder);
-
-    const var upImageIdentifier (state [Ids::upImage]),
-              overImageIdentifier (state [Ids::overImage]),
-              downImageIdentifier (state [Ids::downImage]);
-
-    ComponentBuilder::ImageProvider* const imageProvider = builder.getImageProvider();
-    jassert (imageProvider != nullptr || upImageIdentifier.isVoid());
-
-    Image newUpImage, newOverImage, newDownImage;
-
-    if (imageProvider != nullptr)
-    {
-        newUpImage   = imageProvider->getImageForIdentifier (upImageIdentifier);
-        newOverImage = imageProvider->getImageForIdentifier (overImageIdentifier);
-        newDownImage = imageProvider->getImageForIdentifier (downImageIdentifier);
-    }
-
-    using namespace ImageButtonHelpers;
-
-    setImages (false, true, true,
-               newUpImage,   getOpacityFromVar (state[Ids::upOpacity]),   getColourFromVar (state[Ids::upOverlay]),
-               newOverImage, getOpacityFromVar (state[Ids::overOpacity]), getColourFromVar (state[Ids::overOverlay]),
-               newDownImage, getOpacityFromVar (state[Ids::downOpacity]), getColourFromVar (state[Ids::downOverlay]));
 }

@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_IMAGECOMPONENT_JUCEHEADER__
-#define __JUCE_IMAGECOMPONENT_JUCEHEADER__
-
-#include "../components/juce_Component.h"
-#include "../mouse/juce_TooltipClient.h"
+#ifndef JUCE_IMAGECOMPONENT_H_INCLUDED
+#define JUCE_IMAGECOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -53,7 +49,7 @@ public:
 
     /** Sets the image that should be displayed, and its placement within the component. */
     void setImage (const Image& newImage,
-                   const RectanglePlacement& placementToUse);
+                   RectanglePlacement placementToUse);
 
     /** Returns the current image. */
     const Image& getImage() const;
@@ -62,30 +58,21 @@ public:
         By default the positioning is centred, and will fit the image inside the component's bounds
         whilst keeping its aspect ratio correct, but you can change it to whatever layout you need.
     */
-    void setImagePlacement (const RectanglePlacement& newPlacement);
+    void setImagePlacement (RectanglePlacement newPlacement);
 
     /** Returns the current image placement. */
-    const RectanglePlacement getImagePlacement() const;
-
-    //==============================================================================
-    struct Ids
-    {
-        static const Identifier tagType, image, placement;
-    };
-
-    void refreshFromValueTree (const ValueTree&, ComponentBuilder&);
-    static RectanglePlacement getPlacement (const ValueTree& state);
+    RectanglePlacement getImagePlacement() const;
 
     //==============================================================================
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
 
 private:
     Image image;
     RectanglePlacement placement;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ImageComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ImageComponent)
 };
 
 
-#endif   // __JUCE_IMAGECOMPONENT_JUCEHEADER__
+#endif   // JUCE_IMAGECOMPONENT_H_INCLUDED

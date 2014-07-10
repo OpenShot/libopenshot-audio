@@ -1,48 +1,47 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-BufferingAudioSource::BufferingAudioSource (PositionableAudioSource* source_,
-                                            TimeSliceThread& backgroundThread_,
+BufferingAudioSource::BufferingAudioSource (PositionableAudioSource* s,
+                                            TimeSliceThread& thread,
                                             const bool deleteSourceWhenDeleted,
-                                            const int numberOfSamplesToBuffer_,
-                                            const int numberOfChannels_)
-    : source (source_, deleteSourceWhenDeleted),
-      backgroundThread (backgroundThread_),
-      numberOfSamplesToBuffer (jmax (1024, numberOfSamplesToBuffer_)),
-      numberOfChannels (numberOfChannels_),
-      buffer (numberOfChannels_, 0),
+                                            const int bufferSizeSamples,
+                                            const int numChannels)
+    : source (s, deleteSourceWhenDeleted),
+      backgroundThread (thread),
+      numberOfSamplesToBuffer (jmax (1024, bufferSizeSamples)),
+      numberOfChannels (numChannels),
       bufferValidStart (0),
       bufferValidEnd (0),
       nextPlayPos (0),
+      sampleRate (0),
       wasSourceLooping (false),
       isPrepared (false)
 {
-    jassert (source_ != nullptr);
+    jassert (source != nullptr);
 
-    jassert (numberOfSamplesToBuffer_ > 1024); // not much point using this class if you're
-                                               //  not using a larger buffer..
+    jassert (numberOfSamplesToBuffer > 1024); // not much point using this class if you're
+                                              //  not using a larger buffer..
 }
 
 BufferingAudioSource::~BufferingAudioSource()
@@ -51,20 +50,20 @@ BufferingAudioSource::~BufferingAudioSource()
 }
 
 //==============================================================================
-void BufferingAudioSource::prepareToPlay (int samplesPerBlockExpected, double sampleRate_)
+void BufferingAudioSource::prepareToPlay (int samplesPerBlockExpected, double newSampleRate)
 {
     const int bufferSizeNeeded = jmax (samplesPerBlockExpected * 2, numberOfSamplesToBuffer);
 
-    if (sampleRate_ != sampleRate
+    if (newSampleRate != sampleRate
          || bufferSizeNeeded != buffer.getNumSamples()
          || ! isPrepared)
     {
         backgroundThread.removeTimeSliceClient (this);
 
         isPrepared = true;
-        sampleRate = sampleRate_;
+        sampleRate = newSampleRate;
 
-        source->prepareToPlay (samplesPerBlockExpected, sampleRate_);
+        source->prepareToPlay (samplesPerBlockExpected, newSampleRate);
 
         buffer.setSize (numberOfChannels, bufferSizeNeeded);
         buffer.clear();
@@ -74,7 +73,7 @@ void BufferingAudioSource::prepareToPlay (int samplesPerBlockExpected, double sa
 
         backgroundThread.addTimeSliceClient (this);
 
-        while (bufferValidEnd - bufferValidStart < jmin (((int) sampleRate_) / 4,
+        while (bufferValidEnd - bufferValidStart < jmin (((int) newSampleRate) / 4,
                                                          buffer.getNumSamples() / 2))
         {
             backgroundThread.moveToFrontOfQueue (this);
@@ -146,9 +145,6 @@ void BufferingAudioSource::getNextAudioBlock (const AudioSourceChannelInfo& info
         }
 
         nextPlayPos += info.numSamples;
-
-        if (source->isLooping() && nextPlayPos > 0)
-            nextPlayPos %= source->getTotalLength();
     }
 }
 
@@ -212,42 +208,40 @@ bool BufferingAudioSource::readNextBufferChunk()
         }
     }
 
-    if (sectionToReadStart != sectionToReadEnd)
+    if (sectionToReadStart == sectionToReadEnd)
+        return false;
+
+    jassert (buffer.getNumSamples() > 0);
+    const int bufferIndexStart = (int) (sectionToReadStart % buffer.getNumSamples());
+    const int bufferIndexEnd   = (int) (sectionToReadEnd   % buffer.getNumSamples());
+
+    if (bufferIndexStart < bufferIndexEnd)
     {
-        jassert (buffer.getNumSamples() > 0);
-        const int bufferIndexStart = (int) (sectionToReadStart % buffer.getNumSamples());
-        const int bufferIndexEnd   = (int) (sectionToReadEnd   % buffer.getNumSamples());
+        readBufferSection (sectionToReadStart,
+                           (int) (sectionToReadEnd - sectionToReadStart),
+                           bufferIndexStart);
+    }
+    else
+    {
+        const int initialSize = buffer.getNumSamples() - bufferIndexStart;
 
-        if (bufferIndexStart < bufferIndexEnd)
-        {
-            readBufferSection (sectionToReadStart,
-                               (int) (sectionToReadEnd - sectionToReadStart),
-                               bufferIndexStart);
-        }
-        else
-        {
-            const int initialSize = buffer.getNumSamples() - bufferIndexStart;
+        readBufferSection (sectionToReadStart,
+                           initialSize,
+                           bufferIndexStart);
 
-            readBufferSection (sectionToReadStart,
-                               initialSize,
-                               bufferIndexStart);
+        readBufferSection (sectionToReadStart + initialSize,
+                           (int) (sectionToReadEnd - sectionToReadStart) - initialSize,
+                           0);
+    }
 
-            readBufferSection (sectionToReadStart + initialSize,
-                               (int) (sectionToReadEnd - sectionToReadStart) - initialSize,
-                               0);
-        }
-
+    {
         const ScopedLock sl2 (bufferStartPosLock);
 
         bufferValidStart = newBVS;
         bufferValidEnd = newBVE;
+    }
 
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return true;
 }
 
 void BufferingAudioSource::readBufferSection (const int64 start, const int length, const int bufferOffset)
@@ -255,11 +249,7 @@ void BufferingAudioSource::readBufferSection (const int64 start, const int lengt
     if (source->getNextReadPosition() != start)
         source->setNextReadPosition (start);
 
-    AudioSourceChannelInfo info;
-    info.buffer = &buffer;
-    info.startSample = bufferOffset;
-    info.numSamples = length;
-
+    AudioSourceChannelInfo info (&buffer, bufferOffset, length);
     source->getNextAudioBlock (info);
 }
 

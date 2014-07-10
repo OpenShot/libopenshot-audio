@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_COMPONENTBUILDER_JUCEHEADER__
-#define __JUCE_COMPONENTBUILDER_JUCEHEADER__
-
-#include "../components/juce_Component.h"
+#ifndef JUCE_COMPONENTBUILDER_H_INCLUDED
+#define JUCE_COMPONENTBUILDER_H_INCLUDED
 
 
 //==============================================================================
@@ -45,7 +42,7 @@
     object, or if you keep the ComponentBuilder around, it'll monitor any changes in the
     ValueTree and automatically update the component to reflect these changes.
 */
-class JUCE_API  ComponentBuilder  : public ValueTree::Listener
+class JUCE_API  ComponentBuilder  : private ValueTree::Listener
 {
 public:
     /** Creates a ComponentBuilder that will use the given state.
@@ -69,7 +66,7 @@ public:
 
         The first time that this method is called, the builder will attempt to create a component
         from the ValueTree, so you must have registered some suitable type handlers before calling
-        this. If there's a problem and the component can't be created, this method returns 0.
+        this. If there's a problem and the component can't be created, this method returns nullptr.
 
         The component that is returned is owned by this ComponentBuilder, so you can put it inside
         your own parent components, but don't delete it! The ComponentBuilder will delete it automatically
@@ -145,7 +142,7 @@ public:
         friend class ComponentBuilder;
         ComponentBuilder* builder;
 
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TypeHandler);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TypeHandler)
     };
 
     //==============================================================================
@@ -213,7 +210,7 @@ public:
     */
     void setImageProvider (ImageProvider* newImageProvider) noexcept;
 
-    /** Returns the current image provider that this builder is using, or 0 if none has been set. */
+    /** Returns the current image provider that this builder is using, or nullptr if none has been set. */
     ImageProvider* getImageProvider() const noexcept;
 
     //=============================================================================
@@ -227,28 +224,6 @@ public:
     */
     static const Identifier idProperty;
 
-    /**
-    */
-    static void initialiseFromValueTree (Component& component,
-                                         const ValueTree& state,
-                                         ImageProvider* imageProvider);
-
-    //=============================================================================
-    /** @internal */
-    void valueTreePropertyChanged (ValueTree& treeWhosePropertyHasChanged, const Identifier& property);
-    /** @internal */
-    void valueTreeChildAdded (ValueTree& parentTree, ValueTree& childWhichHasBeenAdded);
-    /** @internal */
-    void valueTreeChildRemoved (ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved);
-    /** @internal */
-    void valueTreeChildOrderChanged (ValueTree& parentTree);
-    /** @internal */
-    void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged);
-    /** @internal */
-    static void refreshBasicComponentProperties (Component&, const ValueTree&);
-    /** @internal */
-    static RelativeRectangle getComponentBounds (const ValueTree&);
-
 private:
     //=============================================================================
     OwnedArray <TypeHandler> types;
@@ -258,10 +233,13 @@ private:
     WeakReference<Component> componentRef;
    #endif
 
-    static const Identifier positionID;
-    void initialiseRecursively (Component&, const ValueTree&);
+    void valueTreePropertyChanged (ValueTree&, const Identifier&) override;
+    void valueTreeChildAdded (ValueTree&, ValueTree&) override;
+    void valueTreeChildRemoved (ValueTree&, ValueTree&) override;
+    void valueTreeChildOrderChanged (ValueTree&) override;
+    void valueTreeParentChanged (ValueTree&) override;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentBuilder);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentBuilder)
 };
 
-#endif   // __JUCE_COMPONENTBUILDER_JUCEHEADER__
+#endif   // JUCE_COMPONENTBUILDER_H_INCLUDED

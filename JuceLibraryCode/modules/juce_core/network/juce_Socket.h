@@ -1,32 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_SOCKET_JUCEHEADER__
-#define __JUCE_SOCKET_JUCEHEADER__
-
-#include "../text/juce_String.h"
+#ifndef JUCE_SOCKET_H_INCLUDED
+#define JUCE_SOCKET_H_INCLUDED
 
 
 //==============================================================================
@@ -91,6 +92,9 @@ public:
     /** True if the socket is connected to this machine rather than over the network. */
     bool isLocal() const noexcept;
 
+    /** Returns the OS's socket handle that's currently open. */
+    int getRawSocketHandle() const noexcept                     { return handle; }
+
     //==============================================================================
     /** Waits until the socket is ready for reading or writing.
 
@@ -142,7 +146,7 @@ public:
 
         @see waitForNextConnection
     */
-    bool createListener (int portNumber, const String& localHostName = String::empty);
+    bool createListener (int portNumber, const String& localHostName = String());
 
     /** When in "listener" mode, this waits for a connection and spawns it as a new
         socket.
@@ -155,7 +159,6 @@ public:
     */
     StreamingSocket* waitForNextConnection() const;
 
-
 private:
     //==============================================================================
     String hostName;
@@ -164,7 +167,7 @@ private:
 
     StreamingSocket (const String& hostname, int portNumber, int handle);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StreamingSocket);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StreamingSocket)
 };
 
 
@@ -237,6 +240,9 @@ public:
     /** True if the socket is connected to this machine rather than over the network. */
     bool isLocal() const noexcept;
 
+    /** Returns the OS's socket handle that's currently open. */
+    int getRawSocketHandle() const noexcept                     { return handle; }
+
     //==============================================================================
     /** Waits until the socket is ready for reading or writing.
 
@@ -283,7 +289,6 @@ public:
     */
     DatagramSocket* waitForNextConnection() const;
 
-
 private:
     //==============================================================================
     String hostName;
@@ -293,8 +298,8 @@ private:
 
     DatagramSocket (const String& hostname, int portNumber, int handle, int localPortNumber);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DatagramSocket);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DatagramSocket)
 };
 
 
-#endif   // __JUCE_SOCKET_JUCEHEADER__
+#endif   // JUCE_SOCKET_H_INCLUDED

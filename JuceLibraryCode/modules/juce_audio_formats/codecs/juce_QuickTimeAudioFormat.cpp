@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -67,14 +66,13 @@ namespace juce
 bool juce_OpenQuickTimeMovieFromStream (InputStream* input, Movie& movie, Handle& dataHandle);
 
 static const char* const quickTimeFormatName = "QuickTime file";
-static const char* const quickTimeExtensions[] = { ".mov", ".mp3", ".mp4", ".m4a", 0 };
 
 //==============================================================================
 class QTAudioReader     : public AudioFormatReader
 {
 public:
     QTAudioReader (InputStream* const input_, const int trackNum_)
-        : AudioFormatReader (input_, TRANS (quickTimeFormatName)),
+        : AudioFormatReader (input_, quickTimeFormatName),
           ok (false),
           movie (0),
           trackNum (trackNum_),
@@ -84,225 +82,231 @@ public:
           dataHandle (0)
     {
         JUCE_AUTORELEASEPOOL
-        bufferList.calloc (256, 1);
-
-       #if JUCE_WINDOWS
-        if (InitializeQTML (0) != noErr)
-            return;
-       #endif
-
-        if (EnterMovies() != noErr)
-            return;
-
-        bool opened = juce_OpenQuickTimeMovieFromStream (input_, movie, dataHandle);
-
-        if (! opened)
-            return;
-
         {
-            const int numTracks = GetMovieTrackCount (movie);
-            int trackCount = 0;
+            bufferList.calloc (256, 1);
 
-            for (int i = 1; i <= numTracks; ++i)
+           #if JUCE_WINDOWS
+            if (InitializeQTML (0) != noErr)
+                return;
+           #endif
+
+            if (EnterMovies() != noErr)
+                return;
+
+            bool opened = juce_OpenQuickTimeMovieFromStream (input_, movie, dataHandle);
+
+            if (! opened)
+                return;
+
             {
-                track = GetMovieIndTrack (movie, i);
-                media = GetTrackMedia (track);
+                const int numTracks = GetMovieTrackCount (movie);
+                int trackCount = 0;
 
-                OSType mediaType;
-                GetMediaHandlerDescription (media, &mediaType, 0, 0);
-
-                if (mediaType == SoundMediaType
-                     && trackCount++ == trackNum_)
+                for (int i = 1; i <= numTracks; ++i)
                 {
-                    ok = true;
-                    break;
+                    track = GetMovieIndTrack (movie, i);
+                    media = GetTrackMedia (track);
+
+                    OSType mediaType;
+                    GetMediaHandlerDescription (media, &mediaType, 0, 0);
+
+                    if (mediaType == SoundMediaType
+                         && trackCount++ == trackNum_)
+                    {
+                        ok = true;
+                        break;
+                    }
                 }
             }
-        }
 
-        if (! ok)
-            return;
+            if (! ok)
+                return;
 
-        ok = false;
+            ok = false;
 
-        lengthInSamples = GetMediaDecodeDuration (media);
-        usesFloatingPointData = false;
+            lengthInSamples = GetMediaDecodeDuration (media);
+            usesFloatingPointData = false;
 
-        samplesPerFrame = (int) (GetMediaDecodeDuration (media) / GetMediaSampleCount (media));
+            samplesPerFrame = (int) (GetMediaDecodeDuration (media) / GetMediaSampleCount (media));
 
-        trackUnitsPerFrame = GetMovieTimeScale (movie) * samplesPerFrame
-                                / GetMediaTimeScale (media);
+            trackUnitsPerFrame = GetMovieTimeScale (movie) * samplesPerFrame
+                                    / GetMediaTimeScale (media);
 
-        OSStatus err = MovieAudioExtractionBegin (movie, 0, &extractor);
+            MovieAudioExtractionBegin (movie, 0, &extractor);
 
-        unsigned long output_layout_size;
-        err = MovieAudioExtractionGetPropertyInfo (extractor,
+            unsigned long output_layout_size;
+            OSStatus err = MovieAudioExtractionGetPropertyInfo (extractor,
+                                                                kQTPropertyClass_MovieAudioExtraction_Audio,
+                                                                kQTMovieAudioExtractionAudioPropertyID_AudioChannelLayout,
+                                                                0, &output_layout_size, 0);
+            if (err != noErr)
+                return;
+
+            HeapBlock <AudioChannelLayout> qt_audio_channel_layout;
+            qt_audio_channel_layout.calloc (output_layout_size, 1);
+
+            MovieAudioExtractionGetProperty (extractor,
+                                             kQTPropertyClass_MovieAudioExtraction_Audio,
+                                             kQTMovieAudioExtractionAudioPropertyID_AudioChannelLayout,
+                                             output_layout_size, qt_audio_channel_layout, 0);
+
+            qt_audio_channel_layout[0].mChannelLayoutTag = kAudioChannelLayoutTag_Stereo;
+
+            MovieAudioExtractionSetProperty (extractor,
+                                             kQTPropertyClass_MovieAudioExtraction_Audio,
+                                             kQTMovieAudioExtractionAudioPropertyID_AudioChannelLayout,
+                                             output_layout_size,
+                                             qt_audio_channel_layout);
+
+            err = MovieAudioExtractionGetProperty (extractor,
                                                    kQTPropertyClass_MovieAudioExtraction_Audio,
-                                                   kQTMovieAudioExtractionAudioPropertyID_AudioChannelLayout,
-                                                   0, &output_layout_size, 0);
-        if (err != noErr)
-            return;
+                                                   kQTMovieAudioExtractionAudioPropertyID_AudioStreamBasicDescription,
+                                                   sizeof (inputStreamDesc),
+                                                   &inputStreamDesc, 0);
+            if (err != noErr)
+                return;
 
-        HeapBlock <AudioChannelLayout> qt_audio_channel_layout;
-        qt_audio_channel_layout.calloc (output_layout_size, 1);
+            inputStreamDesc.mFormatFlags = kAudioFormatFlagIsSignedInteger
+                                            | kAudioFormatFlagIsPacked
+                                            | kAudioFormatFlagsNativeEndian;
+            inputStreamDesc.mBitsPerChannel = sizeof (SInt16) * 8;
+            inputStreamDesc.mChannelsPerFrame = jmin ((UInt32) 2, inputStreamDesc.mChannelsPerFrame);
+            inputStreamDesc.mBytesPerFrame = sizeof (SInt16) * inputStreamDesc.mChannelsPerFrame;
+            inputStreamDesc.mBytesPerPacket = inputStreamDesc.mBytesPerFrame;
 
-        err = MovieAudioExtractionGetProperty (extractor,
-                                               kQTPropertyClass_MovieAudioExtraction_Audio,
-                                               kQTMovieAudioExtractionAudioPropertyID_AudioChannelLayout,
-                                               output_layout_size, qt_audio_channel_layout, 0);
+            err = MovieAudioExtractionSetProperty (extractor,
+                                                   kQTPropertyClass_MovieAudioExtraction_Audio,
+                                                   kQTMovieAudioExtractionAudioPropertyID_AudioStreamBasicDescription,
+                                                   sizeof (inputStreamDesc),
+                                                   &inputStreamDesc);
+            if (err != noErr)
+                return;
 
-        qt_audio_channel_layout[0].mChannelLayoutTag = kAudioChannelLayoutTag_Stereo;
+            Boolean allChannelsDiscrete = false;
+            err = MovieAudioExtractionSetProperty (extractor,
+                                                   kQTPropertyClass_MovieAudioExtraction_Movie,
+                                                   kQTMovieAudioExtractionMoviePropertyID_AllChannelsDiscrete,
+                                                   sizeof (allChannelsDiscrete),
+                                                   &allChannelsDiscrete);
 
-        err = MovieAudioExtractionSetProperty (extractor,
-                                               kQTPropertyClass_MovieAudioExtraction_Audio,
-                                               kQTMovieAudioExtractionAudioPropertyID_AudioChannelLayout,
-                                               output_layout_size,
-                                               qt_audio_channel_layout);
+            if (err != noErr)
+                return;
 
-        err = MovieAudioExtractionGetProperty (extractor,
-                                               kQTPropertyClass_MovieAudioExtraction_Audio,
-                                               kQTMovieAudioExtractionAudioPropertyID_AudioStreamBasicDescription,
-                                               sizeof (inputStreamDesc),
-                                               &inputStreamDesc, 0);
-        if (err != noErr)
-            return;
+            bufferList->mNumberBuffers = 1;
+            bufferList->mBuffers[0].mNumberChannels = inputStreamDesc.mChannelsPerFrame;
+            bufferList->mBuffers[0].mDataByteSize =  jmax ((UInt32) 4096, (UInt32) (samplesPerFrame * inputStreamDesc.mBytesPerFrame) + 16);
 
-        inputStreamDesc.mFormatFlags = kAudioFormatFlagIsSignedInteger
-                                        | kAudioFormatFlagIsPacked
-                                        | kAudioFormatFlagsNativeEndian;
-        inputStreamDesc.mBitsPerChannel = sizeof (SInt16) * 8;
-        inputStreamDesc.mChannelsPerFrame = jmin ((UInt32) 2, inputStreamDesc.mChannelsPerFrame);
-        inputStreamDesc.mBytesPerFrame = sizeof (SInt16) * inputStreamDesc.mChannelsPerFrame;
-        inputStreamDesc.mBytesPerPacket = inputStreamDesc.mBytesPerFrame;
+            dataBuffer.malloc (bufferList->mBuffers[0].mDataByteSize);
+            bufferList->mBuffers[0].mData = dataBuffer;
 
-        err = MovieAudioExtractionSetProperty (extractor,
-                                               kQTPropertyClass_MovieAudioExtraction_Audio,
-                                               kQTMovieAudioExtractionAudioPropertyID_AudioStreamBasicDescription,
-                                               sizeof (inputStreamDesc),
-                                               &inputStreamDesc);
-        if (err != noErr)
-            return;
+            sampleRate = inputStreamDesc.mSampleRate;
+            bitsPerSample = 16;
+            numChannels = inputStreamDesc.mChannelsPerFrame;
 
-        Boolean allChannelsDiscrete = false;
-        err = MovieAudioExtractionSetProperty (extractor,
-                                               kQTPropertyClass_MovieAudioExtraction_Movie,
-                                               kQTMovieAudioExtractionMoviePropertyID_AllChannelsDiscrete,
-                                               sizeof (allChannelsDiscrete),
-                                               &allChannelsDiscrete);
-
-        if (err != noErr)
-            return;
-
-        bufferList->mNumberBuffers = 1;
-        bufferList->mBuffers[0].mNumberChannels = inputStreamDesc.mChannelsPerFrame;
-        bufferList->mBuffers[0].mDataByteSize =  jmax ((UInt32) 4096, (UInt32) (samplesPerFrame * inputStreamDesc.mBytesPerFrame) + 16);
-
-        dataBuffer.malloc (bufferList->mBuffers[0].mDataByteSize);
-        bufferList->mBuffers[0].mData = dataBuffer;
-
-        sampleRate = inputStreamDesc.mSampleRate;
-        bitsPerSample = 16;
-        numChannels = inputStreamDesc.mChannelsPerFrame;
-
-        detachThread();
-        ok = true;
+            detachThread();
+            ok = true;
+        }
     }
 
     ~QTAudioReader()
     {
         JUCE_AUTORELEASEPOOL
-        checkThreadIsAttached();
-
-        if (dataHandle != nullptr)
-            DisposeHandle (dataHandle);
-
-        if (extractor != nullptr)
         {
-            MovieAudioExtractionEnd (extractor);
-            extractor = nullptr;
+            checkThreadIsAttached();
+
+            if (dataHandle != nullptr)
+                DisposeHandle (dataHandle);
+
+            if (extractor != nullptr)
+            {
+                MovieAudioExtractionEnd (extractor);
+                extractor = nullptr;
+            }
+
+            DisposeMovie (movie);
+
+           #if JUCE_MAC
+            ExitMoviesOnThread ();
+           #endif
         }
-
-        DisposeMovie (movie);
-
-       #if JUCE_MAC
-        ExitMoviesOnThread ();
-       #endif
     }
 
     bool readSamples (int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
                       int64 startSampleInFile, int numSamples)
     {
         JUCE_AUTORELEASEPOOL
-        checkThreadIsAttached();
-        bool ok = true;
-
-        while (numSamples > 0)
         {
-            if (lastSampleRead != startSampleInFile)
+            checkThreadIsAttached();
+            bool readOk = true;
+
+            while (numSamples > 0)
             {
-                TimeRecord time;
-                time.scale = (TimeScale) inputStreamDesc.mSampleRate;
-                time.base = 0;
-                time.value.hi = 0;
-                time.value.lo = (UInt32) startSampleInFile;
+                if (lastSampleRead != startSampleInFile)
+                {
+                    TimeRecord time;
+                    time.scale = (TimeScale) inputStreamDesc.mSampleRate;
+                    time.base = 0;
+                    time.value.hi = 0;
+                    time.value.lo = (UInt32) startSampleInFile;
 
-                OSStatus err = MovieAudioExtractionSetProperty (extractor,
-                                                                kQTPropertyClass_MovieAudioExtraction_Movie,
-                                                                kQTMovieAudioExtractionMoviePropertyID_CurrentTime,
-                                                                sizeof (time), &time);
+                    OSStatus err = MovieAudioExtractionSetProperty (extractor,
+                                                                    kQTPropertyClass_MovieAudioExtraction_Movie,
+                                                                    kQTMovieAudioExtractionMoviePropertyID_CurrentTime,
+                                                                    sizeof (time), &time);
 
+                    if (err != noErr)
+                    {
+                        readOk = false;
+                        break;
+                    }
+                }
+
+                int framesToDo = jmin (numSamples, (int) (bufferList->mBuffers[0].mDataByteSize / inputStreamDesc.mBytesPerFrame));
+                bufferList->mBuffers[0].mDataByteSize = inputStreamDesc.mBytesPerFrame * framesToDo;
+
+                UInt32 outFlags = 0;
+                UInt32 actualNumFrames = framesToDo;
+                OSStatus err = MovieAudioExtractionFillBuffer (extractor, &actualNumFrames, bufferList, &outFlags);
                 if (err != noErr)
                 {
-                    ok = false;
+                    readOk = false;
+                    break;
+                }
+
+                lastSampleRead = startSampleInFile + actualNumFrames;
+                const int samplesReceived = actualNumFrames;
+
+                for (int j = numDestChannels; --j >= 0;)
+                {
+                    if (destSamples[j] != nullptr)
+                    {
+                        const short* src = ((const short*) bufferList->mBuffers[0].mData) + j;
+
+                        for (int i = 0; i < samplesReceived; ++i)
+                        {
+                            destSamples[j][startOffsetInDestBuffer + i] = (*src << 16);
+                            src += numChannels;
+                        }
+                    }
+                }
+
+                startOffsetInDestBuffer += samplesReceived;
+                startSampleInFile += samplesReceived;
+                numSamples -= samplesReceived;
+
+                if (((outFlags & kQTMovieAudioExtractionComplete) != 0 || samplesReceived == 0) && numSamples > 0)
+                {
+                    for (int j = numDestChannels; --j >= 0;)
+                        if (destSamples[j] != nullptr)
+                            zeromem (destSamples[j] + startOffsetInDestBuffer, sizeof (int) * numSamples);
+
                     break;
                 }
             }
 
-            int framesToDo = jmin (numSamples, (int) (bufferList->mBuffers[0].mDataByteSize / inputStreamDesc.mBytesPerFrame));
-            bufferList->mBuffers[0].mDataByteSize = inputStreamDesc.mBytesPerFrame * framesToDo;
-
-            UInt32 outFlags = 0;
-            UInt32 actualNumFrames = framesToDo;
-            OSStatus err = MovieAudioExtractionFillBuffer (extractor, &actualNumFrames, bufferList, &outFlags);
-            if (err != noErr)
-            {
-                ok = false;
-                break;
-            }
-
-            lastSampleRead = startSampleInFile + actualNumFrames;
-            const int samplesReceived = actualNumFrames;
-
-            for (int j = numDestChannels; --j >= 0;)
-            {
-                if (destSamples[j] != nullptr)
-                {
-                    const short* src = ((const short*) bufferList->mBuffers[0].mData) + j;
-
-                    for (int i = 0; i < samplesReceived; ++i)
-                    {
-                        destSamples[j][startOffsetInDestBuffer + i] = (*src << 16);
-                        src += numChannels;
-                    }
-                }
-            }
-
-            startOffsetInDestBuffer += samplesReceived;
-            startSampleInFile += samplesReceived;
-            numSamples -= samplesReceived;
-
-            if (((outFlags & kQTMovieAudioExtractionComplete) != 0 || samplesReceived == 0) && numSamples > 0)
-            {
-                for (int j = numDestChannels; --j >= 0;)
-                    if (destSamples[j] != nullptr)
-                        zeromem (destSamples[j] + startOffsetInDestBuffer, sizeof (int) * numSamples);
-
-                break;
-            }
+            detachThread();
+            return readOk;
         }
-
-        detachThread();
-        return ok;
     }
 
     bool ok;
@@ -339,13 +343,12 @@ private:
        #endif
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (QTAudioReader);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (QTAudioReader)
 };
 
 
 //==============================================================================
-QuickTimeAudioFormat::QuickTimeAudioFormat()
-    : AudioFormat (TRANS (quickTimeFormatName), StringArray (quickTimeExtensions))
+QuickTimeAudioFormat::QuickTimeAudioFormat()  : AudioFormat (quickTimeFormatName, ".mov .mp3 .mp4 .m4a")
 {
 }
 
@@ -363,7 +366,7 @@ bool QuickTimeAudioFormat::canDoMono()      { return true; }
 AudioFormatReader* QuickTimeAudioFormat::createReaderFor (InputStream* sourceStream,
                                                           const bool deleteStreamIfOpeningFails)
 {
-    ScopedPointer <QTAudioReader> r (new QTAudioReader (sourceStream, 0));
+    ScopedPointer<QTAudioReader> r (new QTAudioReader (sourceStream, 0));
 
     if (r->ok)
         return r.release();

@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_FILEBASEDDOCUMENT_JUCEHEADER__
-#define __JUCE_FILEBASEDDOCUMENT_JUCEHEADER__
+#ifndef JUCE_FILEBASEDDOCUMENT_H_INCLUDED
+#define JUCE_FILEBASEDDOCUMENT_H_INCLUDED
 
 
 //==============================================================================
@@ -69,7 +68,7 @@ public:
     /** Returns true if the changed() method has been called since the file was
         last saved or loaded.
 
-        @see resetChangedFlag, changed
+        @see setChangedFlag, changed
     */
     bool hasChangedSinceSaved() const                           { return changedSinceSave; }
 
@@ -79,9 +78,9 @@ public:
         ChangeBroadcaster base class.
 
         After calling the method, the hasChangedSinceSaved() method will return true, until
-        it is reset either by saving to a file or using the resetChangedFlag() method.
+        it is reset either by saving to a file or using the setChangedFlag() method.
 
-        @see hasChangedSinceSaved, resetChangedFlag
+        @see hasChangedSinceSaved, setChangedFlag
     */
     virtual void changed();
 
@@ -101,11 +100,12 @@ public:
         to this new one; if it fails, the document's file is left unchanged, and optionally
         a message box is shown telling the user there was an error.
 
-        @returns true if the new file loaded successfully
+        @returns A result indicating whether the new file loaded successfully, or the error
+                 message if it failed.
         @see loadDocument, loadFromUserSpecifiedFile
     */
-    bool loadFrom (const File& fileToLoadFrom,
-                   bool showMessageOnFailure);
+    Result loadFrom (const File& fileToLoadFrom,
+                     bool showMessageOnFailure);
 
     /** Asks the user for a file and tries to load it.
 
@@ -114,11 +114,11 @@ public:
         for a file. If they pick one, the loadFrom() method is used to
         try to load it, optionally showing a message if it fails.
 
-        @returns    true if a file was loaded; false if the user cancelled or if they
-                    picked a file which failed to load correctly
+        @returns    a result indicating success; This will be a failure message if the user
+                    cancelled or if they picked a file which failed to load correctly
         @see loadFrom
     */
-    bool loadFromUserSpecifiedFile (bool showMessageOnFailure);
+    Result loadFromUserSpecifiedFile (bool showMessageOnFailure);
 
     //==============================================================================
     /** A set of possible outcomes of one of the save() methods
@@ -226,21 +226,17 @@ protected:
         This is used in message boxes, filenames and file choosers, so it should be
         something sensible.
     */
-    virtual const String getDocumentTitle() = 0;
+    virtual String getDocumentTitle() = 0;
 
     /** This method should try to load your document from the given file.
-
-        If it fails, it should return an error message. If it succeeds, it should return
-        an empty string.
+        @returns a Result object to indicate the whether there was an error.
     */
-    virtual const String loadDocument (const File& file) = 0;
+    virtual Result loadDocument (const File& file) = 0;
 
     /** This method should try to write your document to the given file.
-
-        If it fails, it should return an error message. If it succeeds, it should return
-        an empty string.
+        @returns a Result object to indicate the whether there was an error.
     */
-    virtual const String saveDocument (const File& file) = 0;
+    virtual Result saveDocument (const File& file) = 0;
 
     /** This is used for dialog boxes to make them open at the last folder you
         were using.
@@ -258,7 +254,7 @@ protected:
 
         @see RecentlyOpenedFilesList
     */
-    virtual const File getLastDocumentOpened() = 0;
+    virtual File getLastDocumentOpened() = 0;
 
     /** This is used for dialog boxes to make them open at the last folder you
         were using.
@@ -291,8 +287,8 @@ private:
     bool changedSinceSave;
     String fileExtension, fileWildcard, openFileDialogTitle, saveFileDialogTitle;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileBasedDocument);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileBasedDocument)
 };
 
 
-#endif   // __JUCE_FILEBASEDDOCUMENT_JUCEHEADER__
+#endif   // JUCE_FILEBASEDDOCUMENT_H_INCLUDED

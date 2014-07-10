@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_SHAPEBUTTON_JUCEHEADER__
-#define __JUCE_SHAPEBUTTON_JUCEHEADER__
-
-#include "juce_Button.h"
+#ifndef JUCE_SHAPEBUTTON_H_INCLUDED
+#define JUCE_SHAPEBUTTON_H_INCLUDED
 
 
 //==============================================================================
@@ -47,9 +44,9 @@ public:
         @param downColour       the colour to use when the button is in the pressed-down state
     */
     ShapeButton (const String& name,
-                 const Colour& normalColour,
-                 const Colour& overColour,
-                 const Colour& downColour);
+                 Colour normalColour,
+                 Colour overColour,
+                 Colour downColour);
 
     /** Destructor. */
     ~ShapeButton();
@@ -74,35 +71,36 @@ public:
         @param overColour       the colour to use when the mouse is over the shape
         @param downColour       the colour to use when the button is in the pressed-down state
     */
-    void setColours (const Colour& normalColour,
-                     const Colour& overColour,
-                     const Colour& downColour);
+    void setColours (Colour normalColour,
+                     Colour overColour,
+                     Colour downColour);
 
     /** Sets up an outline to draw around the shape.
 
         @param outlineColour        the colour to use
         @param outlineStrokeWidth   the thickness of line to draw
     */
-    void setOutline (const Colour& outlineColour,
-                     float outlineStrokeWidth);
+    void setOutline (Colour outlineColour, float outlineStrokeWidth);
 
+    /** This lets you specify a border to be left around the edge of the button when
+        drawing the shape.
+    */
+    void setBorderSize (BorderSize<int> border);
 
-protected:
     /** @internal */
-    void paintButton (Graphics& g,
-                      bool isMouseOverButton,
-                      bool isButtonDown);
+    void paintButton (Graphics&, bool isMouseOverButton, bool isButtonDown) override;
 
 private:
     //==============================================================================
     Colour normalColour, overColour, downColour, outlineColour;
     DropShadowEffect shadow;
     Path shape;
+    BorderSize<int> border;
     bool maintainShapeProportions;
     float outlineWidth;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ShapeButton);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ShapeButton)
 };
 
 
-#endif   // __JUCE_SHAPEBUTTON_JUCEHEADER__
+#endif   // JUCE_SHAPEBUTTON_H_INCLUDED

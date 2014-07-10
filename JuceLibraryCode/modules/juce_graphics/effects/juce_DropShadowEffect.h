@@ -1,33 +1,66 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_DROPSHADOWEFFECT_JUCEHEADER__
-#define __JUCE_DROPSHADOWEFFECT_JUCEHEADER__
+#ifndef JUCE_DROPSHADOWEFFECT_H_INCLUDED
+#define JUCE_DROPSHADOWEFFECT_H_INCLUDED
 
-#include "juce_ImageEffectFilter.h"
 
+//==============================================================================
+/**
+    Defines a drop-shadow effect.
+*/
+struct JUCE_API  DropShadow
+{
+    /** Creates a default drop-shadow effect. */
+    DropShadow() noexcept;
+
+    /** Creates a drop-shadow object with the given parameters. */
+    DropShadow (Colour shadowColour, int radius, Point<int> offset) noexcept;
+
+    /** Renders a drop-shadow based on the alpha-channel of the given image. */
+    void drawForImage (Graphics& g, const Image& srcImage) const;
+
+    /** Renders a drop-shadow based on the shape of a path. */
+    void drawForPath (Graphics& g, const Path& path) const;
+
+    /** Renders a drop-shadow for a rectangle.
+        Note that for speed, this approximates the shadow using gradients.
+    */
+    void drawForRectangle (Graphics& g, const Rectangle<int>& area) const;
+
+    /** The colour with which to render the shadow.
+        In most cases you'll probably want to leave this as black with an alpha
+        value of around 0.5
+    */
+    Colour colour;
+
+    /** The approximate spread of the shadow. */
+    int radius;
+
+    /** The offset of the shadow. */
+    Point<int> offset;
+};
 
 //==============================================================================
 /**
@@ -50,9 +83,7 @@ class JUCE_API  DropShadowEffect  : public ImageEffectFilter
 public:
     //==============================================================================
     /** Creates a default drop-shadow effect.
-
-        To customise the shadow's appearance, use the setShadowProperties()
-        method.
+        To customise the shadow's appearance, use the setShadowProperties() method.
     */
     DropShadowEffect();
 
@@ -60,33 +91,20 @@ public:
     ~DropShadowEffect();
 
     //==============================================================================
-    /** Sets up parameters affecting the shadow's appearance.
-
-        @param newRadius        the (approximate) radius of the blur used
-        @param newOpacity       the opacity with which the shadow is rendered
-        @param newShadowOffsetX allows the shadow to be shifted in relation to the
-                                component's contents
-        @param newShadowOffsetY allows the shadow to be shifted in relation to the
-                                component's contents
-    */
-    void setShadowProperties (float newRadius,
-                              float newOpacity,
-                              int newShadowOffsetX,
-                              int newShadowOffsetY);
-
+    /** Sets up parameters affecting the shadow's appearance. */
+    void setShadowProperties (const DropShadow& newShadow);
 
     //==============================================================================
     /** @internal */
-    void applyEffect (Image& sourceImage, Graphics& destContext, float alpha);
+    void applyEffect (Image& sourceImage, Graphics& destContext, float scaleFactor, float alpha);
 
 
 private:
     //==============================================================================
-    int offsetX, offsetY;
-    float radius, opacity;
+    DropShadow shadow;
 
-    JUCE_LEAK_DETECTOR (DropShadowEffect);
+    JUCE_LEAK_DETECTOR (DropShadowEffect)
 };
 
 
-#endif   // __JUCE_DROPSHADOWEFFECT_JUCEHEADER__
+#endif   // JUCE_DROPSHADOWEFFECT_H_INCLUDED

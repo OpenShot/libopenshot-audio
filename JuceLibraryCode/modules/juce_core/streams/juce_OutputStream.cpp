@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -58,53 +61,56 @@ OutputStream::OutputStream()
 OutputStream::~OutputStream()
 {
    #if JUCE_DEBUG
-    danglingStreamChecker.activeStreams.removeValue (this);
+    danglingStreamChecker.activeStreams.removeFirstMatchingValue (this);
    #endif
 }
 
 //==============================================================================
-void OutputStream::writeBool (const bool b)
+bool OutputStream::writeBool (const bool b)
 {
-    writeByte (b ? (char) 1
-                 : (char) 0);
+    return writeByte (b ? (char) 1
+                        : (char) 0);
 }
 
-void OutputStream::writeByte (char byte)
+bool OutputStream::writeByte (char byte)
 {
-    write (&byte, 1);
+    return write (&byte, 1);
 }
 
-void OutputStream::writeRepeatedByte (uint8 byte, int numTimesToRepeat)
+bool OutputStream::writeRepeatedByte (uint8 byte, size_t numTimesToRepeat)
 {
-    while (--numTimesToRepeat >= 0)
-        writeByte ((char) byte);
+    for (size_t i = 0; i < numTimesToRepeat; ++i)
+        if (! writeByte ((char) byte))
+            return false;
+
+    return true;
 }
 
-void OutputStream::writeShort (short value)
+bool OutputStream::writeShort (short value)
 {
     const unsigned short v = ByteOrder::swapIfBigEndian ((unsigned short) value);
-    write (&v, 2);
+    return write (&v, 2);
 }
 
-void OutputStream::writeShortBigEndian (short value)
+bool OutputStream::writeShortBigEndian (short value)
 {
     const unsigned short v = ByteOrder::swapIfLittleEndian ((unsigned short) value);
-    write (&v, 2);
+    return write (&v, 2);
 }
 
-void OutputStream::writeInt (int value)
+bool OutputStream::writeInt (int value)
 {
     const unsigned int v = ByteOrder::swapIfBigEndian ((unsigned int) value);
-    write (&v, 4);
+    return write (&v, 4);
 }
 
-void OutputStream::writeIntBigEndian (int value)
+bool OutputStream::writeIntBigEndian (int value)
 {
     const unsigned int v = ByteOrder::swapIfLittleEndian ((unsigned int) value);
-    write (&v, 4);
+    return write (&v, 4);
 }
 
-void OutputStream::writeCompressedInt (int value)
+bool OutputStream::writeCompressedInt (int value)
 {
     unsigned int un = (value < 0) ? (unsigned int) -value
                                   : (unsigned int) value;
@@ -123,60 +129,64 @@ void OutputStream::writeCompressedInt (int value)
     if (value < 0)
         data[0] |= 0x80;
 
-    write (data, num + 1);
+    return write (data, (size_t) num + 1);
 }
 
-void OutputStream::writeInt64 (int64 value)
+bool OutputStream::writeInt64 (int64 value)
 {
     const uint64 v = ByteOrder::swapIfBigEndian ((uint64) value);
-    write (&v, 8);
+    return write (&v, 8);
 }
 
-void OutputStream::writeInt64BigEndian (int64 value)
+bool OutputStream::writeInt64BigEndian (int64 value)
 {
     const uint64 v = ByteOrder::swapIfLittleEndian ((uint64) value);
-    write (&v, 8);
+    return write (&v, 8);
 }
 
-void OutputStream::writeFloat (float value)
+bool OutputStream::writeFloat (float value)
 {
     union { int asInt; float asFloat; } n;
     n.asFloat = value;
-    writeInt (n.asInt);
+    return writeInt (n.asInt);
 }
 
-void OutputStream::writeFloatBigEndian (float value)
+bool OutputStream::writeFloatBigEndian (float value)
 {
     union { int asInt; float asFloat; } n;
     n.asFloat = value;
-    writeIntBigEndian (n.asInt);
+    return writeIntBigEndian (n.asInt);
 }
 
-void OutputStream::writeDouble (double value)
+bool OutputStream::writeDouble (double value)
 {
     union { int64 asInt; double asDouble; } n;
     n.asDouble = value;
-    writeInt64 (n.asInt);
+    return writeInt64 (n.asInt);
 }
 
-void OutputStream::writeDoubleBigEndian (double value)
+bool OutputStream::writeDoubleBigEndian (double value)
 {
     union { int64 asInt; double asDouble; } n;
     n.asDouble = value;
-    writeInt64BigEndian (n.asInt);
+    return writeInt64BigEndian (n.asInt);
 }
 
-void OutputStream::writeString (const String& text)
+bool OutputStream::writeString (const String& text)
 {
+   #if (JUCE_STRING_UTF_TYPE == 8)
+    return write (text.toRawUTF8(), text.getNumBytesAsUTF8() + 1);
+   #else
     // (This avoids using toUTF8() to prevent the memory bloat that it would leave behind
     // if lots of large, persistent strings were to be written to streams).
-    const int numBytes = text.getNumBytesAsUTF8() + 1;
-    HeapBlock<char> temp ((size_t) numBytes);
+    const size_t numBytes = text.getNumBytesAsUTF8() + 1;
+    HeapBlock<char> temp (numBytes);
     text.copyToUTF8 (temp, numBytes);
-    write (temp, numBytes);
+    return write (temp, numBytes);
+   #endif
 }
 
-void OutputStream::writeText (const String& text, const bool asUTF16,
+bool OutputStream::writeText (const String& text, const bool asUTF16,
                               const bool writeUTF16ByteOrderMark)
 {
     if (asUTF16)
@@ -198,7 +208,9 @@ void OutputStream::writeText (const String& text, const bool asUTF16,
                 writeShort ((short) '\r');
 
             lastCharWasReturn = (c == L'\r');
-            writeShort ((short) c);
+
+            if (! writeShort ((short) c))
+                return false;
         }
     }
     else
@@ -211,9 +223,12 @@ void OutputStream::writeText (const String& text, const bool asUTF16,
             if (*t == '\n')
             {
                 if (t > src)
-                    write (src, (int) (t - src));
+                    if (! write (src, (size_t) (t - src)))
+                        return false;
 
-                write ("\r\n", 2);
+                if (! write ("\r\n", 2))
+                    return false;
+
                 src = t + 1;
             }
             else if (*t == '\r')
@@ -224,7 +239,8 @@ void OutputStream::writeText (const String& text, const bool asUTF16,
             else if (*t == 0)
             {
                 if (t > src)
-                    write (src, (int) (t - src));
+                    if (! write (src, (size_t) (t - src)))
+                        return false;
 
                 break;
             }
@@ -232,6 +248,8 @@ void OutputStream::writeText (const String& text, const bool asUTF16,
             ++t;
         }
     }
+
+    return true;
 }
 
 int OutputStream::writeFromInputStream (InputStream& source, int64 numBytesToWrite)
@@ -241,7 +259,7 @@ int OutputStream::writeFromInputStream (InputStream& source, int64 numBytesToWri
 
     int numWritten = 0;
 
-    while (numBytesToWrite > 0 && ! source.isExhausted())
+    while (numBytesToWrite > 0)
     {
         char buffer [8192];
         const int num = source.read (buffer, (int) jmin (numBytesToWrite, (int64) sizeof (buffer)));
@@ -249,7 +267,7 @@ int OutputStream::writeFromInputStream (InputStream& source, int64 numBytesToWri
         if (num <= 0)
             break;
 
-        write (buffer, num);
+        write (buffer, (size_t) num);
 
         numBytesToWrite -= num;
         numWritten += num;
@@ -265,37 +283,53 @@ void OutputStream::setNewLineString (const String& newLineString_)
 }
 
 //==============================================================================
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const int number)
+template <typename IntegerType>
+static void writeIntToStream (OutputStream& stream, IntegerType number)
+{
+    char buffer [NumberToStringConverters::charsNeededForInt];
+    char* end = buffer + numElementsInArray (buffer);
+    const char* start = NumberToStringConverters::numberToString (end, number);
+    stream.write (start, (size_t) (end - start - 1));
+}
+
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const int number)
+{
+    writeIntToStream (stream, number);
+    return stream;
+}
+
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const int64 number)
+{
+    writeIntToStream (stream, number);
+    return stream;
+}
+
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const double number)
 {
     return stream << String (number);
 }
 
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const double number)
-{
-    return stream << String (number);
-}
-
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char character)
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char character)
 {
     stream.writeByte (character);
     return stream;
 }
 
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char* const text)
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char* const text)
 {
-    stream.write (text, (int) strlen (text));
+    stream.write (text, strlen (text));
     return stream;
 }
 
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const MemoryBlock& data)
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const MemoryBlock& data)
 {
     if (data.getSize() > 0)
-        stream.write (data.getData(), (int) data.getSize());
+        stream.write (data.getData(), data.getSize());
 
     return stream;
 }
 
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const File& fileToRead)
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const File& fileToRead)
 {
     FileInputStream in (fileToRead);
 
@@ -305,13 +339,13 @@ OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const File& fileTo
     return stream;
 }
 
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, InputStream& streamToRead)
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, InputStream& streamToRead)
 {
     stream.writeFromInputStream (streamToRead, -1);
     return stream;
 }
 
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const NewLine&)
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const NewLine&)
 {
     return stream << stream.getNewLineString();
 }

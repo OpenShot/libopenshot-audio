@@ -1,100 +1,99 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
+#ifndef JUCE_LOG_COREMIDI_ERRORS
+ #define JUCE_LOG_COREMIDI_ERRORS 1
+#endif
+
 namespace CoreMidiHelpers
 {
-    static bool logError (const OSStatus err, const int lineNum)
+    static bool checkError (const OSStatus err, const int lineNum)
     {
         if (err == noErr)
             return true;
 
-        Logger::writeToLog ("CoreMidi error: " + String (lineNum) + " - " + String::toHexString ((int) err));
-        jassertfalse;
+       #if JUCE_LOG_COREMIDI_ERRORS
+        Logger::writeToLog ("CoreMIDI error: " + String (lineNum) + " - " + String::toHexString ((int) err));
+       #endif
+
+        (void) lineNum;
         return false;
     }
 
     #undef CHECK_ERROR
-    #define CHECK_ERROR(a) CoreMidiHelpers::logError (a, __LINE__)
+    #define CHECK_ERROR(a) CoreMidiHelpers::checkError (a, __LINE__)
 
     //==============================================================================
-    static String getEndpointName (MIDIEndpointRef endpoint, bool isExternal)
+    static String getMidiObjectName (MIDIObjectRef entity)
     {
         String result;
-        CFStringRef str = 0;
+        CFStringRef str = nullptr;
+        MIDIObjectGetStringProperty (entity, kMIDIPropertyName, &str);
 
-        MIDIObjectGetStringProperty (endpoint, kMIDIPropertyName, &str);
-
-        if (str != 0)
+        if (str != nullptr)
         {
             result = String::fromCFString (str);
             CFRelease (str);
-            str = 0;
         }
 
-        MIDIEntityRef entity = 0;
+        return result;
+    }
+
+    static String getEndpointName (MIDIEndpointRef endpoint, bool isExternal)
+    {
+        String result (getMidiObjectName (endpoint));
+
+        MIDIEntityRef entity = 0;  // NB: don't attempt to use nullptr for refs - it fails in some types of build.
         MIDIEndpointGetEntity (endpoint, &entity);
 
         if (entity == 0)
             return result; // probably virtual
 
         if (result.isEmpty())
-        {
-            // endpoint name has zero length - try the entity
-            MIDIObjectGetStringProperty (entity, kMIDIPropertyName, &str);
-
-            if (str != 0)
-            {
-                result += String::fromCFString (str);
-                CFRelease (str);
-                str = 0;
-            }
-        }
+            result = getMidiObjectName (entity);  // endpoint name is empty - try the entity
 
         // now consider the device's name
         MIDIDeviceRef device = 0;
         MIDIEntityGetDevice (entity, &device);
-        if (device == 0)
-            return result;
 
-        MIDIObjectGetStringProperty (device, kMIDIPropertyName, &str);
-
-        if (str != 0)
+        if (device != 0)
         {
-            const String s (String::fromCFString (str));
-            CFRelease (str);
+            const String deviceName (getMidiObjectName (device));
 
-            // if an external device has only one entity, throw away
-            // the endpoint name and just use the device name
-            if (isExternal && MIDIDeviceGetNumberOfEntities (device) < 2)
+            if (deviceName.isNotEmpty())
             {
-                result = s;
-            }
-            else if (! result.startsWithIgnoreCase (s))
-            {
-                // prepend the device name to the entity name
-                result = (s + " " + result).trimEnd();
+                // if an external device has only one entity, throw away
+                // the endpoint name and just use the device name
+                if (isExternal && MIDIDeviceGetNumberOfEntities (device) < 2)
+                {
+                    result = deviceName;
+                }
+                else if (! result.startsWithIgnoreCase (deviceName))
+                {
+                    // prepend the device name to the entity name
+                    result = (deviceName + " " + result).trimEnd();
+                }
             }
         }
 
@@ -106,12 +105,12 @@ namespace CoreMidiHelpers
         String result;
 
         // Does the endpoint have connections?
-        CFDataRef connections = 0;
+        CFDataRef connections = nullptr;
         int numConnections = 0;
 
         MIDIObjectGetDataProperty (endpoint, kMIDIPropertyConnectionUniqueID, &connections);
 
-        if (connections != 0)
+        if (connections != nullptr)
         {
             numConnections = ((int) CFDataGetLength (connections)) / (int) sizeof (MIDIUniqueID);
 
@@ -139,14 +138,7 @@ namespace CoreMidiHelpers
                         else
                         {
                             // Connected to an external device (10.2) (or something else, catch-all)
-                            CFStringRef str = 0;
-                            MIDIObjectGetStringProperty (connObject, kMIDIPropertyName, &str);
-
-                            if (str != 0)
-                            {
-                                s = String::fromCFString (str);
-                                CFRelease (str);
-                            }
+                            s = getMidiObjectName (connObject);
                         }
 
                         if (s.isNotEmpty())
@@ -163,11 +155,47 @@ namespace CoreMidiHelpers
             CFRelease (connections);
         }
 
-        if (result.isNotEmpty())
-            return result;
+        if (result.isEmpty())  // Here, either the endpoint had no connections, or we failed to obtain names for them.
+            result = getEndpointName (endpoint, false);
 
-        // Here, either the endpoint had no connections, or we failed to obtain names for any of them.
-        return getEndpointName (endpoint, false);
+        return result;
+    }
+
+    static StringArray findDevices (const bool forInput)
+    {
+        const ItemCount num = forInput ? MIDIGetNumberOfSources()
+                                       : MIDIGetNumberOfDestinations();
+        StringArray s;
+
+        for (ItemCount i = 0; i < num; ++i)
+        {
+            MIDIEndpointRef dest = forInput ? MIDIGetSource (i)
+                                            : MIDIGetDestination (i);
+            String name;
+
+            if (dest != 0)
+                name = getConnectedEndpointName (dest);
+
+            if (name.isEmpty())
+                name = "<error>";
+
+            s.add (name);
+        }
+
+        return s;
+    }
+
+    static void globalSystemChangeCallback (const MIDINotification*, void*)
+    {
+        // TODO.. Should pass-on this notification..
+    }
+
+    static String getGlobalMidiClientName()
+    {
+        if (JUCEApplicationBase* const app = JUCEApplicationBase::getInstance())
+            return app->getApplicationName();
+
+        return "JUCE";
     }
 
     static MIDIClientRef getGlobalMidiClient()
@@ -176,14 +204,13 @@ namespace CoreMidiHelpers
 
         if (globalMidiClient == 0)
         {
-            String name ("JUCE");
+            // Since OSX 10.6, the MIDIClientCreate function will only work
+            // correctly when called from the message thread!
+            jassert (MessageManager::getInstance()->isThisTheMessageThread());
 
-            if (JUCEApplicationBase::getInstance() != nullptr)
-                name = JUCEApplicationBase::getInstance()->getApplicationName();
-
-            CFStringRef appName = name.toCFString();
-            CHECK_ERROR (MIDIClientCreate (appName, 0, 0, &globalMidiClient));
-            CFRelease (appName);
+            CFStringRef name = getGlobalMidiClientName().toCFString();
+            CHECK_ERROR (MIDIClientCreate (name, &globalSystemChangeCallback, nullptr, &globalMidiClient));
+            CFRelease (name);
         }
 
         return globalMidiClient;
@@ -193,8 +220,8 @@ namespace CoreMidiHelpers
     class MidiPortAndEndpoint
     {
     public:
-        MidiPortAndEndpoint (MIDIPortRef port_, MIDIEndpointRef endPoint_)
-            : port (port_), endPoint (endPoint_)
+        MidiPortAndEndpoint (MIDIPortRef p, MIDIEndpointRef ep)
+            : port (p), endPoint (ep)
         {
         }
 
@@ -203,7 +230,7 @@ namespace CoreMidiHelpers
             if (port != 0)
                 MIDIPortDispose (port);
 
-            if (port == 0 && endPoint != 0) // if port == 0, it means we created the endpoint, so it's safe to delete it
+            if (port == 0 && endPoint != 0) // if port == nullptr, it means we created the endpoint, so it's safe to delete it
                 MIDIEndpointDispose (endPoint);
         }
 
@@ -227,8 +254,8 @@ namespace CoreMidiHelpers
     class MidiPortAndCallback
     {
     public:
-        MidiPortAndCallback (MidiInputCallback& callback_)
-            : input (nullptr), active (false), callback (callback_), concatenator (2048)
+        MidiPortAndCallback (MidiInputCallback& cb)
+            : input (nullptr), active (false), callback (cb), concatenator (2048)
         {
         }
 
@@ -238,10 +265,10 @@ namespace CoreMidiHelpers
 
             {
                 const ScopedLock sl (callbackLock);
-                activeCallbacks.removeValue (this);
+                activeCallbacks.removeFirstMatchingValue (this);
             }
 
-            if (portAndEndpoint != nullptr && portAndEndpoint->port != 0)
+            if (portAndEndpoint != 0 && portAndEndpoint->port != 0)
                 CHECK_ERROR (MIDIPortDisconnectSource (portAndEndpoint->port, portAndEndpoint->endPoint));
         }
 
@@ -280,32 +307,8 @@ namespace CoreMidiHelpers
 }
 
 //==============================================================================
-StringArray MidiOutput::getDevices()
-{
-    StringArray s;
-
-    const ItemCount num = MIDIGetNumberOfDestinations();
-    for (ItemCount i = 0; i < num; ++i)
-    {
-        MIDIEndpointRef dest = MIDIGetDestination (i);
-        String name;
-
-        if (dest != 0)
-            name = CoreMidiHelpers::getConnectedEndpointName (dest);
-
-        if (name.isEmpty())
-            name = "<error>";
-
-        s.add (name);
-    }
-
-    return s;
-}
-
-int MidiOutput::getDefaultDeviceIndex()
-{
-    return 0;
-}
+StringArray MidiOutput::getDevices()        { return CoreMidiHelpers::findDevices (false); }
+int MidiOutput::getDefaultDeviceIndex()     { return 0; }
 
 MidiOutput* MidiOutput::openDevice (int index)
 {
@@ -354,29 +357,34 @@ MidiOutput* MidiOutput::createNewDevice (const String& deviceName)
 
 MidiOutput::~MidiOutput()
 {
+    stopBackgroundThread();
+
     delete static_cast<CoreMidiHelpers::MidiPortAndEndpoint*> (internal);
 }
 
 void MidiOutput::sendMessageNow (const MidiMessage& message)
 {
-    CoreMidiHelpers::MidiPortAndEndpoint* const mpe = static_cast<CoreMidiHelpers::MidiPortAndEndpoint*> (internal);
-
    #if JUCE_IOS
     const MIDITimeStamp timeStamp = mach_absolute_time();
    #else
     const MIDITimeStamp timeStamp = AudioGetCurrentHostTime();
    #endif
 
+    HeapBlock <MIDIPacketList> allocatedPackets;
+    MIDIPacketList stackPacket;
+    MIDIPacketList* packetToSend = &stackPacket;
+    const size_t dataSize = (size_t) message.getRawDataSize();
+
     if (message.isSysEx())
     {
         const int maxPacketSize = 256;
-        int pos = 0, bytesLeft = message.getRawDataSize();
+        int pos = 0, bytesLeft = (int) dataSize;
         const int numPackets = (bytesLeft + maxPacketSize - 1) / maxPacketSize;
-        HeapBlock <MIDIPacketList> packets;
-        packets.malloc ((size_t) (32 * numPackets + message.getRawDataSize()), 1);
-        packets->numPackets = (UInt32) numPackets;
+        allocatedPackets.malloc ((size_t) (32 * (size_t) numPackets + dataSize), 1);
+        packetToSend = allocatedPackets;
+        packetToSend->numPackets = (UInt32) numPackets;
 
-        MIDIPacket* p = packets->packet;
+        MIDIPacket* p = packetToSend->packet;
 
         for (int i = 0; i < numPackets; ++i)
         {
@@ -387,76 +395,59 @@ void MidiOutput::sendMessageNow (const MidiMessage& message)
             bytesLeft -= p->length;
             p = MIDIPacketNext (p);
         }
+    }
+    else if (dataSize < 65536) // max packet size
+    {
+        const size_t stackCapacity = sizeof (stackPacket.packet->data);
 
-        mpe->send (packets);
+        if (dataSize > stackCapacity)
+        {
+            allocatedPackets.malloc ((sizeof (MIDIPacketList) - stackCapacity) + dataSize, 1);
+            packetToSend = allocatedPackets;
+        }
+
+        packetToSend->numPackets = 1;
+        MIDIPacket& p = *(packetToSend->packet);
+        p.timeStamp = timeStamp;
+        p.length = (UInt16) dataSize;
+        memcpy (p.data, message.getRawData(), dataSize);
     }
     else
     {
-        MIDIPacketList packets;
-        packets.numPackets = 1;
-        packets.packet[0].timeStamp = timeStamp;
-        packets.packet[0].length = (UInt16) message.getRawDataSize();
-        *(int*) (packets.packet[0].data) = *(const int*) message.getRawData();
-
-        mpe->send (&packets);
+        jassertfalse; // packet too large to send!
+        return;
     }
+
+    static_cast<CoreMidiHelpers::MidiPortAndEndpoint*> (internal)->send (packetToSend);
 }
 
 //==============================================================================
-StringArray MidiInput::getDevices()
-{
-    StringArray s;
-
-    const ItemCount num = MIDIGetNumberOfSources();
-    for (ItemCount i = 0; i < num; ++i)
-    {
-        MIDIEndpointRef source = MIDIGetSource (i);
-        String name;
-
-        if (source != 0)
-            name = CoreMidiHelpers::getConnectedEndpointName (source);
-
-        if (name.isEmpty())
-            name = "<error>";
-
-        s.add (name);
-    }
-
-    return s;
-}
-
-int MidiInput::getDefaultDeviceIndex()
-{
-    return 0;
-}
+StringArray MidiInput::getDevices()     { return CoreMidiHelpers::findDevices (true); }
+int MidiInput::getDefaultDeviceIndex()  { return 0; }
 
 MidiInput* MidiInput::openDevice (int index, MidiInputCallback* callback)
 {
-    jassert (callback != 0);
+    jassert (callback != nullptr);
 
     using namespace CoreMidiHelpers;
     MidiInput* newInput = nullptr;
 
     if (isPositiveAndBelow (index, (int) MIDIGetNumberOfSources()))
     {
-        MIDIEndpointRef endPoint = MIDIGetSource ((ItemCount) index);
-
-        if (endPoint != 0)
+        if (MIDIEndpointRef endPoint = MIDIGetSource ((ItemCount) index))
         {
             CFStringRef name;
 
             if (CHECK_ERROR (MIDIObjectGetStringProperty (endPoint, kMIDIPropertyName, &name)))
             {
-                MIDIClientRef client = getGlobalMidiClient();
-
-                if (client != 0)
+                if (MIDIClientRef client = getGlobalMidiClient())
                 {
                     MIDIPortRef port;
                     ScopedPointer <MidiPortAndCallback> mpc (new MidiPortAndCallback (*callback));
 
                     if (CHECK_ERROR (MIDIInputPortCreate (client, name, midiInputProc, mpc, &port)))
                     {
-                        if (CHECK_ERROR (MIDIPortConnectSource (port, endPoint, 0)))
+                        if (CHECK_ERROR (MIDIPortConnectSource (port, endPoint, nullptr)))
                         {
                             mpc->portAndEndpoint = new MidiPortAndEndpoint (port, endPoint);
 
@@ -488,9 +479,8 @@ MidiInput* MidiInput::createNewDevice (const String& deviceName, MidiInputCallba
 
     using namespace CoreMidiHelpers;
     MidiInput* mi = nullptr;
-    MIDIClientRef client = getGlobalMidiClient();
 
-    if (client != 0)
+    if (MIDIClientRef client = getGlobalMidiClient())
     {
         ScopedPointer <MidiPortAndCallback> mpc (new MidiPortAndCallback (*callback));
         mpc->active = false;
@@ -516,8 +506,7 @@ MidiInput* MidiInput::createNewDevice (const String& deviceName, MidiInputCallba
     return mi;
 }
 
-MidiInput::MidiInput (const String& name_)
-    : name (name_)
+MidiInput::MidiInput (const String& nm)  : name (nm)
 {
 }
 

@@ -1,32 +1,30 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_MOUSELISTENER_JUCEHEADER__
-#define __JUCE_MOUSELISTENER_JUCEHEADER__
+#ifndef JUCE_MOUSELISTENER_H_INCLUDED
+#define JUCE_MOUSELISTENER_H_INCLUDED
 
-class MouseEvent;
 
 //==============================================================================
 /**
@@ -48,11 +46,11 @@ public:
 
         A component will always get a mouseEnter callback before a mouseMove.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
+        @param event details about the position and status of the mouse event, including
+                     the source component in which it occurred
         @see mouseEnter, mouseExit, mouseDrag, contains
     */
-    virtual void mouseMove          (const MouseEvent& e);
+    virtual void mouseMove (const MouseEvent& event);
 
     /** Called when the mouse first enters a component.
 
@@ -64,11 +62,11 @@ public:
         mouseDrag messages are sent to the component that the mouse was originally
         clicked on, until the button is released.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
+        @param event details about the position and status of the mouse event, including
+                     the source component in which it occurred
         @see mouseExit, mouseDrag, mouseMove, contains
     */
-    virtual void mouseEnter         (const MouseEvent& e);
+    virtual void mouseEnter (const MouseEvent& event);
 
     /** Called when the mouse moves out of a component.
 
@@ -79,11 +77,11 @@ public:
         edge of the component and released, then this callback will happen
         when the button is released, after the mouseUp callback.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseEnter, mouseDrag, mouseMove, contains
     */
-    virtual void mouseExit          (const MouseEvent& e);
+    virtual void mouseExit (const MouseEvent& event);
 
     /** Called when a mouse button is pressed.
 
@@ -94,11 +92,11 @@ public:
         Once a button is held down, the mouseDrag method will be called when the
         mouse moves, until the button is released.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseUp, mouseDrag, mouseDoubleClick, contains
     */
-    virtual void mouseDown          (const MouseEvent& e);
+    virtual void mouseDown (const MouseEvent& event);
 
     /** Called when the mouse is moved while a button is held down.
 
@@ -106,11 +104,11 @@ public:
         receives mouseDrag callbacks each time the mouse moves, even if the
         mouse strays outside the component's bounds.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseDown, mouseUp, mouseMove, contains, setDragRepeatInterval
     */
-    virtual void mouseDrag          (const MouseEvent& e);
+    virtual void mouseDrag (const MouseEvent& event);
 
     /** Called when a mouse button is released.
 
@@ -121,11 +119,11 @@ public:
         The MouseEvent object passed in contains lots of methods for finding out
         which buttons were down just before they were released.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseDown, mouseDrag, mouseDoubleClick, contains
     */
-    virtual void mouseUp            (const MouseEvent& e);
+    virtual void mouseUp (const MouseEvent& event);
 
     /** Called when a mouse button has been double-clicked on a component.
 
@@ -133,34 +131,35 @@ public:
         which button was pressed, as well as which modifier keys (e.g. shift, ctrl)
         were held down at the time.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
+        @param event  details about the position and status of the mouse event, including
+                      the source component in which it occurred
         @see mouseDown, mouseUp
     */
-    virtual void mouseDoubleClick   (const MouseEvent& e);
+    virtual void mouseDoubleClick (const MouseEvent& event);
 
     /** Called when the mouse-wheel is moved.
 
         This callback is sent to the component that the mouse is over when the
         wheel is moved.
 
-        If not overridden, the component will forward this message to its parent, so
+        If not overridden, a component will forward this message to its parent, so
         that parent components can collect mouse-wheel messages that happen to
         child components which aren't interested in them.
 
-        @param e    details about the position and status of the mouse event, including
-                    the source component in which it occurred
-        @param wheelIncrementX   the speed and direction of the horizontal scroll-wheel - a positive
-                                 value means the wheel has been pushed to the right, negative means it
-                                 was pushed to the left
-        @param wheelIncrementY   the speed and direction of the vertical scroll-wheel - a positive
-                                 value means the wheel has been pushed upwards, negative means it
-                                 was pushed downwards
+        @param event   details about the mouse event
+        @param wheel   details about the wheel movement
     */
-    virtual void mouseWheelMove     (const MouseEvent& e,
-                                     float wheelIncrementX,
-                                     float wheelIncrementY);
+    virtual void mouseWheelMove (const MouseEvent& event,
+                                 const MouseWheelDetails& wheel);
+
+
+private:
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+    // This is just here to cause a compile error in old code that hasn't been
+    // updated to use the new version of this method.
+    virtual int mouseWheelMove (const MouseEvent&, float, float) { return 0; }
+   #endif
 };
 
 
-#endif   // __JUCE_MOUSELISTENER_JUCEHEADER__
+#endif   // JUCE_MOUSELISTENER_H_INCLUDED

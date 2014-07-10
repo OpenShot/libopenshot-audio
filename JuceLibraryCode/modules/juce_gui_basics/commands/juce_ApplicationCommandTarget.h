@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_APPLICATIONCOMMANDTARGET_JUCEHEADER__
-#define __JUCE_APPLICATIONCOMMANDTARGET_JUCEHEADER__
-
-#include "juce_ApplicationCommandInfo.h"
-class Component;
+#ifndef JUCE_APPLICATIONCOMMANDTARGET_H_INCLUDED
+#define JUCE_APPLICATIONCOMMANDTARGET_H_INCLUDED
 
 
 //==============================================================================
@@ -57,6 +53,7 @@ public:
 
     //==============================================================================
     /**
+        Contains contextual details about the invocation of a command.
     */
     struct JUCE_API  InvocationInfo
     {
@@ -68,7 +65,6 @@ public:
         CommandID commandID;
 
         /** The command's flags.
-
             See ApplicationCommandInfo for a description of these flag values.
         */
         int commandFlags;
@@ -124,7 +120,7 @@ public:
         that command, this method is used to determine the next target that should
         be tried.
 
-        It may return 0 if it doesn't know of another target.
+        It may return nullptr if it doesn't know of another target.
 
         If your target is a Component, you would usually use the findFirstTargetParentComponent()
         method to return a parent component that might want to handle it.
@@ -138,7 +134,7 @@ public:
         Your target should add all the command IDs that it handles to the array that is
         passed-in.
     */
-    virtual void getAllCommands (Array <CommandID>& commands) = 0;
+    virtual void getAllCommands (Array<CommandID>& commands) = 0;
 
     /** This must provide details about one of the commands that this target can perform.
 
@@ -242,8 +238,8 @@ private:
 
     bool tryToInvoke (const InvocationInfo&, bool async);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationCommandTarget);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationCommandTarget)
 };
 
 
-#endif   // __JUCE_APPLICATIONCOMMANDTARGET_JUCEHEADER__
+#endif   // JUCE_APPLICATIONCOMMANDTARGET_H_INCLUDED

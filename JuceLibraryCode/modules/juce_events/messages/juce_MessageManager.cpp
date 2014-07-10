@@ -1,44 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-class MessageManager::QuitMessage   : public MessageManager::MessageBase
-{
-public:
-    QuitMessage() {}
-
-    void messageCallback()
-    {
-        MessageManager* const mm = MessageManager::instance;
-        if (mm != nullptr)
-            mm->quitMessageReceived = true;
-    }
-
-    JUCE_DECLARE_NON_COPYABLE (QuitMessage);
-};
-
-//==============================================================================
 MessageManager::MessageManager() noexcept
   : quitMessagePosted (false),
     quitMessageReceived (false),
@@ -72,7 +55,7 @@ MessageManager* MessageManager::getInstance()
     return instance;
 }
 
-inline MessageManager* MessageManager::getInstanceWithoutCreating() noexcept
+MessageManager* MessageManager::getInstanceWithoutCreating() noexcept
 {
     return instance;
 }
@@ -95,15 +78,7 @@ void MessageManager::MessageBase::post()
 #if JUCE_MODAL_LOOPS_PERMITTED && ! (JUCE_MAC || JUCE_IOS)
 void MessageManager::runDispatchLoop()
 {
-    jassert (isThisTheMessageThread()); // must only be called by the message thread
-
     runDispatchLoopUntil (-1);
-}
-
-void MessageManager::stopDispatchLoop()
-{
-    (new QuitMessage())->post();
-    quitMessagePosted = true;
 }
 
 bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
@@ -112,23 +87,40 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 
     const int64 endTime = Time::currentTimeMillis() + millisecondsToRunFor;
 
-    while ((millisecondsToRunFor < 0 || endTime > Time::currentTimeMillis())
-            && ! quitMessageReceived)
+    while (! quitMessageReceived)
     {
         JUCE_TRY
         {
             if (! dispatchNextMessageOnSystemQueue (millisecondsToRunFor >= 0))
-            {
-                const int msToWait = (int) (endTime - Time::currentTimeMillis());
-
-                if (msToWait > 0)
-                    Thread::sleep (jmin (5, msToWait));
-            }
+                Thread::sleep (1);
         }
         JUCE_CATCH_EXCEPTION
+
+        if (millisecondsToRunFor >= 0 && Time::currentTimeMillis() >= endTime)
+            break;
     }
 
     return ! quitMessageReceived;
+}
+
+class MessageManager::QuitMessage   : public MessageManager::MessageBase
+{
+public:
+    QuitMessage() {}
+
+    void messageCallback() override
+    {
+        if (MessageManager* const mm = MessageManager::instance)
+            mm->quitMessageReceived = true;
+    }
+
+    JUCE_DECLARE_NON_COPYABLE (QuitMessage)
+};
+
+void MessageManager::stopDispatchLoop()
+{
+    (new QuitMessage())->post();
+    quitMessagePosted = true;
 }
 
 #endif
@@ -141,7 +133,7 @@ public:
         : result (nullptr), func (f), parameter (param)
     {}
 
-    void messageCallback()
+    void messageCallback() override
     {
         result = (*func) (parameter);
         finished.signal();
@@ -154,7 +146,7 @@ private:
     MessageCallbackFunction* const func;
     void* const parameter;
 
-    JUCE_DECLARE_NON_COPYABLE (AsyncFunctionCallback);
+    JUCE_DECLARE_NON_COPYABLE (AsyncFunctionCallback)
 };
 
 void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* const func, void* const parameter)
@@ -234,7 +226,7 @@ class MessageManagerLock::BlockingMessage   : public MessageManager::MessageBase
 public:
     BlockingMessage() noexcept {}
 
-    void messageCallback()
+    void messageCallback() override
     {
         lockedEvent.signal();
         releaseEvent.wait();
@@ -242,7 +234,7 @@ public:
 
     WaitableEvent lockedEvent, releaseEvent;
 
-    JUCE_DECLARE_NON_COPYABLE (BlockingMessage);
+    JUCE_DECLARE_NON_COPYABLE (BlockingMessage)
 };
 
 //==============================================================================
@@ -327,13 +319,22 @@ JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI();
 JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI()
 {
     JUCE_AUTORELEASEPOOL
-    MessageManager::getInstance();
+    {
+        MessageManager::getInstance();
+    }
 }
 
 JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI();
 JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI()
 {
     JUCE_AUTORELEASEPOOL
-    DeletedAtShutdown::deleteAll();
-    MessageManager::deleteInstance();
+    {
+        DeletedAtShutdown::deleteAll();
+        MessageManager::deleteInstance();
+    }
 }
+
+static int numScopedInitInstances = 0;
+
+ScopedJuceInitialiser_GUI::ScopedJuceInitialiser_GUI()  { if (numScopedInitInstances++ == 0) initialiseJuce_GUI(); }
+ScopedJuceInitialiser_GUI::~ScopedJuceInitialiser_GUI() { if (--numScopedInitInstances == 0) shutdownJuce_GUI(); }

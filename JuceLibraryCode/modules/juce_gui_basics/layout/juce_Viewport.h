@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_VIEWPORT_JUCEHEADER__
-#define __JUCE_VIEWPORT_JUCEHEADER__
-
-#include "juce_ScrollBar.h"
+#ifndef JUCE_VIEWPORT_H_INCLUDED
+#define JUCE_VIEWPORT_H_INCLUDED
 
 
 //==============================================================================
@@ -106,7 +103,7 @@ public:
 
         @see getViewPositionX, getViewPositionY, setViewPositionProportionately
     */
-    void setViewPosition (const Point<int>& newPosition);
+    void setViewPosition (Point<int> newPosition);
 
     /** Changes the view position as a proportion of the distance it can move.
 
@@ -134,9 +131,11 @@ public:
     */
     bool autoScroll (int mouseX, int mouseY, int distanceFromEdge, int maximumSpeed);
 
-    /** Returns the position within the child component of the top-left of its visible area.
-    */
-    const Point<int>& getViewPosition() const noexcept      { return lastVisibleArea.getPosition(); }
+    /** Returns the position within the child component of the top-left of its visible area. */
+    Point<int> getViewPosition() const noexcept             { return lastVisibleArea.getPosition(); }
+
+    /** Returns the visible area of the child component, relative to its top-left */
+    Rectangle<int> getViewArea() const noexcept             { return lastVisibleArea; }
 
     /** Returns the position within the child component of the top-left of its visible area.
         @see getViewWidth, setViewPosition
@@ -192,9 +191,15 @@ public:
 
         If set to false, the scrollbars won't ever appear. When true (the default)
         they will appear only when needed.
+
+        The allowVerticalScrollingWithoutScrollbar parameters allow you to enable
+        mouse-wheel scrolling even when there the scrollbars are hidden. When the
+        scrollbars are visible, these parameters are ignored.
     */
     void setScrollBarsShown (bool showVerticalScrollbarIfNeeded,
-                             bool showHorizontalScrollbarIfNeeded);
+                             bool showHorizontalScrollbarIfNeeded,
+                             bool allowVerticalScrollingWithoutScrollbar = false,
+                             bool allowHorizontalScrollingWithoutScrollbar = false);
 
     /** True if the vertical scrollbar is enabled.
         @see setScrollBarsShown
@@ -225,12 +230,6 @@ public:
     */
     void setSingleStepSizes (int stepX, int stepY);
 
-    /** Shows or hides the buttons on any scrollbars that are used.
-
-        @see ScrollBar::setButtonVisibility
-    */
-    void setScrollBarButtonVisibility (bool buttonsVisible);
-
     /** Returns a pointer to the scrollbar component being used.
         Handy if you need to customise the bar somehow.
     */
@@ -243,26 +242,20 @@ public:
 
 
     //==============================================================================
-    struct Ids
-    {
-        static const Identifier showScrollBarV, showScrollBarH, scrollBarWidth;
-    };
-
-    void refreshFromValueTree (const ValueTree&, ComponentBuilder&);
-
-    //==============================================================================
     /** @internal */
-    void resized();
+    void resized() override;
     /** @internal */
-    void scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart);
+    void scrollBarMoved (ScrollBar*, double newRangeStart) override;
     /** @internal */
-    void mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
+    void mouseWheelMove (const MouseEvent&, const MouseWheelDetails&) override;
     /** @internal */
-    bool keyPressed (const KeyPress& key);
+    bool keyPressed (const KeyPress&) override;
     /** @internal */
-    void componentMovedOrResized (Component& component, bool wasMoved, bool wasResized);
+    void componentMovedOrResized (Component&, bool wasMoved, bool wasResized) override;
     /** @internal */
-    bool useMouseWheelMoveIfNeeded (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
+    bool useMouseWheelMoveIfNeeded (const MouseEvent&, const MouseWheelDetails&);
+    /** @internal */
+    static bool respondsToKey (const KeyPress&);
 
 private:
     //==============================================================================
@@ -271,10 +264,10 @@ private:
     int scrollBarThickness;
     int singleStepX, singleStepY;
     bool showHScrollbar, showVScrollbar, deleteContent;
+    bool allowScrollingWithoutScrollbarV, allowScrollingWithoutScrollbarH;
     Component contentHolder;
-    ScrollBar verticalScrollBar;
-    ScrollBar horizontalScrollBar;
-    Point<int> viewportPosToCompPos (const Point<int>&) const;
+    ScrollBar verticalScrollBar, horizontalScrollBar;
+    Point<int> viewportPosToCompPos (Point<int>) const;
 
     void updateVisibleArea();
     void deleteContentComp();
@@ -284,8 +277,8 @@ private:
     virtual int visibleAreaChanged (int, int, int, int) { return 0; }
    #endif
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Viewport);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Viewport)
 };
 
 
-#endif   // __JUCE_VIEWPORT_JUCEHEADER__
+#endif   // JUCE_VIEWPORT_H_INCLUDED

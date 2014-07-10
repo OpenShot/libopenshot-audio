@@ -1,37 +1,39 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-JNIClassBase::JNIClassBase (const char* classPath_)
-    : classPath (classPath_), classRef (0)
+JNIClassBase::JNIClassBase (const char* cp)   : classPath (cp), classRef (0)
 {
     getClasses().add (this);
 }
 
 JNIClassBase::~JNIClassBase()
 {
-    getClasses().removeValue (this);
+    getClasses().removeFirstMatchingValue (this);
 }
 
 Array<JNIClassBase*>& JNIClassBase::getClasses()
@@ -109,7 +111,7 @@ JNIEnv* getEnv() noexcept
     {
         DBG ("*** Call to getEnv() when system not initialised");
         jassertfalse;
-        exit (0);
+        std::exit (EXIT_FAILURE);
     }
    #endif
 
@@ -122,14 +124,14 @@ extern "C" jint JNI_OnLoad (JavaVM*, void*)
 }
 
 //==============================================================================
-AndroidSystem::AndroidSystem() : screenWidth (0), screenHeight (0)
+AndroidSystem::AndroidSystem() : screenWidth (0), screenHeight (0), dpi (160)
 {
 }
 
-void AndroidSystem::initialise (JNIEnv* env, jobject activity_,
-                                jstring appFile_, jstring appDataDir_)
+void AndroidSystem::initialise (JNIEnv* env, jobject act, jstring file, jstring dataDir)
 {
     screenWidth = screenHeight = 0;
+    dpi = 160;
     JNIClassBase::initialiseAllClasses (env);
 
     threadLocalJNIEnvHolder.initialise (env);
@@ -137,9 +139,9 @@ void AndroidSystem::initialise (JNIEnv* env, jobject activity_,
     systemInitialised = true;
    #endif
 
-    activity = GlobalRef (activity_);
-    appFile = juceString (env, appFile_);
-    appDataDir = juceString (env, appDataDir_);
+    activity = GlobalRef (act);
+    appFile = juceString (env, file);
+    appDataDir = juceString (env, dataDir);
 }
 
 void AndroidSystem::shutdown (JNIEnv* env)
@@ -158,19 +160,34 @@ AndroidSystem android;
 //==============================================================================
 namespace AndroidStatsHelpers
 {
-    //==============================================================================
     #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
      STATICMETHOD (getProperty, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;")
 
     DECLARE_JNI_CLASS (SystemClass, "java/lang/System");
     #undef JNI_CLASS_MEMBERS
 
-    //==============================================================================
     String getSystemProperty (const String& name)
     {
         return juceString (LocalRef<jstring> ((jstring) getEnv()->CallStaticObjectMethod (SystemClass,
                                                                                           SystemClass.getProperty,
                                                                                           javaString (name).get())));
+    }
+
+    String getLocaleValue (bool isRegion)
+    {
+        return juceString (LocalRef<jstring> ((jstring) getEnv()->CallStaticObjectMethod (JuceAppActivity,
+                                                                                          JuceAppActivity.getLocaleValue,
+                                                                                          isRegion)));
+    }
+
+    #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD)
+    DECLARE_JNI_CLASS (BuildClass, "android/os/Build");
+    #undef JNI_CLASS_MEMBERS
+
+    String getAndroidOsBuildValue (const char* fieldName)
+    {
+        return juceString (LocalRef<jstring> ((jstring) getEnv()->GetStaticObjectField (
+                            BuildClass, getEnv()->GetStaticFieldID (BuildClass, fieldName, "Ljava/lang/String;"))));
     }
 }
 
@@ -183,6 +200,12 @@ SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
 String SystemStats::getOperatingSystemName()
 {
     return "Android " + AndroidStatsHelpers::getSystemProperty ("os.version");
+}
+
+String SystemStats::getDeviceDescription()
+{
+    return AndroidStatsHelpers::getAndroidOsBuildValue ("MODEL")
+            + "-" + AndroidStatsHelpers::getAndroidOsBuildValue ("SERIAL");
 }
 
 bool SystemStats::isOperatingSystem64Bit()
@@ -224,16 +247,13 @@ int SystemStats::getPageSize()
 //==============================================================================
 String SystemStats::getLogonName()
 {
-    const char* user = getenv ("USER");
+    if (const char* user = getenv ("USER"))
+        return CharPointer_UTF8 (user);
 
-    if (user == 0)
-    {
-        struct passwd* const pw = getpwuid (getuid());
-        if (pw != 0)
-            user = pw->pw_name;
-    }
+    if (struct passwd* const pw = getpwuid (getuid()))
+        return CharPointer_UTF8 (pw->pw_name);
 
-    return CharPointer_UTF8 (user);
+    return String::empty;
 }
 
 String SystemStats::getFullUserName()
@@ -250,15 +270,14 @@ String SystemStats::getComputerName()
     return String::empty;
 }
 
-//==============================================================================
-SystemStats::CPUFlags::CPUFlags()
-{
-    // TODO
-    hasMMX = false;
-    hasSSE = false;
-    hasSSE2 = false;
-    has3DNow = false;
 
+String SystemStats::getUserLanguage()    { return AndroidStatsHelpers::getLocaleValue (false); }
+String SystemStats::getUserRegion()      { return AndroidStatsHelpers::getLocaleValue (true); }
+String SystemStats::getDisplayLanguage() { return getUserLanguage() + "-" + getUserRegion(); }
+
+//==============================================================================
+void CPUInformation::initialise() noexcept
+{
     numCpus = jmax (1, sysconf (_SC_NPROCESSORS_ONLN));
 }
 

@@ -1,7 +1,7 @@
 {
   "id":             "juce_gui_basics",
   "name":           "JUCE GUI core classes",
-  "version":        "2.0.21",
+  "version":        "3.0.6",
   "description":    "Basic user-interface components and related classes.",
   "website":        "http://www.juce.com/juce",
   "license":        "GPL/Commercial",
@@ -35,5 +35,6 @@
                       "native/*" ],
 
   "OSXFrameworks":  "Cocoa Carbon QuartzCore",
-  "iOSFrameworks":  "UIKit"
+  "iOSFrameworks":  "UIKit",
+  "LinuxLibs":      "X11 Xinerama Xext"
 }

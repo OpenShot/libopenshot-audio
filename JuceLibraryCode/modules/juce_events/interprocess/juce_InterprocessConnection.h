@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_INTERPROCESSCONNECTION_JUCEHEADER__
-#define __JUCE_INTERPROCESSCONNECTION_JUCEHEADER__
+#ifndef JUCE_INTERPROCESSCONNECTION_H_INCLUDED
+#define JUCE_INTERPROCESSCONNECTION_H_INCLUDED
 
 class InterprocessConnectionServer;
 class MemoryBlock;
@@ -48,7 +47,7 @@ class MemoryBlock;
 
     @see InterprocessConnectionServer, Socket, NamedPipe
 */
-class JUCE_API  InterprocessConnection    : public Thread
+class JUCE_API  InterprocessConnection
 {
 public:
     //==============================================================================
@@ -72,7 +71,7 @@ public:
                             uint32 magicMessageHeaderNumber = 0xf2b49e2c);
 
     /** Destructor. */
-    ~InterprocessConnection();
+    virtual ~InterprocessConnection();
 
     //==============================================================================
     /** Tries to connect this object to a socket.
@@ -96,25 +95,26 @@ public:
         an InterprocessConnection object and used createPipe() to create a pipe for this
         to connect to.
 
-        You can optionally specify a timeout length to be passed to the NamedPipe::read() method.
-
+        @param pipeName     the name to use for the pipe - this should be unique to your app
+        @param pipeReceiveMessageTimeoutMs  a timeout length to be used when reading or writing
+                                            to the pipe, or -1 for an infinite timeout.
         @returns true if it connects successfully.
         @see createPipe, NamedPipe
     */
-    bool connectToPipe (const String& pipeName,
-                        int pipeReceiveMessageTimeoutMs = -1);
+    bool connectToPipe (const String& pipeName, int pipeReceiveMessageTimeoutMs);
 
     /** Tries to create a new pipe for other processes to connect to.
 
         This creates a pipe with the given name, so that other processes can use
         connectToPipe() to connect to the other end.
 
-        You can optionally specify a timeout length to be passed to the NamedPipe::read() method.
-
-        If another process is already using this pipe, this will fail and return false.
+        @param pipeName     the name to use for the pipe - this should be unique to your app
+        @param pipeReceiveMessageTimeoutMs  a timeout length to be used when reading or writing
+                                            to the pipe, or -1 for an infinite timeout.
+        @returns true if the pipe was created, or false if it fails (e.g. if another process is
+                 already using using the pipe).
     */
-    bool createPipe (const String& pipeName,
-                     int pipeReceiveMessageTimeoutMs = -1);
+    bool createPipe (const String& pipeName, int pipeReceiveMessageTimeoutMs);
 
     /** Disconnects and closes any currently-open sockets or pipes. */
     void disconnect();
@@ -122,16 +122,14 @@ public:
     /** True if a socket or pipe is currently active. */
     bool isConnected() const;
 
-    /** Returns the socket that this connection is using (or null if it uses a pipe). */
+    /** Returns the socket that this connection is using (or nullptr if it uses a pipe). */
     StreamingSocket* getSocket() const noexcept                 { return socket; }
 
-    /** Returns the pipe that this connection is using (or null if it uses a socket). */
+    /** Returns the pipe that this connection is using (or nullptr if it uses a socket). */
     NamedPipe* getPipe() const noexcept                         { return pipe; }
 
     /** Returns the name of the machine at the other end of this connection.
-
-        This will return an empty string if the other machine isn't known for
-        some reason.
+        This may return an empty string if the name is unknown.
     */
     String getConnectedHostName() const;
 
@@ -192,13 +190,19 @@ private:
     friend class InterprocessConnectionServer;
     void initialiseWithSocket (StreamingSocket*);
     void initialiseWithPipe (NamedPipe*);
+    void deletePipeAndSocket();
     void connectionMadeInt();
     void connectionLostInt();
     void deliverDataInt (const MemoryBlock&);
     bool readNextMessageInt();
-    void run();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InterprocessConnection);
+    struct ConnectionThread;
+    friend struct ConnectionThread;
+    friend struct ContainerDeletePolicy<ConnectionThread>;
+    ScopedPointer<ConnectionThread> thread;
+    void runThread();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InterprocessConnection)
 };
 
-#endif   // __JUCE_INTERPROCESSCONNECTION_JUCEHEADER__
+#endif   // JUCE_INTERPROCESSCONNECTION_H_INCLUDED

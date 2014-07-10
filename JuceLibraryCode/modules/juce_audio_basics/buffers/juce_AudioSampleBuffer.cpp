@@ -1,48 +1,68 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-AudioSampleBuffer::AudioSampleBuffer (const int numChannels_,
+AudioSampleBuffer::AudioSampleBuffer() noexcept
+  : numChannels (0), size (0), allocatedBytes (0),
+    channels (static_cast<float**> (preallocatedChannelSpace)),
+    isClear (false)
+{
+}
+
+AudioSampleBuffer::AudioSampleBuffer (const int numChans,
                                       const int numSamples) noexcept
-  : numChannels (numChannels_),
+  : numChannels (numChans),
     size (numSamples)
 {
     jassert (numSamples >= 0);
-    jassert (numChannels_ > 0);
+    jassert (numChans >= 0);
 
     allocateData();
 }
 
 AudioSampleBuffer::AudioSampleBuffer (const AudioSampleBuffer& other) noexcept
   : numChannels (other.numChannels),
-    size (other.size)
+    size (other.size),
+    allocatedBytes (other.allocatedBytes)
 {
-    allocateData();
-    const size_t numBytes = sizeof (float) * (size_t) size;
+    if (allocatedBytes == 0)
+    {
+        allocateChannels (other.channels, 0);
+    }
+    else
+    {
+        allocateData();
 
-    for (int i = 0; i < numChannels; ++i)
-        memcpy (channels[i], other.channels[i], numBytes);
+        if (other.isClear)
+        {
+            clear();
+        }
+        else
+        {
+            for (int i = 0; i < numChannels; ++i)
+                FloatVectorOperations::copy (channels[i], other.channels[i], size);
+        }
+    }
 }
 
 void AudioSampleBuffer::allocateData()
@@ -50,7 +70,7 @@ void AudioSampleBuffer::allocateData()
     const size_t channelListSize = sizeof (float*) * (size_t) (numChannels + 1);
     allocatedBytes = (size_t) numChannels * (size_t) size * sizeof (float) + channelListSize + 32;
     allocatedData.malloc (allocatedBytes);
-    channels = reinterpret_cast <float**> (allocatedData.getData());
+    channels = reinterpret_cast<float**> (allocatedData.getData());
 
     float* chan = (float*) (allocatedData + channelListSize);
     for (int i = 0; i < numChannels; ++i)
@@ -59,29 +79,33 @@ void AudioSampleBuffer::allocateData()
         chan += size;
     }
 
-    channels [numChannels] = 0;
+    channels [numChannels] = nullptr;
+    isClear = false;
 }
 
-AudioSampleBuffer::AudioSampleBuffer (float** dataToReferTo,
-                                      const int numChannels_,
+AudioSampleBuffer::AudioSampleBuffer (float* const* dataToReferTo,
+                                      const int numChans,
                                       const int numSamples) noexcept
-    : numChannels (numChannels_),
+    : numChannels (numChans),
       size (numSamples),
       allocatedBytes (0)
 {
-    jassert (numChannels_ > 0);
+    jassert (dataToReferTo != nullptr);
+    jassert (numChans >= 0);
     allocateChannels (dataToReferTo, 0);
 }
 
-AudioSampleBuffer::AudioSampleBuffer (float** dataToReferTo,
-                                      const int numChannels_,
+AudioSampleBuffer::AudioSampleBuffer (float* const* dataToReferTo,
+                                      const int numChans,
                                       const int startSample,
                                       const int numSamples) noexcept
-    : numChannels (numChannels_),
+    : numChannels (numChans),
       size (numSamples),
-      allocatedBytes (0)
+      allocatedBytes (0),
+      isClear (false)
 {
-    jassert (numChannels_ > 0);
+    jassert (dataToReferTo != nullptr);
+    jassert (numChans >= 0);
     allocateChannels (dataToReferTo, startSample);
 }
 
@@ -89,7 +113,8 @@ void AudioSampleBuffer::setDataToReferTo (float** dataToReferTo,
                                           const int newNumChannels,
                                           const int newNumSamples) noexcept
 {
-    jassert (newNumChannels > 0);
+    jassert (dataToReferTo != nullptr);
+    jassert (newNumChannels >= 0);
 
     allocatedBytes = 0;
     allocatedData.free();
@@ -98,19 +123,20 @@ void AudioSampleBuffer::setDataToReferTo (float** dataToReferTo,
     size = newNumSamples;
 
     allocateChannels (dataToReferTo, 0);
+    jassert (! isClear);
 }
 
-void AudioSampleBuffer::allocateChannels (float** const dataToReferTo, int offset)
+void AudioSampleBuffer::allocateChannels (float* const* const dataToReferTo, int offset)
 {
     // (try to avoid doing a malloc here, as that'll blow up things like Pro-Tools)
     if (numChannels < (int) numElementsInArray (preallocatedChannelSpace))
     {
-        channels = static_cast <float**> (preallocatedChannelSpace);
+        channels = static_cast<float**> (preallocatedChannelSpace);
     }
     else
     {
         allocatedData.malloc ((size_t) numChannels + 1, sizeof (float*));
-        channels = reinterpret_cast <float**> (allocatedData.getData());
+        channels = reinterpret_cast<float**> (allocatedData.getData());
     }
 
     for (int i = 0; i < numChannels; ++i)
@@ -121,7 +147,8 @@ void AudioSampleBuffer::allocateChannels (float** const dataToReferTo, int offse
         channels[i] = dataToReferTo[i] + offset;
     }
 
-    channels [numChannels] = 0;
+    channels [numChannels] = nullptr;
+    isClear = false;
 }
 
 AudioSampleBuffer& AudioSampleBuffer::operator= (const AudioSampleBuffer& other) noexcept
@@ -130,10 +157,15 @@ AudioSampleBuffer& AudioSampleBuffer::operator= (const AudioSampleBuffer& other)
     {
         setSize (other.getNumChannels(), other.getNumSamples(), false, false, false);
 
-        const size_t numBytes = sizeof (float) * (size_t) size;
-
-        for (int i = 0; i < numChannels; ++i)
-            memcpy (channels[i], other.channels[i], numBytes);
+        if (other.isClear)
+        {
+            clear();
+        }
+        else
+        {
+            for (int i = 0; i < numChannels; ++i)
+                FloatVectorOperations::copy (channels[i], other.channels[i], size);
+        }
     }
 
     return *this;
@@ -149,33 +181,38 @@ void AudioSampleBuffer::setSize (const int newNumChannels,
                                  const bool clearExtraSpace,
                                  const bool avoidReallocating) noexcept
 {
-    jassert (newNumChannels > 0);
+    jassert (newNumChannels >= 0);
     jassert (newNumSamples >= 0);
 
     if (newNumSamples != size || newNumChannels != numChannels)
     {
-        const size_t channelListSize = sizeof (float*) * (size_t) (newNumChannels + 1);
-        const size_t newTotalBytes = ((size_t) newNumChannels * (size_t) newNumSamples * sizeof (float)) + channelListSize + 32;
+        const size_t allocatedSamplesPerChannel = ((size_t) newNumSamples + 3) & ~3u;
+        const size_t channelListSize = ((sizeof (float*) * (size_t) (newNumChannels + 1)) + 15) & ~15u;
+        const size_t newTotalBytes = ((size_t) newNumChannels * (size_t) allocatedSamplesPerChannel * sizeof (float))
+                                        + channelListSize + 32;
 
         if (keepExistingContent)
         {
-            HeapBlock <char, true> newData;
-            newData.allocate (newTotalBytes, clearExtraSpace);
+            HeapBlock<char, true> newData;
+            newData.allocate (newTotalBytes, clearExtraSpace || isClear);
 
-            const size_t numBytesToCopy = sizeof (float) * (size_t) jmin (newNumSamples, size);
+            const size_t numSamplesToCopy = (size_t) jmin (newNumSamples, size);
 
-            float** const newChannels = reinterpret_cast <float**> (newData.getData());
-            float* newChan = reinterpret_cast <float*> (newData + channelListSize);
+            float** const newChannels = reinterpret_cast<float**> (newData.getData());
+            float* newChan = reinterpret_cast<float*> (newData + channelListSize);
 
             for (int j = 0; j < newNumChannels; ++j)
             {
                 newChannels[j] = newChan;
-                newChan += newNumSamples;
+                newChan += allocatedSamplesPerChannel;
             }
 
-            const int numChansToCopy = jmin (numChannels, newNumChannels);
-            for (int i = 0; i < numChansToCopy; ++i)
-                memcpy (newChannels[i], channels[i], numBytesToCopy);
+            if (! isClear)
+            {
+                const int numChansToCopy = jmin (numChannels, newNumChannels);
+                for (int i = 0; i < numChansToCopy; ++i)
+                    FloatVectorOperations::copy (newChannels[i], channels[i], (int) numSamplesToCopy);
+            }
 
             allocatedData.swapWith (newData);
             allocatedBytes = newTotalBytes;
@@ -185,21 +222,21 @@ void AudioSampleBuffer::setSize (const int newNumChannels,
         {
             if (avoidReallocating && allocatedBytes >= newTotalBytes)
             {
-                if (clearExtraSpace)
+                if (clearExtraSpace || isClear)
                     allocatedData.clear (newTotalBytes);
             }
             else
             {
                 allocatedBytes = newTotalBytes;
-                allocatedData.allocate (newTotalBytes, clearExtraSpace);
-                channels = reinterpret_cast <float**> (allocatedData.getData());
+                allocatedData.allocate (newTotalBytes, clearExtraSpace || isClear);
+                channels = reinterpret_cast<float**> (allocatedData.getData());
             }
 
-            float* chan = reinterpret_cast <float*> (allocatedData + channelListSize);
+            float* chan = reinterpret_cast<float*> (allocatedData + channelListSize);
             for (int i = 0; i < newNumChannels; ++i)
             {
                 channels[i] = chan;
-                chan += newNumSamples;
+                chan += allocatedSamplesPerChannel;
             }
         }
 
@@ -211,8 +248,13 @@ void AudioSampleBuffer::setSize (const int newNumChannels,
 
 void AudioSampleBuffer::clear() noexcept
 {
-    for (int i = 0; i < numChannels; ++i)
-        zeromem (channels[i], sizeof (float) * (size_t) size);
+    if (! isClear)
+    {
+        for (int i = 0; i < numChannels; ++i)
+            FloatVectorOperations::clear (channels[i], size);
+
+        isClear = true;
+    }
 }
 
 void AudioSampleBuffer::clear (const int startSample,
@@ -220,8 +262,14 @@ void AudioSampleBuffer::clear (const int startSample,
 {
     jassert (startSample >= 0 && startSample + numSamples <= size);
 
-    for (int i = 0; i < numChannels; ++i)
-        zeromem (channels [i] + startSample, sizeof (float) * (size_t) numSamples);
+    if (! isClear)
+    {
+        if (startSample == 0 && numSamples == size)
+            isClear = true;
+
+        for (int i = 0; i < numChannels; ++i)
+            FloatVectorOperations::clear (channels[i] + startSample, numSamples);
+    }
 }
 
 void AudioSampleBuffer::clear (const int channel,
@@ -231,7 +279,31 @@ void AudioSampleBuffer::clear (const int channel,
     jassert (isPositiveAndBelow (channel, numChannels));
     jassert (startSample >= 0 && startSample + numSamples <= size);
 
-    zeromem (channels [channel] + startSample, sizeof (float) * (size_t) numSamples);
+    if (! isClear)
+        FloatVectorOperations::clear (channels [channel] + startSample, numSamples);
+}
+
+float AudioSampleBuffer::getSample (int channel, int index) const noexcept
+{
+    jassert (isPositiveAndBelow (channel, numChannels));
+    jassert (isPositiveAndBelow (index, size));
+    return *(channels [channel] + index);
+}
+
+void AudioSampleBuffer::setSample (int channel, int index, float newValue) noexcept
+{
+    jassert (isPositiveAndBelow (channel, numChannels));
+    jassert (isPositiveAndBelow (index, size));
+    *(channels [channel] + index) = newValue;
+    isClear = false;
+}
+
+void AudioSampleBuffer::addSample (int channel, int index, float valueToAdd) noexcept
+{
+    jassert (isPositiveAndBelow (channel, numChannels));
+    jassert (isPositiveAndBelow (index, size));
+    *(channels [channel] + index) += valueToAdd;
+    isClear = false;
 }
 
 void AudioSampleBuffer::applyGain (const int channel,
@@ -242,19 +314,14 @@ void AudioSampleBuffer::applyGain (const int channel,
     jassert (isPositiveAndBelow (channel, numChannels));
     jassert (startSample >= 0 && startSample + numSamples <= size);
 
-    if (gain != 1.0f)
+    if (gain != 1.0f && ! isClear)
     {
-        float* d = channels [channel] + startSample;
+        float* const d = channels [channel] + startSample;
 
         if (gain == 0.0f)
-        {
-            zeromem (d, sizeof (float) * (size_t) numSamples);
-        }
+            FloatVectorOperations::clear (d, numSamples);
         else
-        {
-            while (--numSamples >= 0)
-                *d++ *= gain;
-        }
+            FloatVectorOperations::multiply (d, gain, numSamples);
     }
 }
 
@@ -264,32 +331,45 @@ void AudioSampleBuffer::applyGainRamp (const int channel,
                                        float startGain,
                                        float endGain) noexcept
 {
-    if (startGain == endGain)
+    if (! isClear)
     {
-        applyGain (channel, startSample, numSamples, startGain);
-    }
-    else
-    {
-        jassert (isPositiveAndBelow (channel, numChannels));
-        jassert (startSample >= 0 && startSample + numSamples <= size);
-
-        const float increment = (endGain - startGain) / numSamples;
-        float* d = channels [channel] + startSample;
-
-        while (--numSamples >= 0)
+        if (startGain == endGain)
         {
-            *d++ *= startGain;
-            startGain += increment;
+            applyGain (channel, startSample, numSamples, startGain);
+        }
+        else
+        {
+            jassert (isPositiveAndBelow (channel, numChannels));
+            jassert (startSample >= 0 && startSample + numSamples <= size);
+
+            const float increment = (endGain - startGain) / numSamples;
+            float* d = channels [channel] + startSample;
+
+            while (--numSamples >= 0)
+            {
+                *d++ *= startGain;
+                startGain += increment;
+            }
         }
     }
 }
 
-void AudioSampleBuffer::applyGain (const int startSample,
-                                   const int numSamples,
-                                   const float gain) noexcept
+void AudioSampleBuffer::applyGain (int startSample, int numSamples, float gain) noexcept
 {
     for (int i = 0; i < numChannels; ++i)
         applyGain (i, startSample, numSamples, gain);
+}
+
+void AudioSampleBuffer::applyGain (const float gain) noexcept
+{
+    applyGain (0, size, gain);
+}
+
+void AudioSampleBuffer::applyGainRamp (int startSample, int numSamples,
+                                       float startGain, float endGain) noexcept
+{
+    for (int i = 0; i < numChannels; ++i)
+        applyGainRamp (i, startSample, numSamples, startGain, endGain);
 }
 
 void AudioSampleBuffer::addFrom (const int destChannel,
@@ -306,20 +386,26 @@ void AudioSampleBuffer::addFrom (const int destChannel,
     jassert (isPositiveAndBelow (sourceChannel, source.numChannels));
     jassert (sourceStartSample >= 0 && sourceStartSample + numSamples <= source.size);
 
-    if (gain != 0.0f && numSamples > 0)
+    if (gain != 0.0f && numSamples > 0 && ! source.isClear)
     {
-        float* d = channels [destChannel] + destStartSample;
-        const float* s  = source.channels [sourceChannel] + sourceStartSample;
+        float* const d = channels [destChannel] + destStartSample;
+        const float* const s  = source.channels [sourceChannel] + sourceStartSample;
 
-        if (gain != 1.0f)
+        if (isClear)
         {
-            while (--numSamples >= 0)
-                *d++ += gain * *s++;
+            isClear = false;
+
+            if (gain != 1.0f)
+                FloatVectorOperations::copyWithMultiply (d, s, gain, numSamples);
+            else
+                FloatVectorOperations::copy (d, s, numSamples);
         }
         else
         {
-            while (--numSamples >= 0)
-                *d++ += *s++;
+            if (gain != 1.0f)
+                FloatVectorOperations::addWithMultiply (d, s, gain, numSamples);
+            else
+                FloatVectorOperations::add (d, s, numSamples);
         }
     }
 }
@@ -336,17 +422,23 @@ void AudioSampleBuffer::addFrom (const int destChannel,
 
     if (gain != 0.0f && numSamples > 0)
     {
-        float* d = channels [destChannel] + destStartSample;
+        float* const d = channels [destChannel] + destStartSample;
 
-        if (gain != 1.0f)
+        if (isClear)
         {
-            while (--numSamples >= 0)
-                *d++ += gain * *source++;
+            isClear = false;
+
+            if (gain != 1.0f)
+                FloatVectorOperations::copyWithMultiply (d, source, gain, numSamples);
+            else
+                FloatVectorOperations::copy (d, source, numSamples);
         }
         else
         {
-            while (--numSamples >= 0)
-                *d++ += *source++;
+            if (gain != 1.0f)
+                FloatVectorOperations::addWithMultiply (d, source, gain, numSamples);
+            else
+                FloatVectorOperations::add (d, source, numSamples);
         }
     }
 }
@@ -364,16 +456,13 @@ void AudioSampleBuffer::addFromWithRamp (const int destChannel,
 
     if (startGain == endGain)
     {
-        addFrom (destChannel,
-                 destStartSample,
-                 source,
-                 numSamples,
-                 startGain);
+        addFrom (destChannel, destStartSample, source, numSamples, startGain);
     }
     else
     {
         if (numSamples > 0 && (startGain != 0.0f || endGain != 0.0f))
         {
+            isClear = false;
             const float increment = (endGain - startGain) / numSamples;
             float* d = channels [destChannel] + destStartSample;
 
@@ -401,9 +490,18 @@ void AudioSampleBuffer::copyFrom (const int destChannel,
 
     if (numSamples > 0)
     {
-        memcpy (channels [destChannel] + destStartSample,
-                source.channels [sourceChannel] + sourceStartSample,
-                sizeof (float) * (size_t) numSamples);
+        if (source.isClear)
+        {
+            if (! isClear)
+                FloatVectorOperations::clear (channels [destChannel] + destStartSample, numSamples);
+        }
+        else
+        {
+            isClear = false;
+            FloatVectorOperations::copy (channels [destChannel] + destStartSample,
+                                         source.channels [sourceChannel] + sourceStartSample,
+                                         numSamples);
+        }
     }
 }
 
@@ -418,9 +516,8 @@ void AudioSampleBuffer::copyFrom (const int destChannel,
 
     if (numSamples > 0)
     {
-        memcpy (channels [destChannel] + destStartSample,
-                source,
-                sizeof (float) * (size_t) numSamples);
+        isClear = false;
+        FloatVectorOperations::copy (channels [destChannel] + destStartSample, source, numSamples);
     }
 }
 
@@ -436,23 +533,25 @@ void AudioSampleBuffer::copyFrom (const int destChannel,
 
     if (numSamples > 0)
     {
-        float* d = channels [destChannel] + destStartSample;
+        float* const d = channels [destChannel] + destStartSample;
 
         if (gain != 1.0f)
         {
             if (gain == 0)
             {
-                zeromem (d, sizeof (float) * (size_t) numSamples);
+                if (! isClear)
+                    FloatVectorOperations::clear (d, numSamples);
             }
             else
             {
-                while (--numSamples >= 0)
-                    *d++ = gain * *source++;
+                isClear = false;
+                FloatVectorOperations::copyWithMultiply (d, source, gain, numSamples);
             }
         }
         else
         {
-            memcpy (d, source, sizeof (float) * (size_t) numSamples);
+            isClear = false;
+            FloatVectorOperations::copy (d, source, numSamples);
         }
     }
 }
@@ -470,16 +569,13 @@ void AudioSampleBuffer::copyFromWithRamp (const int destChannel,
 
     if (startGain == endGain)
     {
-        copyFrom (destChannel,
-                  destStartSample,
-                  source,
-                  numSamples,
-                  startGain);
+        copyFrom (destChannel, destStartSample, source, numSamples, startGain);
     }
     else
     {
         if (numSamples > 0 && (startGain != 0.0f || endGain != 0.0f))
         {
+            isClear = false;
             const float increment = (endGain - startGain) / numSamples;
             float* d = channels [destChannel] + destStartSample;
 
@@ -492,16 +588,33 @@ void AudioSampleBuffer::copyFromWithRamp (const int destChannel,
     }
 }
 
-void AudioSampleBuffer::findMinMax (const int channel,
-                                    const int startSample,
-                                    int numSamples,
-                                    float& minVal,
-                                    float& maxVal) const noexcept
+void AudioSampleBuffer::reverse (int channel, int startSample, int numSamples) const noexcept
 {
     jassert (isPositiveAndBelow (channel, numChannels));
     jassert (startSample >= 0 && startSample + numSamples <= size);
 
-    findMinAndMax (channels [channel] + startSample, numSamples, minVal, maxVal);
+    if (! isClear)
+        std::reverse (channels[channel] + startSample,
+                      channels[channel] + startSample + numSamples);
+}
+
+void AudioSampleBuffer::reverse (int startSample, int numSamples) const noexcept
+{
+    for (int i = 0; i < numChannels; ++i)
+        reverse (i, startSample, numSamples);
+}
+
+Range<float> AudioSampleBuffer::findMinMax (const int channel,
+                                            const int startSample,
+                                            int numSamples) const noexcept
+{
+    jassert (isPositiveAndBelow (channel, numChannels));
+    jassert (startSample >= 0 && startSample + numSamples <= size);
+
+    if (isClear)
+        return Range<float>();
+
+    return FloatVectorOperations::findMinAndMax (channels [channel] + startSample, numSamples);
 }
 
 float AudioSampleBuffer::getMagnitude (const int channel,
@@ -511,19 +624,21 @@ float AudioSampleBuffer::getMagnitude (const int channel,
     jassert (isPositiveAndBelow (channel, numChannels));
     jassert (startSample >= 0 && startSample + numSamples <= size);
 
-    float mn, mx;
-    findMinMax (channel, startSample, numSamples, mn, mx);
+    if (isClear)
+        return 0.0f;
 
-    return jmax (mn, -mn, mx, -mx);
+    const Range<float> r (findMinMax (channel, startSample, numSamples));
+
+    return jmax (r.getStart(), -r.getStart(), r.getEnd(), -r.getEnd());
 }
 
-float AudioSampleBuffer::getMagnitude (const int startSample,
-                                       const int numSamples) const noexcept
+float AudioSampleBuffer::getMagnitude (int startSample, int numSamples) const noexcept
 {
     float mag = 0.0f;
 
-    for (int i = 0; i < numChannels; ++i)
-        mag = jmax (mag, getMagnitude (i, startSample, numSamples));
+    if (! isClear)
+        for (int i = 0; i < numChannels; ++i)
+            mag = jmax (mag, getMagnitude (i, startSample, numSamples));
 
     return mag;
 }
@@ -535,7 +650,7 @@ float AudioSampleBuffer::getRMSLevel (const int channel,
     jassert (isPositiveAndBelow (channel, numChannels));
     jassert (startSample >= 0 && startSample + numSamples <= size);
 
-    if (numSamples <= 0 || channel < 0 || channel >= numChannels)
+    if (numSamples <= 0 || channel < 0 || channel >= numChannels || isClear)
         return 0.0f;
 
     const float* const data = channels [channel] + startSample;

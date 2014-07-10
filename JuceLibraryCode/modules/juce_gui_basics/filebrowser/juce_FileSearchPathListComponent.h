@@ -1,35 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_FILESEARCHPATHLISTCOMPONENT_JUCEHEADER__
-#define __JUCE_FILESEARCHPATHLISTCOMPONENT_JUCEHEADER__
-
-#include "../widgets/juce_ListBox.h"
-#include "../buttons/juce_DrawableButton.h"
-#include "../buttons/juce_TextButton.h"
-#include "../mouse/juce_FileDragAndDropTarget.h"
+#ifndef JUCE_FILESEARCHPATHLISTCOMPONENT_H_INCLUDED
+#define JUCE_FILESEARCHPATHLISTCOMPONENT_H_INCLUDED
 
 
 //==============================================================================
@@ -81,28 +75,27 @@ public:
 
     //==============================================================================
     /** @internal */
-    int getNumRows();
+    int getNumRows() override;
     /** @internal */
-    void paintListBoxItem (int rowNumber, Graphics& g, int width, int height, bool rowIsSelected);
+    void paintListBoxItem (int rowNumber, Graphics& g, int width, int height, bool rowIsSelected) override;
     /** @internal */
-    void deleteKeyPressed (int lastRowSelected);
+    void deleteKeyPressed (int lastRowSelected) override;
     /** @internal */
-    void returnKeyPressed (int lastRowSelected);
+    void returnKeyPressed (int lastRowSelected) override;
     /** @internal */
-    void listBoxItemDoubleClicked (int row, const MouseEvent&);
+    void listBoxItemDoubleClicked (int row, const MouseEvent&) override;
     /** @internal */
-    void selectedRowsChanged (int lastRowSelected);
+    void selectedRowsChanged (int lastRowSelected) override;
     /** @internal */
-    void resized();
+    void resized() override;
     /** @internal */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
     /** @internal */
-    bool isInterestedInFileDrag (const StringArray& files);
+    bool isInterestedInFileDrag (const StringArray&) override;
     /** @internal */
-    void filesDropped (const StringArray& files, int, int);
+    void filesDropped (const StringArray& files, int, int) override;
     /** @internal */
-    void buttonClicked (Button* button);
-
+    void buttonClicked (Button*) override;
 
 private:
     //==============================================================================
@@ -116,8 +109,8 @@ private:
     void changed();
     void updateButtons();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileSearchPathListComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileSearchPathListComponent)
 };
 
 
-#endif   // __JUCE_FILESEARCHPATHLISTCOMPONENT_JUCEHEADER__
+#endif   // JUCE_FILESEARCHPATHLISTCOMPONENT_H_INCLUDED

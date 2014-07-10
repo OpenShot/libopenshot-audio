@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_VALUETREE_JUCEHEADER__
-#define __JUCE_VALUETREE_JUCEHEADER__
-
-#include "juce_Value.h"
-#include "../undomanager/juce_UndoManager.h"
+#ifndef JUCE_VALUETREE_H_INCLUDED
+#define JUCE_VALUETREE_H_INCLUDED
 
 
 //==============================================================================
@@ -83,17 +79,16 @@ public:
         Like an XmlElement, each ValueTree node has a type, which you can access with
         getType() and hasType().
     */
-    explicit ValueTree (const Identifier& type);
+    explicit ValueTree (Identifier type);
 
     /** Creates a reference to another ValueTree. */
-    ValueTree (const ValueTree& other);
+    ValueTree (const ValueTree&);
 
     /** Makes this object reference another node. */
-    ValueTree& operator= (const ValueTree& other);
+    ValueTree& operator= (const ValueTree&);
 
    #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
-    ValueTree (ValueTree&& other) noexcept;
-    ValueTree& operator= (ValueTree&& other) noexcept;
+    ValueTree (ValueTree&&) noexcept;
    #endif
 
     /** Destructor. */
@@ -103,13 +98,13 @@ public:
         Note that this isn't a value comparison - two independently-created trees which
         contain identical data are not considered equal.
     */
-    bool operator== (const ValueTree& other) const noexcept;
+    bool operator== (const ValueTree&) const noexcept;
 
     /** Returns true if this and the other node refer to different underlying structures.
         Note that this isn't a value comparison - two independently-created trees which
         contain identical data are not considered equal.
     */
-    bool operator!= (const ValueTree& other) const noexcept;
+    bool operator!= (const ValueTree&) const noexcept;
 
     /** Performs a deep comparison between the properties and children of two trees.
         If all the properties and children of the two trees are the same (recursively), this
@@ -117,7 +112,7 @@ public:
         The normal operator==() only checks whether two trees refer to the same shared data
         structure, so use this method if you need to do a proper value comparison.
     */
-    bool isEquivalentTo (const ValueTree& other) const;
+    bool isEquivalentTo (const ValueTree&) const;
 
     //==============================================================================
     /** Returns true if this node refers to some valid data.
@@ -139,7 +134,7 @@ public:
     /** Returns true if the node has this type.
         The comparison is case-sensitive.
     */
-    bool hasType (const Identifier& typeName) const;
+    bool hasType (const Identifier typeName) const;
 
     //==============================================================================
     /** Returns the value of a named property.
@@ -147,21 +142,21 @@ public:
         You can also use operator[] to get a property.
         @see var, setProperty, hasProperty
     */
-    const var& getProperty (const Identifier& name) const;
+    const var& getProperty (const Identifier name) const;
 
     /** Returns the value of a named property, or a user-specified default if the property doesn't exist.
         If no such property has been set, this will return the value of defaultReturnValue.
         You can also use operator[] and getProperty to get a property.
         @see var, getProperty, setProperty, hasProperty
     */
-    var getProperty (const Identifier& name, const var& defaultReturnValue) const;
+    var getProperty (const Identifier name, const var& defaultReturnValue) const;
 
     /** Returns the value of a named property.
         If no such property has been set, this will return a void variant. This is the same as
         calling getProperty().
         @see getProperty
     */
-    const var& operator[] (const Identifier& name) const;
+    const var& operator[] (const Identifier name) const;
 
     /** Changes a named property of the node.
         The name identifier must not be an empty string.
@@ -170,16 +165,16 @@ public:
         @see var, getProperty, removeProperty
         @returns a reference to the value tree, so that you can daisy-chain calls to this method.
     */
-    ValueTree& setProperty (const Identifier& name, const var& newValue, UndoManager* undoManager);
+    ValueTree& setProperty (const Identifier name, const var& newValue, UndoManager* undoManager);
 
     /** Returns true if the node contains a named property. */
-    bool hasProperty (const Identifier& name) const;
+    bool hasProperty (const Identifier name) const;
 
     /** Removes a property from the node.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
     */
-    void removeProperty (const Identifier& name, UndoManager* undoManager);
+    void removeProperty (const Identifier name, UndoManager* undoManager);
 
     /** Removes all properties from the node.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
@@ -203,7 +198,13 @@ public:
         it needs to change the value. Attaching a Value::Listener to the value object will provide
         callbacks whenever the property changes.
     */
-    Value getPropertyAsValue (const Identifier& name, UndoManager* undoManager);
+    Value getPropertyAsValue (const Identifier name, UndoManager* undoManager);
+
+    /** Overwrites all the properties in this tree with the properties of the source tree.
+        Any properties that already exist will be updated; and new ones will be added, and
+        any that are not present in the source tree will be removed.
+    */
+    void copyPropertiesFrom (const ValueTree& source, UndoManager* undoManager);
 
     //==============================================================================
     /** Returns the number of child nodes belonging to this one.
@@ -222,7 +223,7 @@ public:
         whether a node is valid).
         @see getOrCreateChildWithName
     */
-    ValueTree getChildWithName (const Identifier& type) const;
+    ValueTree getChildWithName (const Identifier type) const;
 
     /** Returns the first child node with the speficied type name, creating and adding
         a child with this name if there wasn't already one there.
@@ -231,7 +232,7 @@ public:
         the method on is itself invalid.
         @see getChildWithName
     */
-    ValueTree getOrCreateChildWithName (const Identifier& type, UndoManager* undoManager);
+    ValueTree getOrCreateChildWithName (const Identifier type, UndoManager* undoManager);
 
     /** Looks for the first child node that has the speficied property value.
 
@@ -241,7 +242,7 @@ public:
         If no such node is found, it'll return an invalid node. (See isValid() to find out
         whether a node is valid).
     */
-    ValueTree getChildWithProperty (const Identifier& propertyName, const var& propertyValue) const;
+    ValueTree getChildWithProperty (const Identifier propertyName, const var& propertyValue) const;
 
     /** Adds a child to this node.
 
@@ -316,7 +317,7 @@ public:
     //==============================================================================
     /** Creates an XmlElement that holds a complete image of this node and all its children.
 
-        If this node is invalid, this may return 0. Otherwise, the XML that is produced can
+        If this node is invalid, this may return nullptr. Otherwise, the XML that is produced can
         be used to recreate a similar node by calling fromXml()
         @see fromXml
     */
@@ -329,6 +330,11 @@ public:
     */
     static ValueTree fromXml (const XmlElement& xml);
 
+    /** This returns a string containing an XML representation of the tree.
+        This is quite handy for debugging purposes, as it provides a quick way to view a tree.
+    */
+    String toXmlString() const;
+
     //==============================================================================
     /** Stores this tree (and all its children) in a binary format.
 
@@ -337,7 +343,7 @@ public:
         It's much faster to load/save your tree in binary form than as XML, but
         obviously isn't human-readable.
     */
-    void writeToStream (OutputStream& output);
+    void writeToStream (OutputStream& output) const;
 
     /** Reloads a tree from a stream that was written with writeToStream(). */
     static ValueTree readFromStream (InputStream& input);
@@ -412,6 +418,12 @@ public:
             the listener is registered, and not to any of its children.
         */
         virtual void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged) = 0;
+
+        /** This method is called when a tree is made to point to a different internal shared object.
+            When operator= is used to make a ValueTree refer to a different object, this callback
+            will be made.
+        */
+        virtual void valueTreeRedirected (ValueTree& treeWhichHasBeenChanged);
     };
 
     /** Adds a listener to receive callbacks when this node is changed.
@@ -436,7 +448,7 @@ public:
     /** Causes a property-change callback to be triggered for the specified property,
         calling any listeners that are registered.
     */
-    void sendPropertyChangeMessage (const Identifier& property);
+    void sendPropertyChangeMessage (const Identifier property);
 
     //==============================================================================
     /** This method uses a comparator object to sort the tree's children into order.
@@ -480,7 +492,7 @@ public:
 
 private:
     //==============================================================================
-    class SharedObject;
+    JUCE_PUBLIC_IN_DLL_BUILD (class SharedObject)
     friend class SharedObject;
 
     ReferenceCountedObjectPtr<SharedObject> object;
@@ -489,7 +501,7 @@ private:
     template <typename ElementComparator>
     struct ComparatorAdapter
     {
-        ComparatorAdapter (ElementComparator& comparator_) noexcept : comparator (comparator_) {}
+        ComparatorAdapter (ElementComparator& comp) noexcept : comparator (comp) {}
 
         int compareElements (const ValueTree* const first, const ValueTree* const second)
         {
@@ -498,7 +510,7 @@ private:
 
     private:
         ElementComparator& comparator;
-        JUCE_DECLARE_NON_COPYABLE (ComparatorAdapter);
+        JUCE_DECLARE_NON_COPYABLE (ComparatorAdapter)
     };
 
     void createListOfChildren (OwnedArray<ValueTree>&) const;
@@ -508,4 +520,4 @@ private:
 };
 
 
-#endif   // __JUCE_VALUETREE_JUCEHEADER__
+#endif   // JUCE_VALUETREE_H_INCLUDED

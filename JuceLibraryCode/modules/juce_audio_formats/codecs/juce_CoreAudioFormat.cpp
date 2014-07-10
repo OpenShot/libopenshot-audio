@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -33,8 +32,8 @@ namespace
     StringArray findFileExtensionsForCoreAudioCodecs()
     {
         StringArray extensionsArray;
-        CFMutableArrayRef extensions = CFArrayCreateMutable (0, 0, 0);
-        UInt32 sizeOfArray = sizeof (CFMutableArrayRef);
+        CFArrayRef extensions = nullptr;
+        UInt32 sizeOfArray = sizeof (extensions);
 
         if (AudioFileGetGlobalInfo (kAudioFileGlobalInfo_AllExtensions, 0, 0, &sizeOfArray, &extensions) == noErr)
         {
@@ -42,28 +41,306 @@ namespace
 
             for (CFIndex i = 0; i < numValues; ++i)
                 extensionsArray.add ("." + String::fromCFString ((CFStringRef) CFArrayGetValueAtIndex (extensions, i)));
+
+            CFRelease (extensions);
         }
 
-        CFRelease (extensions);
         return extensionsArray;
     }
 }
+
+//==============================================================================
+const char* const CoreAudioFormat::midiDataBase64   = "midiDataBase64";
+const char* const CoreAudioFormat::tempo            = "tempo";
+const char* const CoreAudioFormat::timeSig          = "time signature";
+const char* const CoreAudioFormat::keySig           = "key signature";
+
+//==============================================================================
+struct CoreAudioFormatMetatdata
+{
+    static uint32 chunkName (const char* const name) noexcept   { return ByteOrder::bigEndianInt (name); }
+
+    //==============================================================================
+    struct FileHeader
+    {
+        FileHeader (InputStream& input)
+        {
+            fileType    = (uint32) input.readIntBigEndian();
+            fileVersion = (uint16) input.readShortBigEndian();
+            fileFlags   = (uint16) input.readShortBigEndian();
+        }
+
+        uint32 fileType;
+        uint16 fileVersion;
+        uint16 fileFlags;
+    };
+
+    //==============================================================================
+    struct ChunkHeader
+    {
+        ChunkHeader (InputStream& input)
+        {
+            chunkType = (uint32) input.readIntBigEndian();
+            chunkSize = (int64)  input.readInt64BigEndian();
+        }
+
+        uint32 chunkType;
+        int64 chunkSize;
+    };
+
+    //==============================================================================
+    struct AudioDescriptionChunk
+    {
+        AudioDescriptionChunk (InputStream& input)
+        {
+            sampleRate          = input.readDoubleBigEndian();
+            formatID            = (uint32) input.readIntBigEndian();
+            formatFlags         = (uint32) input.readIntBigEndian();
+            bytesPerPacket      = (uint32) input.readIntBigEndian();
+            framesPerPacket     = (uint32) input.readIntBigEndian();
+            channelsPerFrame    = (uint32) input.readIntBigEndian();
+            bitsPerChannel      = (uint32) input.readIntBigEndian();
+        }
+
+        double sampleRate;
+        uint32 formatID;
+        uint32 formatFlags;
+        uint32 bytesPerPacket;
+        uint32 framesPerPacket;
+        uint32 channelsPerFrame;
+        uint32 bitsPerChannel;
+    };
+
+    //==============================================================================
+    struct UserDefinedChunk
+    {
+        UserDefinedChunk (InputStream& input, int64 size)
+        {
+            // a user defined chunk contains 16 bytes of a UUID first
+            uuid[1] = input.readInt64BigEndian();
+            uuid[0] = input.readInt64BigEndian();
+
+            input.skipNextBytes (size - 16);
+        }
+
+        int64 uuid[2];
+    };
+
+    //==============================================================================
+    static StringPairArray parseMidiChunk (InputStream& input, int64 size)
+    {
+        const int64 originalPosition = input.getPosition();
+
+        MemoryBlock midiBlock;
+        input.readIntoMemoryBlock (midiBlock, (ssize_t) size);
+        MemoryInputStream midiInputStream (midiBlock, false);
+
+        StringPairArray midiMetadata;
+        MidiFile midiFile;
+
+        if (midiFile.readFrom (midiInputStream))
+        {
+            midiMetadata.set (CoreAudioFormat::midiDataBase64, midiBlock.toBase64Encoding());
+
+            findTempoEvents (midiFile, midiMetadata);
+            findTimeSigEvents (midiFile, midiMetadata);
+            findKeySigEvents (midiFile, midiMetadata);
+        }
+
+        input.setPosition (originalPosition + size);
+        return midiMetadata;
+    }
+
+    static void findTempoEvents (MidiFile& midiFile, StringPairArray& midiMetadata)
+    {
+        MidiMessageSequence tempoEvents;
+        midiFile.findAllTempoEvents (tempoEvents);
+
+        const int numTempoEvents = tempoEvents.getNumEvents();
+        MemoryOutputStream tempoSequence;
+
+        for (int i = 0; i < numTempoEvents; ++i)
+        {
+            const double tempo = getTempoFromTempoMetaEvent (tempoEvents.getEventPointer (i));
+
+            if (tempo > 0.0)
+            {
+                if (i == 0)
+                    midiMetadata.set (CoreAudioFormat::tempo, String (tempo));
+
+                if (numTempoEvents > 1)
+                    tempoSequence << String (tempo) << ',' << tempoEvents.getEventTime (i) << ';';
+            }
+        }
+
+        if (tempoSequence.getDataSize() > 0)
+            midiMetadata.set ("tempo sequence", tempoSequence.toUTF8());
+    }
+
+    static double getTempoFromTempoMetaEvent (MidiMessageSequence::MidiEventHolder* holder)
+    {
+        if (holder != nullptr)
+        {
+            const MidiMessage& midiMessage = holder->message;
+
+            if (midiMessage.isTempoMetaEvent())
+            {
+                const double tempoSecondsPerQuarterNote = midiMessage.getTempoSecondsPerQuarterNote();
+
+                if (tempoSecondsPerQuarterNote > 0.0)
+                    return 60.0 / tempoSecondsPerQuarterNote;
+            }
+        }
+
+        return 0.0;
+    }
+
+    static void findTimeSigEvents (MidiFile& midiFile, StringPairArray& midiMetadata)
+    {
+        MidiMessageSequence timeSigEvents;
+        midiFile.findAllTimeSigEvents (timeSigEvents);
+        const int numTimeSigEvents = timeSigEvents.getNumEvents();
+
+        MemoryOutputStream timeSigSequence;
+
+        for (int i = 0; i < numTimeSigEvents; ++i)
+        {
+            int numerator, denominator;
+            timeSigEvents.getEventPointer(i)->message.getTimeSignatureInfo (numerator, denominator);
+
+            String timeSigString;
+            timeSigString << numerator << '/' << denominator;
+
+            if (i == 0)
+                midiMetadata.set (CoreAudioFormat::timeSig, timeSigString);
+
+            if (numTimeSigEvents > 1)
+                timeSigSequence << timeSigString << ',' << timeSigEvents.getEventTime (i) << ';';
+        }
+
+        if (timeSigSequence.getDataSize() > 0)
+            midiMetadata.set ("time signature sequence", timeSigSequence.toUTF8());
+    }
+
+    static void findKeySigEvents (MidiFile& midiFile, StringPairArray& midiMetadata)
+    {
+        MidiMessageSequence keySigEvents;
+        midiFile.findAllKeySigEvents (keySigEvents);
+        const int numKeySigEvents = keySigEvents.getNumEvents();
+
+        MemoryOutputStream keySigSequence;
+
+        for (int i = 0; i < numKeySigEvents; ++i)
+        {
+            const MidiMessage& message (keySigEvents.getEventPointer (i)->message);
+            const int key = jlimit (0, 14, message.getKeySignatureNumberOfSharpsOrFlats() + 7);
+            const bool isMajor = message.isKeySignatureMajorKey();
+
+            static const char* majorKeys[] = { "Cb", "Gb", "Db", "Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E", "B", "F#", "C#" };
+            static const char* minorKeys[] = { "Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#" };
+
+            String keySigString (isMajor ? majorKeys[key]
+                                         : minorKeys[key]);
+
+            if (! isMajor)
+                keySigString << 'm';
+
+            if (i == 0)
+                midiMetadata.set (CoreAudioFormat::keySig, keySigString);
+
+            if (numKeySigEvents > 1)
+                keySigSequence << keySigString << ',' << keySigEvents.getEventTime (i) << ';';
+        }
+
+        if (keySigSequence.getDataSize() > 0)
+            midiMetadata.set ("key signature sequence", keySigSequence.toUTF8());
+    }
+
+    //==============================================================================
+    static StringPairArray parseInformationChunk (InputStream& input)
+    {
+        StringPairArray infoStrings;
+        const uint32 numEntries = (uint32) input.readIntBigEndian();
+
+        for (uint32 i = 0; i < numEntries; ++i)
+            infoStrings.set (input.readString(), input.readString());
+
+        return infoStrings;
+    }
+
+    //==============================================================================
+    static bool read (InputStream& input, StringPairArray& metadataValues)
+    {
+        const int64 originalPos = input.getPosition();
+
+        const FileHeader cafFileHeader (input);
+        const bool isCafFile = cafFileHeader.fileType == chunkName ("caff");
+
+        if (isCafFile)
+        {
+            while (! input.isExhausted())
+            {
+                const ChunkHeader chunkHeader (input);
+
+                if (chunkHeader.chunkType == chunkName ("desc"))
+                {
+                    AudioDescriptionChunk audioDescriptionChunk (input);
+                }
+                else if (chunkHeader.chunkType == chunkName ("uuid"))
+                {
+                    UserDefinedChunk userDefinedChunk (input, chunkHeader.chunkSize);
+                }
+                else if (chunkHeader.chunkType == chunkName ("data"))
+                {
+                    // -1 signifies an unknown data size so the data has to be at the
+                    // end of the file so we must have finished the header
+
+                    if (chunkHeader.chunkSize == -1)
+                        break;
+
+                    input.skipNextBytes (chunkHeader.chunkSize);
+                }
+                else if (chunkHeader.chunkType == chunkName ("midi"))
+                {
+                    metadataValues.addArray (parseMidiChunk (input, chunkHeader.chunkSize));
+                }
+                else if (chunkHeader.chunkType == chunkName ("info"))
+                {
+                    metadataValues.addArray (parseInformationChunk (input));
+                }
+                else
+                {
+                    // we aren't decoding this chunk yet so just skip over it
+                    input.skipNextBytes (chunkHeader.chunkSize);
+                }
+            }
+        }
+
+        input.setPosition (originalPos);
+
+        return isCafFile;
+    }
+};
 
 //==============================================================================
 class CoreAudioReader : public AudioFormatReader
 {
 public:
     CoreAudioReader (InputStream* const inp)
-        : AudioFormatReader (inp, TRANS (coreAudioFormatName)),
+        : AudioFormatReader (inp, coreAudioFormatName),
           ok (false), lastReadPosition (0)
     {
         usesFloatingPointData = true;
+        bitsPerSample = 32;
+
+        if (input != nullptr)
+            CoreAudioFormatMetatdata::read (*input, metadataValues);
 
         OSStatus status = AudioFileOpenWithCallbacks (this,
                                                       &readCallback,
-                                                      0,        // write needs to be null to avoid permisisions errors
+                                                      nullptr,  // write needs to be null to avoid permisisions errors
                                                       &getSizeCallback,
-                                                      0,        // setSize needs to be null to avoid permisisions errors
+                                                      nullptr,  // setSize needs to be null to avoid permisisions errors
                                                       0,        // AudioFileTypeID inFileTypeHint
                                                       &audioFileID);
         if (status == noErr)
@@ -79,9 +356,8 @@ public:
                                          &audioStreamBasicDescriptionSize,
                                          &sourceAudioFormat);
 
-                numChannels   = sourceAudioFormat.mChannelsPerFrame;
-                sampleRate    = sourceAudioFormat.mSampleRate;
-                bitsPerSample = sourceAudioFormat.mBitsPerChannel;
+                numChannels = sourceAudioFormat.mChannelsPerFrame;
+                sampleRate  = sourceAudioFormat.mSampleRate;
 
                 UInt32 sizeOfLengthProperty = sizeof (int64);
                 ExtAudioFileGetProperty (audioFileRef,
@@ -120,19 +396,10 @@ public:
 
     //==============================================================================
     bool readSamples (int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
-                      int64 startSampleInFile, int numSamples)
+                      int64 startSampleInFile, int numSamples) override
     {
-        jassert (destSamples != nullptr);
-        const int64 samplesAvailable = lengthInSamples - startSampleInFile;
-
-        if (samplesAvailable < numSamples)
-        {
-            for (int i = numDestChannels; --i >= 0;)
-                if (destSamples[i] != nullptr)
-                    zeromem (destSamples[i] + startOffsetInDestBuffer, sizeof (int) * (size_t) numSamples);
-
-            numSamples = (int) samplesAvailable;
-        }
+        clearSamplesBeyondAvailableLength (destSamples, numDestChannels, startOffsetInDestBuffer,
+                                           startSampleInFile, numSamples, lengthInSamples);
 
         if (numSamples <= 0)
             return true;
@@ -215,12 +482,12 @@ private:
         return noErr;
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreAudioReader);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreAudioReader)
 };
 
 //==============================================================================
 CoreAudioFormat::CoreAudioFormat()
-    : AudioFormat (TRANS (coreAudioFormatName), findFileExtensionsForCoreAudioCodecs())
+    : AudioFormat (coreAudioFormatName, findFileExtensionsForCoreAudioCodecs())
 {
 }
 
@@ -247,12 +514,12 @@ AudioFormatReader* CoreAudioFormat::createReaderFor (InputStream* sourceStream,
     return nullptr;
 }
 
-AudioFormatWriter* CoreAudioFormat::createWriterFor (OutputStream* streamToWriteTo,
-                                                     double sampleRateToUse,
-                                                     unsigned int numberOfChannels,
-                                                     int bitsPerSample,
-                                                     const StringPairArray& metadataValues,
-                                                     int qualityOptionIndex)
+AudioFormatWriter* CoreAudioFormat::createWriterFor (OutputStream*,
+                                                     double /*sampleRateToUse*/,
+                                                     unsigned int /*numberOfChannels*/,
+                                                     int /*bitsPerSample*/,
+                                                     const StringPairArray& /*metadataValues*/,
+                                                     int /*qualityOptionIndex*/)
 {
     jassertfalse; // not yet implemented!
     return nullptr;

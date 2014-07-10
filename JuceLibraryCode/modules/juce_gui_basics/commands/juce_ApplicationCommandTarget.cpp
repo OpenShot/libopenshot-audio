@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -26,15 +25,14 @@
 class ApplicationCommandTarget::CommandMessage  : public MessageManager::MessageBase
 {
 public:
-    CommandMessage (ApplicationCommandTarget* const owner_, const InvocationInfo& info_)
-        : owner (owner_), info (info_)
+    CommandMessage (ApplicationCommandTarget* const target, const InvocationInfo& inf)
+        : owner (target), info (inf)
     {
     }
 
-    void messageCallback()
+    void messageCallback() override
     {
-        ApplicationCommandTarget* const target = owner;
-        if (target != nullptr)
+        if (ApplicationCommandTarget* const target = owner)
             target->tryToInvoke (info, false);
     }
 
@@ -42,7 +40,7 @@ private:
     WeakReference<ApplicationCommandTarget> owner;
     const InvocationInfo info;
 
-    JUCE_DECLARE_NON_COPYABLE (CommandMessage);
+    JUCE_DECLARE_NON_COPYABLE (CommandMessage)
 };
 
 //==============================================================================
@@ -65,15 +63,14 @@ bool ApplicationCommandTarget::tryToInvoke (const InvocationInfo& info, const bo
             (new CommandMessage (this, info))->post();
             return true;
         }
-        else
-        {
-            const bool success = perform (info);
 
-            jassert (success);  // hmm - your target should have been able to perform this command. If it can't
-                                // do it at the moment for some reason, it should clear the 'isActive' flag when it
-                                // returns the command's info.
-            return success;
-        }
+        if (perform (info))
+            return true;
+
+        // Hmm.. your target claimed that it could perform this command, but failed to do so.
+        // If it can't do it at the moment for some reason, it should clear the 'isActive' flag
+        // when it returns the command's info.
+        jassertfalse;
     }
 
     return false;
@@ -81,9 +78,7 @@ bool ApplicationCommandTarget::tryToInvoke (const InvocationInfo& info, const bo
 
 ApplicationCommandTarget* ApplicationCommandTarget::findFirstTargetParentComponent()
 {
-    Component* c = dynamic_cast <Component*> (this);
-
-    if (c != nullptr)
+    if (Component* const c = dynamic_cast <Component*> (this))
         return c->findParentComponentOfClass<ApplicationCommandTarget>();
 
     return nullptr;
@@ -96,7 +91,7 @@ ApplicationCommandTarget* ApplicationCommandTarget::getTargetForCommand (const C
 
     while (target != nullptr)
     {
-        Array <CommandID> commandIDs;
+        Array<CommandID> commandIDs;
         target->getAllCommands (commandIDs);
 
         if (commandIDs.contains (commandID))
@@ -118,7 +113,7 @@ ApplicationCommandTarget* ApplicationCommandTarget::getTargetForCommand (const C
 
         if (target != nullptr)
         {
-            Array <CommandID> commandIDs;
+            Array<CommandID> commandIDs;
             target->getAllCommands (commandIDs);
 
             if (commandIDs.contains (commandID))
@@ -180,8 +175,8 @@ bool ApplicationCommandTarget::invokeDirectly (const CommandID commandID, const 
 }
 
 //==============================================================================
-ApplicationCommandTarget::InvocationInfo::InvocationInfo (const CommandID commandID_)
-    : commandID (commandID_),
+ApplicationCommandTarget::InvocationInfo::InvocationInfo (const CommandID command)
+    : commandID (command),
       commandFlags (0),
       invocationMethod (direct),
       originatingComponent (nullptr),

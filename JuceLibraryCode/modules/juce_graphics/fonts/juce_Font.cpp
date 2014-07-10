@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -32,17 +31,17 @@ namespace FontValues
 
     const float defaultFontHeight = 14.0f;
     String fallbackFont;
+    String fallbackFontStyle;
 }
 
 typedef Typeface::Ptr (*GetTypefaceForFont) (const Font&);
 GetTypefaceForFont juce_getTypefaceForFont = nullptr;
 
 //==============================================================================
-class TypefaceCache  : public DeletedAtShutdown
+class TypefaceCache  : private DeletedAtShutdown
 {
 public:
-    TypefaceCache()
-        : counter (0)
+    TypefaceCache()  : counter (0)
     {
         setSize (10);
     }
@@ -52,26 +51,40 @@ public:
         clearSingletonInstance();
     }
 
-    juce_DeclareSingleton_SingleThreaded_Minimal (TypefaceCache);
+    juce_DeclareSingleton (TypefaceCache, false);
 
     void setSize (const int numToCache)
     {
+        const ScopedWriteLock sl (lock);
+
         faces.clear();
         faces.insertMultiple (-1, CachedFace(), numToCache);
     }
 
+    void clear()
+    {
+        const ScopedWriteLock sl (lock);
+
+        setSize (faces.size());
+        defaultFace = nullptr;
+    }
+
     Typeface::Ptr findTypefaceFor (const Font& font)
     {
-        const int flags = font.getStyleFlags() & (Font::bold | Font::italic);
-        const String faceName (font.getTypefaceName());
+        const ScopedReadLock slr (lock);
 
-        int i;
-        for (i = faces.size(); --i >= 0;)
+        const String faceName (font.getTypefaceName());
+        const String faceStyle (font.getTypefaceStyle());
+
+        jassert (faceName.isNotEmpty());
+
+        for (int i = faces.size(); --i >= 0;)
         {
             CachedFace& face = faces.getReference(i);
 
-            if (face.flags == flags
-                 && face.typefaceName == faceName
+            if (face.typefaceName == faceName
+                 && face.typefaceStyle == faceStyle
+                 && face.typeface != nullptr
                  && face.typeface->isSuitableForFont (font))
             {
                 face.lastUsageCount = ++counter;
@@ -79,10 +92,11 @@ public:
             }
         }
 
+        const ScopedWriteLock slw (lock);
         int replaceIndex = 0;
-        size_t bestLastUsageCount = std::numeric_limits<int>::max();
+        size_t bestLastUsageCount = std::numeric_limits<size_t>::max();
 
-        for (i = faces.size(); --i >= 0;)
+        for (int i = faces.size(); --i >= 0;)
         {
             const size_t lu = faces.getReference(i).lastUsageCount;
 
@@ -95,7 +109,7 @@ public:
 
         CachedFace& face = faces.getReference (replaceIndex);
         face.typefaceName = faceName;
-        face.flags = flags;
+        face.typefaceStyle = faceStyle;
         face.lastUsageCount = ++counter;
 
         if (juce_getTypefaceForFont == nullptr)
@@ -111,130 +125,148 @@ public:
         return face.typeface;
     }
 
-    Typeface::Ptr getDefaultTypeface() const noexcept
-    {
-        return defaultFace;
-    }
+    Typeface::Ptr defaultFace;
 
 private:
     struct CachedFace
     {
-        CachedFace() noexcept
-            : lastUsageCount (0), flags (-1)
-        {
-        }
+        CachedFace() noexcept  : lastUsageCount (0) {}
 
         // Although it seems a bit wacky to store the name here, it's because it may be a
         // placeholder rather than a real one, e.g. "<Sans-Serif>" vs the actual typeface name.
         // Since the typeface itself doesn't know that it may have this alias, the name under
         // which it was fetched needs to be stored separately.
-        String typefaceName;
+        String typefaceName, typefaceStyle;
         size_t lastUsageCount;
-        int flags;
         Typeface::Ptr typeface;
     };
 
-    Array <CachedFace> faces;
-    Typeface::Ptr defaultFace;
+    ReadWriteLock lock;
+    Array<CachedFace> faces;
     size_t counter;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TypefaceCache);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TypefaceCache)
 };
 
-juce_ImplementSingleton_SingleThreaded (TypefaceCache)
+juce_ImplementSingleton (TypefaceCache)
 
 void Typeface::setTypefaceCacheSize (int numFontsToCache)
 {
     TypefaceCache::getInstance()->setSize (numFontsToCache);
 }
 
+#if JUCE_MODULE_AVAILABLE_juce_opengl
+extern void clearOpenGLGlyphCache();
+#endif
+
+void Typeface::clearTypefaceCache()
+{
+    TypefaceCache::getInstance()->clear();
+
+    RenderingHelpers::SoftwareRendererSavedState::clearGlyphCache();
+
+   #if JUCE_MODULE_AVAILABLE_juce_opengl
+    clearOpenGLGlyphCache();
+   #endif
+}
+
 //==============================================================================
-class Font::SharedFontInternal  : public SingleThreadedReferenceCountedObject
+class Font::SharedFontInternal  : public ReferenceCountedObject
 {
 public:
-    SharedFontInternal (const float height_, const int styleFlags_) noexcept
-        : typefaceName (Font::getDefaultSansSerifFontName()),
-          height (height_),
-          horizontalScale (1.0f),
-          kerning (0),
-          ascent (0),
-          styleFlags (styleFlags_),
-          typeface ((styleFlags_ & (Font::bold | Font::italic)) == 0
-                        ? TypefaceCache::getInstance()->getDefaultTypeface() : nullptr)
-    {
-    }
-
-    SharedFontInternal (const String& typefaceName_, const float height_, const int styleFlags_) noexcept
-        : typefaceName (typefaceName_),
-          height (height_),
-          horizontalScale (1.0f),
-          kerning (0),
-          ascent (0),
-          styleFlags (styleFlags_),
-          typeface (nullptr)
-    {
-    }
-
-    SharedFontInternal (const Typeface::Ptr& typeface_) noexcept
-        : typefaceName (typeface_->getName()),
+    SharedFontInternal() noexcept
+        : typeface (TypefaceCache::getInstance()->defaultFace),
+          typefaceName (Font::getDefaultSansSerifFontName()),
+          typefaceStyle (Font::getDefaultStyle()),
           height (FontValues::defaultFontHeight),
-          horizontalScale (1.0f),
-          kerning (0),
-          ascent (0),
-          styleFlags (Font::plain),
-          typeface (typeface_)
+          horizontalScale (1.0f), kerning (0), ascent (0), underline (false)
     {
+    }
+
+    SharedFontInternal (int styleFlags, float fontHeight) noexcept
+        : typefaceName (Font::getDefaultSansSerifFontName()),
+          typefaceStyle (FontStyleHelpers::getStyleName (styleFlags)),
+          height (fontHeight),
+          horizontalScale (1.0f), kerning (0), ascent (0), underline ((styleFlags & underlined) != 0)
+    {
+        if (styleFlags == plain)
+            typeface = TypefaceCache::getInstance()->defaultFace;
+    }
+
+    SharedFontInternal (const String& name, int styleFlags, float fontHeight) noexcept
+        : typefaceName (name),
+          typefaceStyle (FontStyleHelpers::getStyleName (styleFlags)),
+          height (fontHeight),
+          horizontalScale (1.0f), kerning (0), ascent (0), underline ((styleFlags & underlined) != 0)
+    {
+        if (styleFlags == plain && typefaceName.isEmpty())
+            typeface = TypefaceCache::getInstance()->defaultFace;
+    }
+
+    SharedFontInternal (const String& name, const String& style, float fontHeight) noexcept
+        : typefaceName (name), typefaceStyle (style), height (fontHeight),
+          horizontalScale (1.0f), kerning (0), ascent (0), underline (false)
+    {
+        if (typefaceName.isEmpty())
+            typefaceName = Font::getDefaultSansSerifFontName();
+    }
+
+    explicit SharedFontInternal (const Typeface::Ptr& face) noexcept
+        : typeface (face),
+          typefaceName (face->getName()),
+          typefaceStyle (face->getStyle()),
+          height (FontValues::defaultFontHeight),
+          horizontalScale (1.0f), kerning (0), ascent (0), underline (false)
+    {
+        jassert (typefaceName.isNotEmpty());
     }
 
     SharedFontInternal (const SharedFontInternal& other) noexcept
-        : typefaceName (other.typefaceName),
+        : ReferenceCountedObject(),
+          typeface (other.typeface),
+          typefaceName (other.typefaceName),
+          typefaceStyle (other.typefaceStyle),
           height (other.height),
           horizontalScale (other.horizontalScale),
           kerning (other.kerning),
           ascent (other.ascent),
-          styleFlags (other.styleFlags),
-          typeface (other.typeface)
+          underline (other.underline)
     {
     }
 
     bool operator== (const SharedFontInternal& other) const noexcept
     {
         return height == other.height
-                && styleFlags == other.styleFlags
+                && underline == other.underline
                 && horizontalScale == other.horizontalScale
                 && kerning == other.kerning
-                && typefaceName == other.typefaceName;
+                && typefaceName == other.typefaceName
+                && typefaceStyle == other.typefaceStyle;
     }
 
-    String typefaceName;
-    float height, horizontalScale, kerning, ascent;
-    int styleFlags;
     Typeface::Ptr typeface;
+    String typefaceName, typefaceStyle;
+    float height, horizontalScale, kerning, ascent;
+    bool underline;
 };
 
 //==============================================================================
-Font::Font()
-    : font (new SharedFontInternal (FontValues::defaultFontHeight, Font::plain))
+Font::Font()                                : font (new SharedFontInternal()) {}
+Font::Font (const Typeface::Ptr& typeface)  : font (new SharedFontInternal (typeface)) {}
+Font::Font (const Font& other) noexcept     : font (other.font) {}
+
+Font::Font (float fontHeight, int styleFlags)
+    : font (new SharedFontInternal (styleFlags, FontValues::limitFontHeight (fontHeight)))
 {
 }
 
-Font::Font (const float fontHeight, const int styleFlags)
-    : font (new SharedFontInternal (FontValues::limitFontHeight (fontHeight), styleFlags))
+Font::Font (const String& typefaceName, float fontHeight, int styleFlags)
+    : font (new SharedFontInternal (typefaceName, styleFlags, FontValues::limitFontHeight (fontHeight)))
 {
 }
 
-Font::Font (const String& typefaceName, const float fontHeight, const int styleFlags)
-    : font (new SharedFontInternal (typefaceName, FontValues::limitFontHeight (fontHeight), styleFlags))
-{
-}
-
-Font::Font (const Typeface::Ptr& typeface)
-    : font (new SharedFontInternal (typeface))
-{
-}
-
-Font::Font (const Font& other) noexcept
-    : font (other.font)
+Font::Font (const String& typefaceName, const String& typefaceStyle, float fontHeight)
+    : font (new SharedFontInternal (typefaceName, typefaceStyle, FontValues::limitFontHeight (fontHeight)))
 {
 }
 
@@ -278,34 +310,54 @@ void Font::dupeInternalIfShared()
         font = new SharedFontInternal (*font);
 }
 
+void Font::checkTypefaceSuitability()
+{
+    if (font->typeface != nullptr && ! font->typeface->isSuitableForFont (*this))
+        font->typeface = nullptr;
+}
+
 //==============================================================================
-const String& Font::getDefaultSansSerifFontName()
+struct FontPlaceholderNames
 {
-    static const String name ("<Sans-Serif>");
-    return name;
+    FontPlaceholderNames()
+       : sans    ("<Sans-Serif>"),
+         serif   ("<Serif>"),
+         mono    ("<Monospaced>"),
+         regular ("<Regular>")
+    {
+    }
+
+    String sans, serif, mono, regular;
+};
+
+const FontPlaceholderNames& getFontPlaceholderNames()
+{
+    static FontPlaceholderNames names;
+    return names;
 }
 
-const String& Font::getDefaultSerifFontName()
-{
-    static const String name ("<Serif>");
-    return name;
-}
+#if JUCE_MSVC
+// This is a workaround for the lack of thread-safety in MSVC's handling of function-local
+// statics - if multiple threads all try to create the first Font object at the same time,
+// it can cause a race-condition in creating these placeholder strings.
+struct FontNamePreloader { FontNamePreloader() { getFontPlaceholderNames(); } };
+static FontNamePreloader fnp;
+#endif
 
-const String& Font::getDefaultMonospacedFontName()
-{
-    static const String name ("<Monospaced>");
-    return name;
-}
+const String& Font::getDefaultSansSerifFontName()       { return getFontPlaceholderNames().sans; }
+const String& Font::getDefaultSerifFontName()           { return getFontPlaceholderNames().serif; }
+const String& Font::getDefaultMonospacedFontName()      { return getFontPlaceholderNames().mono; }
+const String& Font::getDefaultStyle()                   { return getFontPlaceholderNames().regular; }
 
-const String& Font::getTypefaceName() const noexcept
-{
-    return font->typefaceName;
-}
+const String& Font::getTypefaceName() const noexcept    { return font->typefaceName; }
+const String& Font::getTypefaceStyle() const noexcept   { return font->typefaceStyle; }
 
 void Font::setTypefaceName (const String& faceName)
 {
     if (faceName != font->typefaceName)
     {
+        jassert (faceName.isNotEmpty());
+
         dupeInternalIfShared();
         font->typefaceName = faceName;
         font->typeface = nullptr;
@@ -313,10 +365,36 @@ void Font::setTypefaceName (const String& faceName)
     }
 }
 
+void Font::setTypefaceStyle (const String& typefaceStyle)
+{
+    if (typefaceStyle != font->typefaceStyle)
+    {
+        dupeInternalIfShared();
+        font->typefaceStyle = typefaceStyle;
+        font->typeface = nullptr;
+        font->ascent = 0;
+    }
+}
+
+Font Font::withTypefaceStyle (const String& newStyle) const
+{
+    Font f (*this);
+    f.setTypefaceStyle (newStyle);
+    return f;
+}
+
+StringArray Font::getAvailableStyles() const
+{
+    return findAllTypefaceStyles (getTypeface()->getName());
+}
+
 Typeface* Font::getTypeface() const
 {
     if (font->typeface == nullptr)
+    {
         font->typeface = TypefaceCache::getInstance()->findTypefaceFor (*this);
+        jassert (font->typeface != nullptr);
+    }
 
     return font->typeface;
 }
@@ -336,16 +414,37 @@ void Font::setFallbackFontName (const String& name)
    #endif
 }
 
-//==============================================================================
-float Font::getHeight() const noexcept
+const String& Font::getFallbackFontStyle()
 {
-    return font->height;
+    return FontValues::fallbackFontStyle;
 }
 
+void Font::setFallbackFontStyle (const String& style)
+{
+    FontValues::fallbackFontStyle = style;
+
+   #if JUCE_MAC || JUCE_IOS
+    jassertfalse; // Note that use of a fallback font isn't currently implemented in OSX..
+   #endif
+}
+
+//==============================================================================
 Font Font::withHeight (const float newHeight) const
 {
     Font f (*this);
     f.setHeight (newHeight);
+    return f;
+}
+
+float Font::getHeightToPointsFactor() const
+{
+    return getTypeface()->getHeightToPointsFactor();
+}
+
+Font Font::withPointHeight (float heightInPoints) const
+{
+    Font f (*this);
+    f.setHeight (heightInPoints / getHeightToPointsFactor());
     return f;
 }
 
@@ -357,6 +456,7 @@ void Font::setHeight (float newHeight)
     {
         dupeInternalIfShared();
         font->height = newHeight;
+        checkTypefaceSuitability();
     }
 }
 
@@ -369,12 +469,18 @@ void Font::setHeightWithoutChangingWidth (float newHeight)
         dupeInternalIfShared();
         font->horizontalScale *= (font->height / newHeight);
         font->height = newHeight;
+        checkTypefaceSuitability();
     }
 }
 
 int Font::getStyleFlags() const noexcept
 {
-    return font->styleFlags;
+    int styleFlags = font->underline ? underlined : plain;
+
+    if (isBold())    styleFlags |= bold;
+    if (isItalic())  styleFlags |= italic;
+
+    return styleFlags;
 }
 
 Font Font::withStyle (const int newFlags) const
@@ -386,11 +492,12 @@ Font Font::withStyle (const int newFlags) const
 
 void Font::setStyleFlags (const int newFlags)
 {
-    if (font->styleFlags != newFlags)
+    if (getStyleFlags() != newFlags)
     {
         dupeInternalIfShared();
-        font->styleFlags = newFlags;
         font->typeface = nullptr;
+        font->typefaceStyle = FontStyleHelpers::getStyleName (newFlags);
+        font->underline = (newFlags & underlined) != 0;
         font->ascent = 0;
     }
 }
@@ -410,14 +517,31 @@ void Font::setSizeAndStyle (float newHeight,
         font->height = newHeight;
         font->horizontalScale = newHorizontalScale;
         font->kerning = newKerningAmount;
+        checkTypefaceSuitability();
     }
 
     setStyleFlags (newStyleFlags);
 }
 
-float Font::getHorizontalScale() const noexcept
+void Font::setSizeAndStyle (float newHeight,
+                            const String& newStyle,
+                            const float newHorizontalScale,
+                            const float newKerningAmount)
 {
-    return font->horizontalScale;
+    newHeight = FontValues::limitFontHeight (newHeight);
+
+    if (font->height != newHeight
+         || font->horizontalScale != newHorizontalScale
+         || font->kerning != newKerningAmount)
+    {
+        dupeInternalIfShared();
+        font->height = newHeight;
+        font->horizontalScale = newHorizontalScale;
+        font->kerning = newKerningAmount;
+        checkTypefaceSuitability();
+    }
+
+    setTypefaceStyle (newStyle);
 }
 
 Font Font::withHorizontalScale (const float newHorizontalScale) const
@@ -431,6 +555,12 @@ void Font::setHorizontalScale (const float scaleFactor)
 {
     dupeInternalIfShared();
     font->horizontalScale = scaleFactor;
+    checkTypefaceSuitability();
+}
+
+float Font::getHorizontalScale() const noexcept
+{
+    return font->horizontalScale;
 }
 
 float Font::getExtraKerningFactor() const noexcept
@@ -449,35 +579,35 @@ void Font::setExtraKerningFactor (const float extraKerning)
 {
     dupeInternalIfShared();
     font->kerning = extraKerning;
+    checkTypefaceSuitability();
 }
 
-Font Font::boldened() const             { return withStyle (font->styleFlags | bold); }
-Font Font::italicised() const           { return withStyle (font->styleFlags | italic); }
+Font Font::boldened() const                 { return withStyle (getStyleFlags() | bold); }
+Font Font::italicised() const               { return withStyle (getStyleFlags() | italic); }
 
-bool Font::isBold() const noexcept      { return (font->styleFlags & bold) != 0; }
-bool Font::isItalic() const noexcept    { return (font->styleFlags & italic) != 0; }
+bool Font::isBold() const noexcept          { return FontStyleHelpers::isBold   (font->typefaceStyle); }
+bool Font::isItalic() const noexcept        { return FontStyleHelpers::isItalic (font->typefaceStyle); }
+bool Font::isUnderlined() const noexcept    { return font->underline; }
 
 void Font::setBold (const bool shouldBeBold)
 {
-    setStyleFlags (shouldBeBold ? (font->styleFlags | bold)
-                                : (font->styleFlags & ~bold));
+    const int flags = getStyleFlags();
+    setStyleFlags (shouldBeBold ? (flags | bold)
+                                : (flags & ~bold));
 }
 
 void Font::setItalic (const bool shouldBeItalic)
 {
-    setStyleFlags (shouldBeItalic ? (font->styleFlags | italic)
-                                  : (font->styleFlags & ~italic));
+    const int flags = getStyleFlags();
+    setStyleFlags (shouldBeItalic ? (flags | italic)
+                                  : (flags & ~italic));
 }
 
 void Font::setUnderline (const bool shouldBeUnderlined)
 {
-    setStyleFlags (shouldBeUnderlined ? (font->styleFlags | underlined)
-                                      : (font->styleFlags & ~underlined));
-}
-
-bool Font::isUnderlined() const noexcept
-{
-    return (font->styleFlags & underlined) != 0;
+    dupeInternalIfShared();
+    font->underline = shouldBeUnderlined;
+    checkTypefaceSuitability();
 }
 
 float Font::getAscent() const
@@ -488,10 +618,12 @@ float Font::getAscent() const
     return font->height * font->ascent;
 }
 
-float Font::getDescent() const
-{
-    return font->height - getAscent();
-}
+float Font::getHeight() const noexcept      { return font->height; }
+float Font::getDescent() const              { return font->height - getAscent(); }
+
+float Font::getHeightInPoints() const       { return getHeight()  * getHeightToPointsFactor(); }
+float Font::getAscentInPoints() const       { return getAscent()  * getHeightToPointsFactor(); }
+float Font::getDescentInPoints() const      { return getDescent() * getHeightToPointsFactor(); }
 
 int Font::getStringWidth (const String& text) const
 {
@@ -537,23 +669,30 @@ void Font::findFonts (Array<Font>& destArray)
     const StringArray names (findAllTypefaceNames());
 
     for (int i = 0; i < names.size(); ++i)
-        destArray.add (Font (names[i], FontValues::defaultFontHeight, Font::plain));
+    {
+        const StringArray styles (findAllTypefaceStyles (names[i]));
+
+        String style ("Regular");
+
+        if (! styles.contains (style, true))
+            style = styles[0];
+
+        destArray.add (Font (names[i],  style, FontValues::defaultFontHeight));
+    }
 }
 
 //==============================================================================
 String Font::toString() const
 {
-    String s (getTypefaceName());
+    String s;
 
-    if (s == getDefaultSansSerifFontName())
-        s = String::empty;
-    else
-        s += "; ";
+    if (getTypefaceName() != getDefaultSansSerifFontName())
+        s << getTypefaceName() << "; ";
 
-    s += String (getHeight(), 1);
+    s << String (getHeight(), 1);
 
-    if (isBold())      s += " bold";
-    if (isItalic())    s += " italic";
+    if (getTypefaceStyle() != getDefaultStyle())
+        s << ' ' << getTypefaceStyle();
 
     return s;
 }
@@ -569,15 +708,13 @@ Font Font::fromString (const String& fontDescription)
     if (name.isEmpty())
         name = getDefaultSansSerifFontName();
 
-    String sizeAndStyle (fontDescription.substring (separator + 1));
+    String sizeAndStyle (fontDescription.substring (separator + 1).trimStart());
 
     float height = sizeAndStyle.getFloatValue();
     if (height <= 0)
         height = 10.0f;
 
-    int flags = Font::plain;
-    if (sizeAndStyle.containsIgnoreCase ("bold"))       flags |= Font::bold;
-    if (sizeAndStyle.containsIgnoreCase ("italic"))     flags |= Font::italic;
+    const String style (sizeAndStyle.fromFirstOccurrenceOf (" ", false, false));
 
-    return Font (name, height, flags);
+    return Font (name, style, height);
 }

@@ -1,52 +1,44 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
 KeyPress::KeyPress() noexcept
-    : keyCode (0),
-      textCharacter (0)
+    : keyCode (0), textCharacter (0)
 {
 }
 
-KeyPress::KeyPress (const int keyCode_,
-                    const ModifierKeys& mods_,
-                    const juce_wchar textCharacter_) noexcept
-    : keyCode (keyCode_),
-      mods (mods_),
-      textCharacter (textCharacter_)
+KeyPress::KeyPress (int code, ModifierKeys m, juce_wchar textChar) noexcept
+    : keyCode (code), mods (m), textCharacter (textChar)
 {
 }
 
-KeyPress::KeyPress (const int keyCode_) noexcept
-    : keyCode (keyCode_),
-      textCharacter (0)
+KeyPress::KeyPress (const int code) noexcept
+    : keyCode (code), textCharacter (0)
 {
 }
 
 KeyPress::KeyPress (const KeyPress& other) noexcept
-    : keyCode (other.keyCode),
-      mods (other.mods),
+    : keyCode (other.keyCode), mods (other.mods),
       textCharacter (other.textCharacter)
 {
 }
@@ -58,6 +50,11 @@ KeyPress& KeyPress::operator= (const KeyPress& other) noexcept
     textCharacter = other.textCharacter;
 
     return *this;
+}
+
+bool KeyPress::operator== (int otherKeyCode) const noexcept
+{
+    return keyCode == otherKeyCode && ! mods.isAnyModifierKeyDown();
 }
 
 bool KeyPress::operator== (const KeyPress& other) const noexcept
@@ -76,6 +73,11 @@ bool KeyPress::operator== (const KeyPress& other) const noexcept
 bool KeyPress::operator!= (const KeyPress& other) const noexcept
 {
     return ! operator== (other);
+}
+
+bool KeyPress::operator!= (int otherKeyCode) const noexcept
+{
+    return ! operator== (otherKeyCode);
 }
 
 bool KeyPress::isCurrentlyDown() const
@@ -180,13 +182,14 @@ namespace KeyPressHelpers
         { "command + ",   0x2318 },
         { "option + ",    0x2325 },
         { "ctrl + ",      0x2303 },
-        { "return",       0x23ce },
+        { "return",       0x21b5 },
         { "cursor left",  0x2190 },
         { "cursor right", 0x2192 },
         { "cursor up",    0x2191 },
         { "cursor down",  0x2193 },
         { "backspace",    0x232b },
-        { "delete",       0x2326 }
+        { "delete",       0x2326 },
+        { "spacebar",     0x2423 }
     };
    #endif
 }
@@ -250,23 +253,14 @@ String KeyPress::getTextDescription() const
         if (textCharacter == '/')
             return "/";
 
-        if (mods.isCtrlDown())
-            desc << "ctrl + ";
-
-        if (mods.isShiftDown())
-            desc << "shift + ";
+        if (mods.isCtrlDown())      desc << "ctrl + ";
+        if (mods.isShiftDown())     desc << "shift + ";
 
        #if JUCE_MAC
-        if (mods.isAltDown())
-            desc << "option + ";
-
-        // only do this on the mac, because on Windows ctrl and command are the same,
-        // and this would get confusing
-        if (mods.isCommandDown())
-            desc << "command + ";
+        if (mods.isAltDown())       desc << "option + ";
+        if (mods.isCommandDown())   desc << "command + ";
        #else
-        if (mods.isAltDown())
-            desc << "alt + ";
+        if (mods.isAltDown())       desc << "alt + ";
        #endif
 
         for (int i = 0; i < numElementsInArray (KeyPressHelpers::translations); ++i)

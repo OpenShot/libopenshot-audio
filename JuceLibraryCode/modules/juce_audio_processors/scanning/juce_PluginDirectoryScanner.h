@@ -1,33 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PLUGINDIRECTORYSCANNER_JUCEHEADER__
-#define __JUCE_PLUGINDIRECTORYSCANNER_JUCEHEADER__
-
-#include "juce_KnownPluginList.h"
-#include "../format/juce_AudioPluginFormatManager.h"
+#ifndef JUCE_PLUGINDIRECTORYSCANNER_H_INCLUDED
+#define JUCE_PLUGINDIRECTORYSCANNER_H_INCLUDED
 
 
 //==============================================================================
@@ -78,10 +74,13 @@ public:
         re-tested if it's not already in the list, or if the file's modification
         time has changed since the list was created. If dontRescanIfAlreadyInList is
         false, the file will always be reloaded and tested.
+        The nameOfPluginBeingScanned will be updated to the name of the plugin being
+        scanned before the scan starts.
 
         Returns false when there are no more files to try.
     */
-    bool scanNextFile (bool dontRescanIfAlreadyInList);
+    bool scanNextFile (bool dontRescanIfAlreadyInList,
+                       String& nameOfPluginBeingScanned);
 
     /** Skips over the next file without scanning it.
         Returns false when there are no more files to try.
@@ -94,16 +93,19 @@ public:
         This is handy if you want to show the user which file is currently getting
         scanned.
     */
-    const String getNextPluginFileThatWillBeScanned() const;
+    String getNextPluginFileThatWillBeScanned() const;
 
-    /** Returns the estimated progress, between 0 and 1.
-    */
+    /** Returns the estimated progress, between 0 and 1. */
     float getProgress() const                                       { return progress; }
 
     /** This returns a list of all the filenames of things that looked like being
         a plugin file, but which failed to open for some reason.
     */
     const StringArray& getFailedFiles() const noexcept              { return failedFiles; }
+
+    /** Reads the given dead-mans-pedal file and applies its contents to the list. */
+    static void applyBlacklistingsFromDeadMansPedal (KnownPluginList& listToApplyTo,
+                                                     const File& deadMansPedalFile);
 
 private:
     //==============================================================================
@@ -112,14 +114,14 @@ private:
     StringArray filesOrIdentifiersToScan;
     File deadMansPedalFile;
     StringArray failedFiles;
-    int nextIndex;
+    Atomic<int> nextIndex;
     float progress;
 
-    StringArray getDeadMansPedalFile();
+    void updateProgress();
     void setDeadMansPedalFile (const StringArray& newContents);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginDirectoryScanner);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginDirectoryScanner)
 };
 
 
-#endif   // __JUCE_PLUGINDIRECTORYSCANNER_JUCEHEADER__
+#endif   // JUCE_PLUGINDIRECTORYSCANNER_H_INCLUDED

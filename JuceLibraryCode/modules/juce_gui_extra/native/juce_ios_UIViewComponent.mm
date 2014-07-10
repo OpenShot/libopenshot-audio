@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -26,13 +25,13 @@
 class UIViewComponent::Pimpl  : public ComponentMovementWatcher
 {
 public:
-    Pimpl (UIView* const view_, Component& owner_)
-        : ComponentMovementWatcher (&owner_),
-          view (view_),
-          owner (owner_),
+    Pimpl (UIView* const v, Component& comp)
+        : ComponentMovementWatcher (&comp),
+          view (v),
+          owner (comp),
           currentPeer (nullptr)
     {
-        [view_ retain];
+        [view retain];
 
         if (owner.isShowing())
             componentPeerChanged();
@@ -44,7 +43,7 @@ public:
         [view release];
     }
 
-    void componentMovedOrResized (bool /*wasMoved*/, bool /*wasResized*/)
+    void componentMovedOrResized (bool /*wasMoved*/, bool /*wasResized*/) override
     {
         Component* const topComp = owner.getTopLevelComponent();
 
@@ -52,12 +51,12 @@ public:
         {
             const Point<int> pos (topComp->getLocalPoint (&owner, Point<int>()));
 
-            [view setFrame: CGRectMake ((float) pos.getX(), (float) pos.getY(),
+            [view setFrame: CGRectMake ((float) pos.x, (float) pos.y,
                                         (float) owner.getWidth(), (float) owner.getHeight())];
         }
     }
 
-    void componentPeerChanged()
+    void componentPeerChanged() override
     {
         ComponentPeer* const peer = owner.getPeer();
 
@@ -79,7 +78,7 @@ public:
         [view setHidden: ! owner.isShowing()];
      }
 
-    void componentVisibilityChanged()
+    void componentVisibilityChanged() override
     {
         componentPeerChanged();
     }
@@ -96,7 +95,7 @@ private:
     Component& owner;
     ComponentPeer* currentPeer;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
 };
 
 //==============================================================================

@@ -1,53 +1,52 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-Image juce_createIconForFile (const File& file);
+Image juce_createIconForFile (const File&);
 
 //==============================================================================
 class FileListTreeItem   : public TreeViewItem,
-                           public TimeSliceClient,
-                           public AsyncUpdater,
-                           public ChangeListener
+                           private TimeSliceClient,
+                           private AsyncUpdater,
+                           private ChangeListener
 {
 public:
-    FileListTreeItem (FileTreeComponent& owner_,
-                      DirectoryContentsList* const parentContentsList_,
-                      const int indexInContentsList_,
-                      const File& file_,
-                      TimeSliceThread& thread_)
-        : file (file_),
-          owner (owner_),
-          parentContentsList (parentContentsList_),
-          indexInContentsList (indexInContentsList_),
+    FileListTreeItem (FileTreeComponent& treeComp,
+                      DirectoryContentsList* const parentContents,
+                      const int indexInContents,
+                      const File& f,
+                      TimeSliceThread& t)
+        : file (f),
+          owner (treeComp),
+          parentContentsList (parentContents),
+          indexInContentsList (indexInContents),
           subContentsList (nullptr, false),
-          thread (thread_)
+          thread (t)
     {
         DirectoryContentsList::FileInfo fileInfo;
 
-        if (parentContentsList_ != nullptr
-             && parentContentsList_->getFileInfo (indexInContentsList_, fileInfo))
+        if (parentContents != nullptr
+             && parentContents->getFileInfo (indexInContents, fileInfo))
         {
             fileSize = File::descriptionOfSizeInBytes (fileInfo.fileSize);
             modTime = fileInfo.modificationTime.formatted ("%d %b '%y %H:%M");
@@ -63,16 +62,17 @@ public:
     {
         thread.removeTimeSliceClient (this);
         clearSubItems();
+        removeSubContentsList();
     }
 
     //==============================================================================
-    bool mightContainSubItems()                 { return isDirectory; }
-    String getUniqueName() const                { return file.getFullPathName(); }
-    int getItemHeight() const                   { return 22; }
+    bool mightContainSubItems() override                 { return isDirectory; }
+    String getUniqueName() const override                { return file.getFullPathName(); }
+    int getItemHeight() const override                   { return owner.getItemHeight(); }
 
-    var getDragSourceDescription()              { return owner.getDragAndDropDescription(); }
+    var getDragSourceDescription() override              { return owner.getDragAndDropDescription(); }
 
-    void itemOpennessChanged (bool isNowOpen)
+    void itemOpennessChanged (bool isNowOpen) override
     {
         if (isNowOpen)
         {
@@ -87,7 +87,10 @@ public:
                     jassert (parentContentsList != nullptr);
 
                     DirectoryContentsList* const l = new DirectoryContentsList (parentContentsList->getFilter(), thread);
-                    l->setDirectory (file, true, true);
+
+                    l->setDirectory (file,
+                                     parentContentsList->isFindingDirectories(),
+                                     parentContentsList->isFindingFiles());
 
                     setSubContentsList (l, true);
                 }
@@ -97,30 +100,77 @@ public:
         }
     }
 
+    void removeSubContentsList()
+    {
+        if (subContentsList != nullptr)
+        {
+            subContentsList->removeChangeListener (this);
+            subContentsList.clear();
+        }
+    }
+
     void setSubContentsList (DirectoryContentsList* newList, const bool canDeleteList)
     {
+        removeSubContentsList();
+
         OptionalScopedPointer<DirectoryContentsList> newPointer (newList, canDeleteList);
         subContentsList = newPointer;
         newList->addChangeListener (this);
     }
 
-    void changeListenerCallback (ChangeBroadcaster*)
+    bool selectFile (const File& target)
+    {
+        if (file == target)
+        {
+            setSelected (true, true);
+            return true;
+        }
+
+        if (target.isAChildOf (file))
+        {
+            setOpen (true);
+
+            for (int maxRetries = 500; --maxRetries > 0;)
+            {
+                for (int i = 0; i < getNumSubItems(); ++i)
+                    if (FileListTreeItem* f = dynamic_cast <FileListTreeItem*> (getSubItem (i)))
+                        if (f->selectFile (target))
+                            return true;
+
+                // if we've just opened and the contents are still loading, wait for it..
+                if (subContentsList != nullptr && subContentsList->isStillLoading())
+                {
+                    Thread::sleep (10);
+                    rebuildItemsFromContentList();
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    void changeListenerCallback (ChangeBroadcaster*) override
+    {
+        rebuildItemsFromContentList();
+    }
+
+    void rebuildItemsFromContentList()
     {
         clearSubItems();
 
         if (isOpen() && subContentsList != nullptr)
         {
             for (int i = 0; i < subContentsList->getNumFiles(); ++i)
-            {
-                FileListTreeItem* const item
-                    = new FileListTreeItem (owner, subContentsList, i, subContentsList->getFile(i), thread);
-
-                addSubItem (item);
-            }
+                addSubItem (new FileListTreeItem (owner, subContentsList, i,
+                                                  subContentsList->getFile(i), thread));
         }
     }
 
-    void paintItem (Graphics& g, int width, int height)
+    void paintItem (Graphics& g, int width, int height) override
     {
         if (file != File::nonexistent)
         {
@@ -137,30 +187,30 @@ public:
                                                    indexInContentsList, owner);
     }
 
-    void itemClicked (const MouseEvent& e)
+    void itemClicked (const MouseEvent& e) override
     {
         owner.sendMouseClickMessage (file, e);
     }
 
-    void itemDoubleClicked (const MouseEvent& e)
+    void itemDoubleClicked (const MouseEvent& e) override
     {
         TreeViewItem::itemDoubleClicked (e);
 
         owner.sendDoubleClickMessage (file);
     }
 
-    void itemSelectionChanged (bool)
+    void itemSelectionChanged (bool) override
     {
         owner.sendSelectionChangeMessage();
     }
 
-    int useTimeSlice()
+    int useTimeSlice() override
     {
         updateIcon (false);
         return -1;
     }
 
-    void handleAsyncUpdate()
+    void handleAsyncUpdate() override
     {
         owner.repaint();
     }
@@ -200,12 +250,13 @@ private:
         }
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListTreeItem);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListTreeItem)
 };
 
 //==============================================================================
 FileTreeComponent::FileTreeComponent (DirectoryContentsList& listToShow)
-    : DirectoryContentsDisplayComponent (listToShow)
+    : DirectoryContentsDisplayComponent (listToShow),
+      itemHeight (22)
 {
     setRootItemVisible (false);
     refresh();
@@ -231,10 +282,10 @@ void FileTreeComponent::refresh()
 //==============================================================================
 File FileTreeComponent::getSelectedFile (const int index) const
 {
-    const FileListTreeItem* const item = dynamic_cast <const FileListTreeItem*> (getSelectedItem (index));
+    if (const FileListTreeItem* const item = dynamic_cast <const FileListTreeItem*> (getSelectedItem (index)))
+        return item->file;
 
-    return item != nullptr ? item->file
-                           : File::nonexistent;
+    return File::nonexistent;
 }
 
 void FileTreeComponent::deselectAllFiles()
@@ -254,16 +305,18 @@ void FileTreeComponent::setDragAndDropDescription (const String& description)
 
 void FileTreeComponent::setSelectedFile (const File& target)
 {
-    for (int i = getNumSelectedItems(); --i >= 0;)
+    if (FileListTreeItem* t = dynamic_cast <FileListTreeItem*> (getRootItem()))
+        if (! t->selectFile (target))
+            clearSelectedItems();
+}
+
+void FileTreeComponent::setItemHeight (int newHeight)
+{
+    if (itemHeight != newHeight)
     {
-        FileListTreeItem* t = dynamic_cast <FileListTreeItem*> (getSelectedItem (i));
+        itemHeight = newHeight;
 
-        if (t != nullptr && t->file == target)
-        {
-            t->setSelected (true, true);
-            return;
-        }
+        if (TreeViewItem* root = getRootItem())
+            root->treeHasChanged();
     }
-
-    clearSelectedItems();
 }

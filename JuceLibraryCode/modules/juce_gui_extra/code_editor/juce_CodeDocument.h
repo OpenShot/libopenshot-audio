@@ -1,30 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_CODEDOCUMENT_JUCEHEADER__
-#define __JUCE_CODEDOCUMENT_JUCEHEADER__
+#ifndef JUCE_CODEDOCUMENT_H_INCLUDED
+#define JUCE_CODEDOCUMENT_H_INCLUDED
 
 class CodeDocumentLine;
 
@@ -43,8 +42,7 @@ class CodeDocumentLine;
 class JUCE_API  CodeDocument
 {
 public:
-    /** Creates a new, empty document.
-    */
+    /** Creates a new, empty document. */
     CodeDocument();
 
     /** Destructor. */
@@ -77,7 +75,7 @@ public:
             Lines are numbered from zero, and if the line or index are beyond the bounds of the document,
             they will be adjusted to keep them within its limits.
         */
-        Position (const CodeDocument* ownerDocument,
+        Position (const CodeDocument& ownerDocument,
                   int line, int indexInLine) noexcept;
 
         /** Creates a position based on a character index in a document.
@@ -87,7 +85,7 @@ public:
             If the position is beyond the range of the document, it'll be adjusted to keep it
             inside.
         */
-        Position (const CodeDocument* ownerDocument,
+        Position (const CodeDocument& ownerDocument,
                   int charactersFromStartOfDocument) noexcept;
 
         /** Creates a copy of another position.
@@ -95,14 +93,15 @@ public:
             This will copy the position, but the new object will not be set to maintain its position,
             even if the source object was set to do so.
         */
-        Position (const Position& other) noexcept;
+        Position (const Position&) noexcept;
 
         /** Destructor. */
         ~Position();
 
-        Position& operator= (const Position& other);
-        bool operator== (const Position& other) const noexcept;
-        bool operator!= (const Position& other) const noexcept;
+        Position& operator= (const Position&);
+
+        bool operator== (const Position&) const noexcept;
+        bool operator!= (const Position&) const noexcept;
 
         /** Points this object at a new position within the document.
 
@@ -159,25 +158,24 @@ public:
             characters.
             @see moveBy
         */
-        const Position movedBy (int characterDelta) const;
+        Position movedBy (int characterDelta) const;
 
         /** Returns a position which is the same as this one, moved up or down by the specified
             number of lines.
             @see movedBy
         */
-        const Position movedByLines (int deltaLines) const;
+        Position movedByLines (int deltaLines) const;
 
         /** Returns the character in the document at this position.
             @see getLineText
         */
-        const juce_wchar getCharacter() const;
+        juce_wchar getCharacter() const;
 
         /** Returns the line from the document that this position is within.
             @see getCharacter, getLineNumber
         */
         String getLineText() const;
 
-        //==============================================================================
     private:
         CodeDocument* owner;
         int characterPos, line, indexInLine;
@@ -204,16 +202,29 @@ public:
     int getMaximumLineLength() noexcept;
 
     /** Deletes a section of the text.
-
         This operation is undoable.
     */
     void deleteSection (const Position& startPosition, const Position& endPosition);
 
-    /** Inserts some text into the document at a given position.
+    /** Deletes a section of the text.
+        This operation is undoable.
+    */
+    void deleteSection (int startIndex, int endIndex);
 
+    /** Inserts some text into the document at a given position.
         This operation is undoable.
     */
     void insertText (const Position& position, const String& text);
+
+    /** Inserts some text into the document at a given position.
+        This operation is undoable.
+    */
+    void insertText (int insertIndex, const String& text);
+
+    /** Replaces a section of the text with a new string.
+        This operation is undoable.
+    */
+    void replaceSection (int startIndex, int endIndex, const String& newText);
 
     /** Clears the document and replaces it with some new text.
 
@@ -221,6 +232,11 @@ public:
         might want to also call clearUndoHistory() and setSavePoint() after using this method.
     */
     void replaceAllContent (const String& newContent);
+
+    /** Analyses the changes between the current content and some new text, and applies
+        those changes.
+    */
+    void applyChanges (const String& newContent);
 
     /** Replaces the editor's contents with the contents of a stream.
         This will also reset the undo history and save point marker.
@@ -291,10 +307,13 @@ public:
 
     //==============================================================================
     /** Searches for a word-break. */
-    const Position findWordBreakAfter (const Position& position) const noexcept;
-
+    Position findWordBreakAfter (const Position& position) const noexcept;
     /** Searches for a word-break. */
-    const Position findWordBreakBefore (const Position& position) const noexcept;
+    Position findWordBreakBefore (const Position& position) const noexcept;
+    /** Finds the token that contains the given position. */
+    void findTokenContaining (const Position& pos, Position& start, Position& end) const noexcept;
+    /** Finds the line that contains the given position. */
+    void findLineContaining  (const Position& pos, Position& start, Position& end) const noexcept;
 
     //==============================================================================
     /** An object that receives callbacks from the CodeDocument when its text changes.
@@ -306,10 +325,11 @@ public:
         Listener() {}
         virtual ~Listener() {}
 
-        /** Called by a CodeDocument when it is altered.
-        */
-        virtual void codeDocumentChanged (const Position& affectedTextStart,
-                                          const Position& affectedTextEnd) = 0;
+        /** Called by a CodeDocument when text is added. */
+        virtual void codeDocumentTextInserted (const String& newText, int insertIndex) = 0;
+
+        /** Called by a CodeDocument when text is deleted. */
+        virtual void codeDocumentTextDeleted (int startIndex, int endIndex) = 0;
     };
 
     /** Registers a listener object to receive callbacks when the document changes.
@@ -327,39 +347,37 @@ public:
     /** Iterates the text in a CodeDocument.
 
         This class lets you read characters from a CodeDocument. It's designed to be used
-        by a SyntaxAnalyser object.
+        by a CodeTokeniser object.
 
-        @see CodeDocument, SyntaxAnalyser
+        @see CodeDocument
     */
     class JUCE_API  Iterator
     {
     public:
-        Iterator (CodeDocument* document);
-        Iterator (const Iterator& other);
-        Iterator& operator= (const Iterator& other) noexcept;
+        Iterator (const CodeDocument& document) noexcept;
+        Iterator (const Iterator&) noexcept;
+        Iterator& operator= (const Iterator&) noexcept;
         ~Iterator() noexcept;
 
         /** Reads the next character and returns it.
             @see peekNextChar
         */
-        juce_wchar nextChar();
+        juce_wchar nextChar() noexcept;
 
         /** Reads the next character without advancing the current position. */
-        juce_wchar peekNextChar() const;
+        juce_wchar peekNextChar() const noexcept;
 
         /** Advances the position by one character. */
-        void skip();
+        void skip() noexcept;
 
-        /** Returns the position of the next character as its position within the
-            whole document.
-        */
+        /** Returns the position as the number of characters from the start of the document. */
         int getPosition() const noexcept        { return position; }
 
         /** Skips over any whitespace characters until the next character is non-whitespace. */
-        void skipWhitespace();
+        void skipWhitespace() noexcept;
 
         /** Skips forward until the next character will be the first character on the next line */
-        void skipToEndOfLine();
+        void skipToEndOfLine() noexcept;
 
         /** Returns the line number of the next character. */
         int getLine() const noexcept            { return line; }
@@ -368,7 +386,7 @@ public:
         bool isEOF() const noexcept;
 
     private:
-        CodeDocument* document;
+        const CodeDocument* document;
         mutable String::CharPointerType charPointer;
         int line, position;
     };
@@ -388,14 +406,12 @@ private:
     ListenerList <Listener> listeners;
     String newLineChars;
 
-    void sendListenerChangeMessage (int startLine, int endLine);
-
     void insert (const String& text, int insertPos, bool undoable);
     void remove (int startPos, int endPos, bool undoable);
     void checkLastLineStatus();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CodeDocument);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CodeDocument)
 };
 
 
-#endif   // __JUCE_CODEDOCUMENT_JUCEHEADER__
+#endif   // JUCE_CODEDOCUMENT_H_INCLUDED

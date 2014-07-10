@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -30,8 +29,8 @@ Drawable::Drawable()
 }
 
 Drawable::Drawable (const Drawable& other)
+    : Component (other.getName())
 {
-    setName (other.getName());
     setComponentID (other.getComponentID());
 }
 
@@ -74,7 +73,8 @@ void Drawable::drawAt (Graphics& g, float x, float y, float opacity) const
     draw (g, opacity, AffineTransform::translation (x, y));
 }
 
-void Drawable::drawWithin (Graphics& g, const Rectangle<float>& destArea, const RectanglePlacement& placement, float opacity) const
+void Drawable::drawWithin (Graphics& g, const Rectangle<float>& destArea,
+                           RectanglePlacement placement, float opacity) const
 {
     draw (g, opacity, placement.getTransformToFit (getDrawableBounds(), destArea));
 }
@@ -87,8 +87,7 @@ DrawableComposite* Drawable::getParent() const
 
 void Drawable::transformContextToCorrectOrigin (Graphics& g)
 {
-    g.setOrigin (originRelativeToComponent.x,
-                 originRelativeToComponent.y);
+    g.setOrigin (originRelativeToComponent);
 }
 
 void Drawable::parentHierarchyChanged()
@@ -109,12 +108,24 @@ void Drawable::setBoundsToEnclose (const Rectangle<float>& area)
 }
 
 //==============================================================================
-void Drawable::setOriginWithOriginalSize (const Point<float>& originWithinParent)
+bool Drawable::replaceColour (Colour original, Colour replacement)
+{
+    bool changed = false;
+
+    for (int i = getNumChildComponents(); --i >= 0;)
+        if (Drawable* d = dynamic_cast<Drawable*> (getChildComponent(i)))
+            changed = d->replaceColour (original, replacement) || changed;
+
+    return changed;
+}
+
+//==============================================================================
+void Drawable::setOriginWithOriginalSize (Point<float> originWithinParent)
 {
     setTransform (AffineTransform::translation (originWithinParent.x, originWithinParent.y));
 }
 
-void Drawable::setTransformToFit (const Rectangle<float>& area, const RectanglePlacement& placement)
+void Drawable::setTransformToFit (const Rectangle<float>& area, RectanglePlacement placement)
 {
     if (! area.isEmpty())
         setTransform (placement.getTransformToFit (getDrawableBounds(), area));

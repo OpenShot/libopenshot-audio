@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -31,10 +34,10 @@ public:
          pipeOutName (pipePath + "_out"),
          pipeIn (-1), pipeOut (-1),
          createdPipe (createPipe),
-         blocked (false), stopReadOperation (false)
+         stopReadOperation (false)
     {
         signal (SIGPIPE, signalHandler);
-        siginterrupt (SIGPIPE, 1);
+        juce_siginterrupt (SIGPIPE, 1);
     }
 
     ~Pimpl()
@@ -49,71 +52,65 @@ public:
         }
     }
 
-    int read (char* destBuffer, int maxBytesToRead)
+    int read (char* destBuffer, int maxBytesToRead, int timeOutMilliseconds)
     {
-        int bytesRead = -1;
-        blocked = true;
+        const uint32 timeoutEnd = getTimeoutEnd (timeOutMilliseconds);
 
         if (pipeIn == -1)
         {
-            pipeIn = ::open ((createdPipe ? pipeInName
-                                          : pipeOutName).toUTF8(), O_RDWR);
+            pipeIn = openPipe (createdPipe ? pipeInName : pipeOutName, O_RDWR | O_NONBLOCK, timeoutEnd);
 
             if (pipeIn == -1)
-            {
-                blocked = false;
                 return -1;
-            }
         }
 
-        bytesRead = 0;
+        int bytesRead = 0;
 
         while (bytesRead < maxBytesToRead)
         {
             const int bytesThisTime = maxBytesToRead - bytesRead;
-            const int numRead = (int) ::read (pipeIn, destBuffer, bytesThisTime);
+            const int numRead = (int) ::read (pipeIn, destBuffer, (size_t) bytesThisTime);
 
-            if (numRead <= 0 || stopReadOperation)
+            if (numRead <= 0)
             {
-                bytesRead = -1;
-                break;
+                if (errno != EWOULDBLOCK || stopReadOperation || hasExpired (timeoutEnd))
+                    return -1;
+
+                const int maxWaitingTime = 30;
+                waitForInput (pipeIn, timeoutEnd == 0 ? maxWaitingTime
+                                                      : jmin (maxWaitingTime,
+                                                              (int) (timeoutEnd - Time::getMillisecondCounter())));
+                continue;
             }
 
             bytesRead += numRead;
             destBuffer += numRead;
         }
 
-        blocked = false;
         return bytesRead;
     }
 
     int write (const char* sourceBuffer, int numBytesToWrite, int timeOutMilliseconds)
     {
-        int bytesWritten = -1;
+        const uint32 timeoutEnd = getTimeoutEnd (timeOutMilliseconds);
 
         if (pipeOut == -1)
         {
-            pipeOut = ::open ((createdPipe ? pipeOutName
-                                           : pipeInName).toUTF8(), O_WRONLY);
+            pipeOut = openPipe (createdPipe ? pipeOutName : pipeInName, O_WRONLY, timeoutEnd);
 
             if (pipeOut == -1)
                 return -1;
         }
 
-        bytesWritten = 0;
-        const uint32 timeOutTime = Time::getMillisecondCounter() + timeOutMilliseconds;
+        int bytesWritten = 0;
 
-        while (bytesWritten < numBytesToWrite
-                && (timeOutMilliseconds < 0 || Time::getMillisecondCounter() < timeOutTime))
+        while (bytesWritten < numBytesToWrite && ! hasExpired (timeoutEnd))
         {
             const int bytesThisTime = numBytesToWrite - bytesWritten;
-            const int numWritten = (int) ::write (pipeOut, sourceBuffer, bytesThisTime);
+            const int numWritten = (int) ::write (pipeOut, sourceBuffer, (size_t) bytesThisTime);
 
             if (numWritten <= 0)
-            {
-                bytesWritten = -1;
-                break;
-            }
+                return -1;
 
             bytesWritten += numWritten;
             sourceBuffer += numWritten;
@@ -132,56 +129,77 @@ public:
     int pipeIn, pipeOut;
 
     const bool createdPipe;
-    bool volatile blocked, stopReadOperation;
+    bool stopReadOperation;
 
 private:
     static void signalHandler (int) {}
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl);
+    static uint32 getTimeoutEnd (const int timeOutMilliseconds)
+    {
+        return timeOutMilliseconds >= 0 ? Time::getMillisecondCounter() + (uint32) timeOutMilliseconds : 0;
+    }
+
+    static bool hasExpired (const uint32 timeoutEnd)
+    {
+        return timeoutEnd != 0 && Time::getMillisecondCounter() >= timeoutEnd;
+    }
+
+    int openPipe (const String& name, int flags, const uint32 timeoutEnd)
+    {
+        for (;;)
+        {
+            const int p = ::open (name.toUTF8(), flags);
+
+            if (p != -1 || hasExpired (timeoutEnd) || stopReadOperation)
+                return p;
+
+            Thread::sleep (2);
+        }
+    }
+
+    static void waitForInput (const int handle, const int timeoutMsecs) noexcept
+    {
+        struct timeval timeout;
+        timeout.tv_sec = timeoutMsecs / 1000;
+        timeout.tv_usec = (timeoutMsecs % 1000) * 1000;
+
+        fd_set rset;
+        FD_ZERO (&rset);
+        FD_SET (handle, &rset);
+
+        select (handle + 1, &rset, nullptr, 0, &timeout);
+    }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Pimpl)
 };
 
-NamedPipe::NamedPipe()
+void NamedPipe::close()
 {
-}
-
-NamedPipe::~NamedPipe()
-{
-    close();
-}
-
-void NamedPipe::cancelPendingReads()
-{
-    while (pimpl != nullptr && pimpl->blocked)
+    if (pimpl != nullptr)
     {
         pimpl->stopReadOperation = true;
 
         char buffer[1] = { 0 };
-        int bytesWritten = (int) ::write (pimpl->pipeIn, buffer, 1);
-        (void) bytesWritten;
+        ssize_t done = ::write (pimpl->pipeIn, buffer, 1);
+        (void) done;
 
-        int timeout = 2000;
-        while (pimpl->blocked && --timeout >= 0)
-            Thread::sleep (2);
-
-        pimpl->stopReadOperation = false;
+        ScopedWriteLock sl (lock);
+        pimpl = nullptr;
     }
-}
-
-void NamedPipe::close()
-{
-    cancelPendingReads();
-    ScopedPointer<Pimpl> deleter (pimpl); // (clears the pimpl member variable before deleting it)
 }
 
 bool NamedPipe::openInternal (const String& pipeName, const bool createPipe)
 {
-    close();
-
    #if JUCE_IOS
     pimpl = new Pimpl (File::getSpecialLocation (File::tempDirectory)
                          .getChildFile (File::createLegalFileName (pipeName)).getFullPathName(), createPipe);
    #else
-    pimpl = new Pimpl ("/tmp/" + File::createLegalFileName (pipeName), createPipe);
+    String file (pipeName);
+
+    if (! File::isAbsolutePath (file))
+        file = "/tmp/" + File::createLegalFileName (file);
+
+    pimpl = new Pimpl (file, createPipe);
    #endif
 
     if (createPipe && ! pimpl->createFifos())
@@ -193,17 +211,14 @@ bool NamedPipe::openInternal (const String& pipeName, const bool createPipe)
     return true;
 }
 
-int NamedPipe::read (void* destBuffer, int maxBytesToRead, int /*timeOutMilliseconds*/)
+int NamedPipe::read (void* destBuffer, int maxBytesToRead, int timeOutMilliseconds)
 {
-    return pimpl != nullptr ? pimpl->read (static_cast <char*> (destBuffer), maxBytesToRead) : -1;
+    ScopedReadLock sl (lock);
+    return pimpl != nullptr ? pimpl->read (static_cast <char*> (destBuffer), maxBytesToRead, timeOutMilliseconds) : -1;
 }
 
 int NamedPipe::write (const void* sourceBuffer, int numBytesToWrite, int timeOutMilliseconds)
 {
+    ScopedReadLock sl (lock);
     return pimpl != nullptr ? pimpl->write (static_cast <const char*> (sourceBuffer), numBytesToWrite, timeOutMilliseconds) : -1;
-}
-
-bool NamedPipe::isOpen() const
-{
-    return pimpl != nullptr;
 }

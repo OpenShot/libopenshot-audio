@@ -1,24 +1,27 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
@@ -26,14 +29,14 @@
 int64 juce_fileSetPosition (void* handle, int64 pos);
 
 //==============================================================================
-FileOutputStream::FileOutputStream (const File& f, const int bufferSize_)
+FileOutputStream::FileOutputStream (const File& f, const size_t bufferSizeToUse)
     : file (f),
       fileHandle (nullptr),
       status (Result::ok()),
       currentPosition (0),
-      bufferSize (bufferSize_),
+      bufferSize (bufferSizeToUse),
       bytesInBuffer (0),
-      buffer ((size_t) jmax (bufferSize_, 16))
+      buffer (jmax (bufferSizeToUse, (size_t) 16))
 {
     openHandle();
 }
@@ -41,7 +44,6 @@ FileOutputStream::FileOutputStream (const File& f, const int bufferSize_)
 FileOutputStream::~FileOutputStream()
 {
     flushBuffer();
-    flushInternal();
     closeHandle();
 }
 
@@ -67,7 +69,7 @@ bool FileOutputStream::flushBuffer()
 
     if (bytesInBuffer > 0)
     {
-        ok = (writeInternal (buffer, bytesInBuffer) == bytesInBuffer);
+        ok = (writeInternal (buffer, bytesInBuffer) == (ssize_t) bytesInBuffer);
         bytesInBuffer = 0;
     }
 
@@ -80,13 +82,13 @@ void FileOutputStream::flush()
     flushInternal();
 }
 
-bool FileOutputStream::write (const void* const src, const int numBytes)
+bool FileOutputStream::write (const void* const src, const size_t numBytes)
 {
-    jassert (src != nullptr && numBytes >= 0);
+    jassert (src != nullptr && ((ssize_t) numBytes) >= 0);
 
     if (bytesInBuffer + numBytes < bufferSize)
     {
-        memcpy (buffer + bytesInBuffer, src, (size_t) numBytes);
+        memcpy (buffer + bytesInBuffer, src, numBytes);
         bytesInBuffer += numBytes;
         currentPosition += numBytes;
     }
@@ -97,37 +99,36 @@ bool FileOutputStream::write (const void* const src, const int numBytes)
 
         if (numBytes < bufferSize)
         {
-            memcpy (buffer + bytesInBuffer, src, (size_t) numBytes);
+            memcpy (buffer + bytesInBuffer, src, numBytes);
             bytesInBuffer += numBytes;
             currentPosition += numBytes;
         }
         else
         {
-            const int bytesWritten = writeInternal (src, numBytes);
+            const ssize_t bytesWritten = writeInternal (src, numBytes);
 
             if (bytesWritten < 0)
                 return false;
 
             currentPosition += bytesWritten;
-            return bytesWritten == numBytes;
+            return bytesWritten == (ssize_t) numBytes;
         }
     }
 
     return true;
 }
 
-void FileOutputStream::writeRepeatedByte (uint8 byte, int numBytes)
+bool FileOutputStream::writeRepeatedByte (uint8 byte, size_t numBytes)
 {
-    jassert (numBytes >= 0);
+    jassert (((ssize_t) numBytes) >= 0);
 
     if (bytesInBuffer + numBytes < bufferSize)
     {
-        memset (buffer + bytesInBuffer, byte, (size_t) numBytes);
+        memset (buffer + bytesInBuffer, byte, numBytes);
         bytesInBuffer += numBytes;
         currentPosition += numBytes;
+        return true;
     }
-    else
-    {
-        OutputStream::writeRepeatedByte (byte, numBytes);
-    }
+
+    return OutputStream::writeRepeatedByte (byte, numBytes);
 }

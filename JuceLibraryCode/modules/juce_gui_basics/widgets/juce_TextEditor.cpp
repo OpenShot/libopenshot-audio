@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -32,27 +31,30 @@ struct TextAtom
     int numChars;
 
     //==============================================================================
-    bool isWhitespace() const       { return CharacterFunctions::isWhitespace (atomText[0]); }
-    bool isNewLine() const          { return atomText[0] == '\r' || atomText[0] == '\n'; }
+    bool isWhitespace() const noexcept       { return CharacterFunctions::isWhitespace (atomText[0]); }
+    bool isNewLine() const noexcept          { return atomText[0] == '\r' || atomText[0] == '\n'; }
 
     String getText (const juce_wchar passwordCharacter) const
     {
         if (passwordCharacter == 0)
             return atomText;
-        else
-            return String::repeatedString (String::charToString (passwordCharacter),
-                                           atomText.length());
+
+        return String::repeatedString (String::charToString (passwordCharacter),
+                                       atomText.length());
     }
 
     String getTrimmedText (const juce_wchar passwordCharacter) const
     {
         if (passwordCharacter == 0)
             return atomText.substring (0, numChars);
-        else if (isNewLine())
+
+        if (isNewLine())
             return String::empty;
-        else
-            return String::repeatedString (String::charToString (passwordCharacter), numChars);
+
+        return String::repeatedString (String::charToString (passwordCharacter), numChars);
     }
+
+    JUCE_LEAK_DETECTOR (TextAtom)
 };
 
 //==============================================================================
@@ -60,68 +62,35 @@ struct TextAtom
 class TextEditor::UniformTextSection
 {
 public:
-    //==============================================================================
-    UniformTextSection (const String& text,
-                        const Font& font_,
-                        const Colour& colour_,
-                        const juce_wchar passwordCharacter)
-      : font (font_),
-        colour (colour_)
+    UniformTextSection (const String& text, const Font& f, Colour col, juce_wchar passwordChar)
+        : font (f), colour (col)
     {
-        initialiseAtoms (text, passwordCharacter);
+        initialiseAtoms (text, passwordChar);
     }
 
     UniformTextSection (const UniformTextSection& other)
-      : font (other.font),
-        colour (other.colour)
+        : font (other.font), colour (other.colour)
     {
-        atoms.ensureStorageAllocated (other.atoms.size());
-
-        for (int i = 0; i < other.atoms.size(); ++i)
-            atoms.add (new TextAtom (*other.atoms.getUnchecked(i)));
+        atoms.addCopiesOf (other.atoms);
     }
 
-    ~UniformTextSection()
-    {
-        // (no need to delete the atoms, as they're explicitly deleted by the caller)
-    }
-
-    void clear()
-    {
-        for (int i = atoms.size(); --i >= 0;)
-            delete getAtom(i);
-
-        atoms.clear();
-    }
-
-    int getNumAtoms() const
-    {
-        return atoms.size();
-    }
-
-    TextAtom* getAtom (const int index) const noexcept
-    {
-        return atoms.getUnchecked (index);
-    }
-
-    void append (const UniformTextSection& other, const juce_wchar passwordCharacter)
+    void append (UniformTextSection& other, const juce_wchar passwordChar)
     {
         if (other.atoms.size() > 0)
         {
-            TextAtom* const lastAtom = atoms.getLast();
             int i = 0;
 
-            if (lastAtom != nullptr)
+            if (TextAtom* const lastAtom = atoms.getLast())
             {
                 if (! CharacterFunctions::isWhitespace (lastAtom->atomText.getLastCharacter()))
                 {
-                    TextAtom* const first = other.getAtom(0);
+                    TextAtom* const first = other.atoms.getUnchecked(0);
 
                     if (! CharacterFunctions::isWhitespace (first->atomText[0]))
                     {
                         lastAtom->atomText += first->atomText;
                         lastAtom->numChars = (uint16) (lastAtom->numChars + first->numChars);
-                        lastAtom->width = font.getStringWidthFloat (lastAtom->getText (passwordCharacter));
+                        lastAtom->width = font.getStringWidthFloat (lastAtom->getText (passwordChar));
                         delete first;
                         ++i;
                     }
@@ -132,35 +101,31 @@ public:
 
             while (i < other.atoms.size())
             {
-                atoms.add (other.getAtom(i));
+                atoms.add (other.atoms.getUnchecked(i));
                 ++i;
             }
+
+            other.atoms.clear (false);
         }
     }
 
-    UniformTextSection* split (const int indexToBreakAt,
-                               const juce_wchar passwordCharacter)
+    UniformTextSection* split (const int indexToBreakAt, const juce_wchar passwordChar)
     {
-        UniformTextSection* const section2 = new UniformTextSection (String::empty,
-                                                                     font, colour,
-                                                                     passwordCharacter);
+        UniformTextSection* const section2 = new UniformTextSection (String::empty, font, colour, passwordChar);
         int index = 0;
 
         for (int i = 0; i < atoms.size(); ++i)
         {
-            TextAtom* const atom = getAtom(i);
+            TextAtom* const atom = atoms.getUnchecked(i);
 
             const int nextIndex = index + atom->numChars;
 
             if (index == indexToBreakAt)
             {
-                int j;
-                for (j = i; j < atoms.size(); ++j)
-                    section2->atoms.add (getAtom (j));
+                for (int j = i; j < atoms.size(); ++j)
+                    section2->atoms.add (atoms.getUnchecked (j));
 
-                for (j = atoms.size(); --j >= i;)
-                    atoms.remove (j);
-
+                atoms.removeRange (i, atoms.size(), false);
                 break;
             }
             else if (indexToBreakAt >= index && indexToBreakAt < nextIndex)
@@ -168,22 +133,19 @@ public:
                 TextAtom* const secondAtom = new TextAtom();
 
                 secondAtom->atomText = atom->atomText.substring (indexToBreakAt - index);
-                secondAtom->width = font.getStringWidthFloat (secondAtom->getText (passwordCharacter));
+                secondAtom->width = font.getStringWidthFloat (secondAtom->getText (passwordChar));
                 secondAtom->numChars = (uint16) secondAtom->atomText.length();
 
                 section2->atoms.add (secondAtom);
 
                 atom->atomText = atom->atomText.substring (0, indexToBreakAt - index);
-                atom->width = font.getStringWidthFloat (atom->getText (passwordCharacter));
+                atom->width = font.getStringWidthFloat (atom->getText (passwordChar));
                 atom->numChars = (uint16) (indexToBreakAt - index);
 
-                int j;
-                for (j = i + 1; j < atoms.size(); ++j)
-                    section2->atoms.add (getAtom (j));
+                for (int j = i + 1; j < atoms.size(); ++j)
+                    section2->atoms.add (atoms.getUnchecked (j));
 
-                for (j = atoms.size(); --j > i;)
-                    atoms.remove (j);
-
+                atoms.removeRange (i + 1, atoms.size(), false);
                 break;
             }
 
@@ -196,15 +158,15 @@ public:
     void appendAllText (MemoryOutputStream& mo) const
     {
         for (int i = 0; i < atoms.size(); ++i)
-            mo << getAtom(i)->atomText;
+            mo << atoms.getUnchecked(i)->atomText;
     }
 
-    void appendSubstring (MemoryOutputStream& mo, const Range<int>& range) const
+    void appendSubstring (MemoryOutputStream& mo, const Range<int> range) const
     {
         int index = 0;
         for (int i = 0; i < atoms.size(); ++i)
         {
-            const TextAtom* const atom = getAtom (i);
+            const TextAtom* const atom = atoms.getUnchecked (i);
             const int nextIndex = index + atom->numChars;
 
             if (range.getStart() < nextIndex)
@@ -222,18 +184,17 @@ public:
         }
     }
 
-    int getTotalLength() const
+    int getTotalLength() const noexcept
     {
         int total = 0;
 
         for (int i = atoms.size(); --i >= 0;)
-            total += getAtom(i)->numChars;
+            total += atoms.getUnchecked(i)->numChars;
 
         return total;
     }
 
-    void setFont (const Font& newFont,
-                  const juce_wchar passwordCharacter)
+    void setFont (const Font& newFont, const juce_wchar passwordChar)
     {
         if (font != newFont)
         {
@@ -242,7 +203,7 @@ public:
             for (int i = atoms.size(); --i >= 0;)
             {
                 TextAtom* const atom = atoms.getUnchecked(i);
-                atom->width = newFont.getStringWidthFloat (atom->getText (passwordCharacter));
+                atom->width = newFont.getStringWidthFloat (atom->getText (passwordChar));
             }
         }
     }
@@ -250,13 +211,10 @@ public:
     //==============================================================================
     Font font;
     Colour colour;
+    OwnedArray<TextAtom> atoms;
 
 private:
-    Array <TextAtom*> atoms;
-
-    //==============================================================================
-    void initialiseAtoms (const String& textToParse,
-                          const juce_wchar passwordCharacter)
+    void initialiseAtoms (const String& textToParse, const juce_wchar passwordChar)
     {
         String::CharPointerType text (textToParse.getCharPointer());
 
@@ -303,28 +261,25 @@ private:
                 }
             }
 
-            TextAtom* const atom = new TextAtom();
+            TextAtom* const atom = atoms.add (new TextAtom());
+
             atom->atomText = String (start, numChars);
-
-            atom->width = font.getStringWidthFloat (atom->getText (passwordCharacter));
+            atom->width = font.getStringWidthFloat (atom->getText (passwordChar));
             atom->numChars = (uint16) numChars;
-
-            atoms.add (atom);
         }
     }
 
-    UniformTextSection& operator= (const UniformTextSection& other);
-    JUCE_LEAK_DETECTOR (UniformTextSection);
+    UniformTextSection& operator= (const UniformTextSection&);
+    JUCE_LEAK_DETECTOR (UniformTextSection)
 };
 
 //==============================================================================
 class TextEditor::Iterator
 {
 public:
-    //==============================================================================
-    Iterator (const Array <UniformTextSection*>& sections_,
-              const float wordWrapWidth_,
-              const juce_wchar passwordCharacter_)
+    Iterator (const OwnedArray<UniformTextSection>& sectionList,
+              const float wrapWidth,
+              const juce_wchar passwordChar)
       : indexInText (0),
         lineY (0),
         lineHeight (0),
@@ -333,13 +288,13 @@ public:
         atomRight (0),
         atom (0),
         currentSection (nullptr),
-        sections (sections_),
+        sections (sectionList),
         sectionIndex (0),
         atomIndex (0),
-        wordWrapWidth (wordWrapWidth_),
-        passwordCharacter (passwordCharacter_)
+        wordWrapWidth (wrapWidth),
+        passwordCharacter (passwordChar)
     {
-        jassert (wordWrapWidth_ > 0);
+        jassert (wordWrapWidth > 0);
 
         if (sections.size() > 0)
         {
@@ -411,9 +366,9 @@ public:
             moveToEndOfLastAtom();
             return false;
         }
-        else if (atomIndex >= currentSection->getNumAtoms() - 1)
+        else if (atomIndex >= currentSection->atoms.size() - 1)
         {
-            if (atomIndex >= currentSection->getNumAtoms())
+            if (atomIndex >= currentSection->atoms.size())
             {
                 if (++sectionIndex >= sections.size())
                 {
@@ -426,7 +381,7 @@ public:
             }
             else
             {
-                const TextAtom* const lastAtom = currentSection->getAtom (atomIndex);
+                const TextAtom* const lastAtom = currentSection->atoms.getUnchecked (atomIndex);
 
                 if (! lastAtom->isWhitespace())
                 {
@@ -440,10 +395,10 @@ public:
                     {
                         const UniformTextSection* const s = sections.getUnchecked (section);
 
-                        if (s->getNumAtoms() == 0)
+                        if (s->atoms.size() == 0)
                             break;
 
-                        const TextAtom* const nextAtom = s->getAtom (0);
+                        const TextAtom* const nextAtom = s->atoms.getUnchecked (0);
 
                         if (nextAtom->isWhitespace())
                             break;
@@ -462,7 +417,7 @@ public:
                             break;
                         }
 
-                        if (s->getNumAtoms() > 1)
+                        if (s->atoms.size() > 1)
                             break;
                     }
                 }
@@ -478,7 +433,7 @@ public:
                 beginNewLine();
         }
 
-        atom = currentSection->getAtom (atomIndex);
+        atom = currentSection->atoms.getUnchecked (atomIndex);
         atomRight = atomX + atom->width;
         ++atomIndex;
 
@@ -535,7 +490,7 @@ public:
 
             bool checkSize = false;
 
-            if (tempAtomIndex >= section->getNumAtoms())
+            if (tempAtomIndex >= section->atoms.size())
             {
                 if (++tempSectionIndex >= sections.size())
                     break;
@@ -545,7 +500,7 @@ public:
                 checkSize = true;
             }
 
-            const TextAtom* const nextAtom = section->getAtom (tempAtomIndex);
+            const TextAtom* const nextAtom = section->atoms.getUnchecked (tempAtomIndex);
 
             if (nextAtom == nullptr)
                 break;
@@ -582,24 +537,20 @@ public:
             GlyphArrangement ga;
             ga.addLineOfText (currentSection->font,
                               atom->getTrimmedText (passwordCharacter),
-                              atomX,
-                              (float) roundToInt (lineY + lineHeight - maxDescent));
+                              atomX, (float) roundToInt (lineY + lineHeight - maxDescent));
             ga.draw (g);
         }
     }
 
-    void drawSelection (Graphics& g, const Range<int>& selection) const
+    void addSelection (RectangleList<float>& area, const Range<int> selected) const
     {
-        const int startX = roundToInt (indexToX (selection.getStart()));
-        const int endX   = roundToInt (indexToX (selection.getEnd()));
+        const float startX = indexToX (selected.getStart());
+        const float endX   = indexToX (selected.getEnd());
 
-        const int y = roundToInt (lineY);
-        const int nextY = roundToInt (lineY + lineHeight);
-
-        g.fillRect (startX, y, endX - startX, nextY - y);
+        area.add (startX, lineY, endX - startX, lineHeight);
     }
 
-    void drawUnderline (Graphics& g, const Range<int>& underline, const Colour& colour) const
+    void drawUnderline (Graphics& g, const Range<int> underline, const Colour colour) const
     {
         const int startX    = roundToInt (indexToX (underline.getStart()));
         const int endX      = roundToInt (indexToX (underline.getEnd()));
@@ -611,32 +562,31 @@ public:
     }
 
     void drawSelectedText (Graphics& g,
-                           const Range<int>& selection,
-                           const Colour& selectedTextColour) const
+                           const Range<int> selected,
+                           const Colour selectedTextColour) const
     {
         if (passwordCharacter != 0 || ! atom->isWhitespace())
         {
             GlyphArrangement ga;
             ga.addLineOfText (currentSection->font,
                               atom->getTrimmedText (passwordCharacter),
-                              atomX,
-                              (float) roundToInt (lineY + lineHeight - maxDescent));
+                              atomX, (float) roundToInt (lineY + lineHeight - maxDescent));
 
-            if (selection.getEnd() < indexInText + atom->numChars)
+            if (selected.getEnd() < indexInText + atom->numChars)
             {
                 GlyphArrangement ga2 (ga);
-                ga2.removeRangeOfGlyphs (0, selection.getEnd() - indexInText);
-                ga.removeRangeOfGlyphs (selection.getEnd() - indexInText, -1);
+                ga2.removeRangeOfGlyphs (0, selected.getEnd() - indexInText);
+                ga.removeRangeOfGlyphs (selected.getEnd() - indexInText, -1);
 
                 g.setColour (currentSection->colour);
                 ga2.draw (g);
             }
 
-            if (selection.getStart() > indexInText)
+            if (selected.getStart() > indexInText)
             {
                 GlyphArrangement ga2 (ga);
-                ga2.removeRangeOfGlyphs (selection.getStart() - indexInText, -1);
-                ga.removeRangeOfGlyphs (0, selection.getStart() - indexInText);
+                ga2.removeRangeOfGlyphs (selected.getStart() - indexInText, -1);
+                ga.removeRangeOfGlyphs (0, selected.getStart() - indexInText);
 
                 g.setColour (currentSection->colour);
                 ga2.draw (g);
@@ -680,16 +630,21 @@ public:
                          atom->getText (passwordCharacter),
                          atomX, 0.0f);
 
+        const int numGlyphs = g.getNumGlyphs();
+
         int j;
-        for (j = 0; j < g.getNumGlyphs(); ++j)
-            if ((g.getGlyph(j).getLeft() + g.getGlyph(j).getRight()) / 2 > xToFind)
+        for (j = 0; j < numGlyphs; ++j)
+        {
+            const PositionedGlyph& pg = g.getGlyph(j);
+            if ((pg.getLeft() + pg.getRight()) / 2 > xToFind)
                 break;
+        }
 
         return indexInText + j;
     }
 
     //==============================================================================
-    bool getCharPosition (const int index, float& cx, float& cy, float& lineHeight_)
+    bool getCharPosition (const int index, float& cx, float& cy, float& lineHeightFound)
     {
         while (next())
         {
@@ -697,14 +652,14 @@ public:
             {
                 cx = indexToX (index);
                 cy = lineY;
-                lineHeight_ = lineHeight;
+                lineHeightFound = lineHeight;
                 return true;
             }
         }
 
         cx = atomX;
         cy = lineY;
-        lineHeight_ = lineHeight;
+        lineHeightFound = lineHeight;
         return false;
     }
 
@@ -716,7 +671,7 @@ public:
     const UniformTextSection* currentSection;
 
 private:
-    const Array <UniformTextSection*>& sections;
+    const OwnedArray<UniformTextSection>& sections;
     int sectionIndex, atomIndex;
     const float wordWrapWidth;
     const juce_wchar passwordCharacter;
@@ -738,12 +693,12 @@ private:
         }
     }
 
-    bool shouldWrap (const float x) const
+    bool shouldWrap (const float x) const noexcept
     {
         return (x - 0.0001f) >= wordWrapWidth;
     }
 
-    JUCE_LEAK_DETECTOR (Iterator);
+    JUCE_LEAK_DETECTOR (Iterator)
 };
 
 
@@ -751,20 +706,20 @@ private:
 class TextEditor::InsertAction  : public UndoableAction
 {
 public:
-    InsertAction (TextEditor& owner_,
-                  const String& text_,
-                  const int insertIndex_,
-                  const Font& font_,
-                  const Colour& colour_,
-                  const int oldCaretPos_,
-                  const int newCaretPos_)
-        : owner (owner_),
-          text (text_),
-          insertIndex (insertIndex_),
-          oldCaretPos (oldCaretPos_),
-          newCaretPos (newCaretPos_),
-          font (font_),
-          colour (colour_)
+    InsertAction (TextEditor& ed,
+                  const String& newText,
+                  const int insertPos,
+                  const Font& newFont,
+                  const Colour newColour,
+                  const int oldCaret,
+                  const int newCaret)
+        : owner (ed),
+          text (newText),
+          insertIndex (insertPos),
+          oldCaretPos (oldCaret),
+          newCaretPos (newCaret),
+          font (newFont),
+          colour (newColour)
     {
     }
 
@@ -792,34 +747,24 @@ private:
     const Font font;
     const Colour colour;
 
-    JUCE_DECLARE_NON_COPYABLE (InsertAction);
+    JUCE_DECLARE_NON_COPYABLE (InsertAction)
 };
 
 //==============================================================================
 class TextEditor::RemoveAction  : public UndoableAction
 {
 public:
-    RemoveAction (TextEditor& owner_,
-                  const Range<int> range_,
-                  const int oldCaretPos_,
-                  const int newCaretPos_,
-                  const Array <UniformTextSection*>& removedSections_)
-        : owner (owner_),
-          range (range_),
-          oldCaretPos (oldCaretPos_),
-          newCaretPos (newCaretPos_),
-          removedSections (removedSections_)
+    RemoveAction (TextEditor& ed,
+                  const Range<int> rangeToRemove,
+                  const int oldCaret,
+                  const int newCaret,
+                  const Array<UniformTextSection*>& oldSections)
+        : owner (ed),
+          range (rangeToRemove),
+          oldCaretPos (oldCaret),
+          newCaretPos (newCaret)
     {
-    }
-
-    ~RemoveAction()
-    {
-        for (int i = removedSections.size(); --i >= 0;)
-        {
-            UniformTextSection* const section = removedSections.getUnchecked (i);
-            section->clear();
-            delete section;
-        }
+        removedSections.addArray (oldSections);
     }
 
     bool perform()
@@ -837,21 +782,20 @@ public:
 
     int getSizeInUnits()
     {
-        int n = 0;
-
+        int n = 16;
         for (int i = removedSections.size(); --i >= 0;)
             n += removedSections.getUnchecked (i)->getTotalLength();
 
-        return n + 16;
+        return n;
     }
 
 private:
     TextEditor& owner;
     const Range<int> range;
     const int oldCaretPos, newCaretPos;
-    Array <UniformTextSection*> removedSections;
+    OwnedArray<UniformTextSection> removedSections;
 
-    JUCE_DECLARE_NON_COPYABLE (RemoveAction);
+    JUCE_DECLARE_NON_COPYABLE (RemoveAction)
 };
 
 //==============================================================================
@@ -860,11 +804,11 @@ class TextEditor::TextHolderComponent  : public Component,
                                          public ValueListener
 {
 public:
-    TextHolderComponent (TextEditor& owner_)
-        : owner (owner_)
+    TextHolderComponent (TextEditor& ed)  : owner (ed)
     {
         setWantsKeyboardFocus (false);
         setInterceptsMouseClicks (false, true);
+        setMouseCursor (MouseCursor::ParentCursor);
 
         owner.getTextValue().addListener (this);
     }
@@ -874,7 +818,7 @@ public:
         owner.getTextValue().removeListener (this);
     }
 
-    void paint (Graphics& g)
+    void paint (Graphics& g) override
     {
         owner.drawContent (g);
     }
@@ -884,17 +828,12 @@ public:
         startTimer (350);
     }
 
-    void timerCallback()
+    void timerCallback() override
     {
         owner.timerCallbackInt();
     }
 
-    MouseCursor getMouseCursor()
-    {
-        return owner.getMouseCursor();
-    }
-
-    void valueChanged (Value&)
+    void valueChanged (Value&) override
     {
         owner.textWasChangedByValue();
     }
@@ -902,19 +841,19 @@ public:
 private:
     TextEditor& owner;
 
-    JUCE_DECLARE_NON_COPYABLE (TextHolderComponent);
+    JUCE_DECLARE_NON_COPYABLE (TextHolderComponent)
 };
 
 //==============================================================================
 class TextEditorViewport  : public Viewport
 {
 public:
-    TextEditorViewport (TextEditor& owner_)
-        : owner (owner_), lastWordWrapWidth (0), rentrant (false)
+    TextEditorViewport (TextEditor& ed)
+        : owner (ed), lastWordWrapWidth (0), rentrant (false)
     {
     }
 
-    void visibleAreaChanged (const Rectangle<int>&)
+    void visibleAreaChanged (const Rectangle<int>&) override
     {
         if (! rentrant) // it's rare, but possible to get into a feedback loop as the viewport's scrollbars
                         // appear and disappear, causing the wrap width to change.
@@ -937,7 +876,7 @@ private:
     float lastWordWrapWidth;
     bool rentrant;
 
-    JUCE_DECLARE_NON_COPYABLE (TextEditorViewport);
+    JUCE_DECLARE_NON_COPYABLE (TextEditorViewport)
 };
 
 //==============================================================================
@@ -959,7 +898,7 @@ namespace TextEditorDefs
 
 //==============================================================================
 TextEditor::TextEditor (const String& name,
-                        const juce_wchar passwordCharacter_)
+                        const juce_wchar passwordChar)
     : Component (name),
       borderSize (1, 1, 1, 3),
       readOnly (false),
@@ -974,17 +913,18 @@ TextEditor::TextEditor (const String& name,
       tabKeyUsed (false),
       menuActive (false),
       valueTextNeedsUpdating (false),
-      maxTextLength (0),
+      consumeEscAndReturnKeys (true),
       leftIndent (4),
       topIndent (4),
       lastTransactionTime (0),
       currentFont (14.0f),
       totalNumChars (0),
       caretPosition (0),
-      passwordCharacter (passwordCharacter_),
+      passwordCharacter (passwordChar),
       dragType (notDragging)
 {
     setOpaque (true);
+    setMouseCursor (MouseCursor::IBeamCursor);
 
     addAndMakeVisible (viewport = new TextEditorViewport (*this));
     viewport->setViewedComponent (textHolder = new TextHolderComponent (*this));
@@ -998,14 +938,12 @@ TextEditor::TextEditor (const String& name,
 TextEditor::~TextEditor()
 {
     if (wasFocused)
-    {
-        ComponentPeer* const peer = getPeer();
-        if (peer != nullptr)
+        if (ComponentPeer* const peer = getPeer())
             peer->dismissPendingTextInput();
-    }
 
+    textValue.removeListener (textHolder);
     textValue.referTo (Value());
-    clearInternal (0);
+
     viewport = nullptr;
     textHolder = nullptr;
 }
@@ -1112,11 +1050,6 @@ void TextEditor::setSelectAllWhenFocused (const bool b)
 }
 
 //==============================================================================
-const Font& TextEditor::getFont() const
-{
-    return currentFont;
-}
-
 void TextEditor::setFont (const Font& newFont)
 {
     currentFont = newFont;
@@ -1126,7 +1059,6 @@ void TextEditor::setFont (const Font& newFont)
 void TextEditor::applyFontToAllText (const Font& newFont)
 {
     currentFont = newFont;
-
     const Colour overallColour (findColour (textColourId));
 
     for (int i = sections.size(); --i >= 0;)
@@ -1154,6 +1086,7 @@ void TextEditor::lookAndFeelChanged()
     {
         setCaretVisible (false);
         setCaretVisible (true);
+        updateCaretPosition();
     }
 }
 
@@ -1168,9 +1101,6 @@ void TextEditor::setCaretVisible (const bool shouldCaretBeVisible)
     {
         caret = nullptr;
     }
-
-    setMouseCursor (shouldCaretBeVisible ? MouseCursor::IBeamCursor
-                                         : MouseCursor::NormalCursor);
 }
 
 void TextEditor::updateCaretPosition()
@@ -1179,14 +1109,35 @@ void TextEditor::updateCaretPosition()
         caret->setCaretPosition (getCaretRectangle().translated (leftIndent, topIndent));
 }
 
+TextEditor::LengthAndCharacterRestriction::LengthAndCharacterRestriction (int maxLen, const String& chars)
+    : allowedCharacters (chars), maxLength (maxLen)
+{}
+
+String TextEditor::LengthAndCharacterRestriction::filterNewText (TextEditor& ed, const String& newInput)
+{
+    String t (newInput);
+
+    if (allowedCharacters.isNotEmpty())
+        t = t.retainCharacters (allowedCharacters);
+
+    if (maxLength > 0)
+        t = t.substring (0, maxLength - (ed.getTotalNumChars() - ed.getHighlightedRegion().getLength()));
+
+    return t;
+}
+
+void TextEditor::setInputFilter (InputFilter* newFilter, bool takeOwnership)
+{
+    inputFilter.set (newFilter, takeOwnership);
+}
+
 void TextEditor::setInputRestrictions (const int maxLen,
                                        const String& chars)
 {
-    maxTextLength = jmax (0, maxLen);
-    allowedCharacters = chars;
+    setInputFilter (new LengthAndCharacterRestriction (maxLen, chars), true);
 }
 
-void TextEditor::setTextToShowWhenEmpty (const String& text, const Colour& colourToUse)
+void TextEditor::setTextToShowWhenEmpty (const String& text, Colour colourToUse)
 {
     textToShowWhenEmpty = text;
     colourForTextWhenEmpty = colourToUse;
@@ -1206,15 +1157,10 @@ void TextEditor::setScrollBarThickness (const int newThicknessPixels)
     viewport->setScrollBarThickness (newThicknessPixels);
 }
 
-void TextEditor::setScrollBarButtonVisibility (const bool buttonsVisible)
-{
-    viewport->setScrollBarButtonVisibility (buttonsVisible);
-}
-
 //==============================================================================
 void TextEditor::clear()
 {
-    clearInternal (0);
+    clearInternal (nullptr);
     updateTextHolderSize();
     undoManager.clearUndoHistory();
 }
@@ -1231,7 +1177,7 @@ void TextEditor::setText (const String& newText,
         int oldCursorPos = caretPosition;
         const bool cursorWasAtEnd = oldCursorPos >= getTotalNumChars();
 
-        clearInternal (0);
+        clearInternal (nullptr);
         insert (newText, 0, currentFont, findColour (textColourId), 0, caretPosition);
 
         // if you're adding text with line-feeds to a single-line text editor, it
@@ -1291,25 +1237,11 @@ void TextEditor::textChanged()
     }
 }
 
-void TextEditor::returnPressed()
-{
-    postCommandMessage (TextEditorDefs::returnKeyMessageId);
-}
+void TextEditor::returnPressed()    { postCommandMessage (TextEditorDefs::returnKeyMessageId); }
+void TextEditor::escapePressed()    { postCommandMessage (TextEditorDefs::escapeKeyMessageId); }
 
-void TextEditor::escapePressed()
-{
-    postCommandMessage (TextEditorDefs::escapeKeyMessageId);
-}
-
-void TextEditor::addListener (TextEditorListener* const newListener)
-{
-    listeners.add (newListener);
-}
-
-void TextEditor::removeListener (TextEditorListener* const listenerToRemove)
-{
-    listeners.remove (listenerToRemove);
-}
+void TextEditor::addListener (TextEditorListener* const l)      { listeners.add (l); }
+void TextEditor::removeListener (TextEditorListener* const l)   { listeners.remove (l); }
 
 //==============================================================================
 void TextEditor::timerCallbackInt()
@@ -1323,7 +1255,7 @@ void TextEditor::timerCallbackInt()
         newTransaction();
 }
 
-void TextEditor::repaintText (const Range<int>& range)
+void TextEditor::repaintText (const Range<int> range)
 {
     if (! range.isEmpty())
     {
@@ -1432,9 +1364,11 @@ Rectangle<int> TextEditor::getCaretRectangle()
 }
 
 //==============================================================================
+enum { rightEdgeSpace = 2 };
+
 float TextEditor::getWordWrapWidth() const
 {
-    return wordWrap ? (float) (viewport->getMaximumVisibleWidth() - leftIndent - leftIndent / 2)
+    return wordWrap ? (float) (viewport->getMaximumVisibleWidth() - (leftIndent + rightEdgeSpace + 1))
                     : std::numeric_limits<float>::max();
 }
 
@@ -1455,25 +1389,17 @@ void TextEditor::updateTextHolderSize()
         const int h = topIndent + roundToInt (jmax (i.lineY + i.lineHeight,
                                                     currentFont.getHeight()));
 
-        textHolder->setSize (w + 2, h + 1); // (the +2 allows a bit of space for the cursor to be at the right-hand-edge)
+        textHolder->setSize (w + rightEdgeSpace, h + 1); // (allows a bit of space for the cursor to be at the right-hand-edge)
     }
 }
 
-int TextEditor::getTextWidth() const
-{
-    return textHolder->getWidth();
-}
+int TextEditor::getTextWidth() const    { return textHolder->getWidth(); }
+int TextEditor::getTextHeight() const   { return textHolder->getHeight(); }
 
-int TextEditor::getTextHeight() const
-{
-    return textHolder->getHeight();
-}
-
-void TextEditor::setIndents (const int newLeftIndent,
-                             const int newTopIndent)
+void TextEditor::setIndents (const int newLeftIndent, const int newTopIndent)
 {
     leftIndent = newLeftIndent;
-    topIndent = newTopIndent;
+    topIndent  = newTopIndent;
 }
 
 void TextEditor::setBorder (const BorderSize<int>& border)
@@ -1498,47 +1424,40 @@ void TextEditor::scrollToMakeSureCursorIsVisible()
 
     if (keepCaretOnScreen)
     {
-        int x = viewport->getViewPositionX();
-        int y = viewport->getViewPositionY();
+        Point<int> viewPos (viewport->getViewPosition());
+        const Rectangle<int> caretRect (getCaretRectangle());
 
-        const Rectangle<int> caretPos (getCaretRectangle());
+        const Point<int> relativeCursor = caretRect.getPosition() - viewPos;
 
-        const int relativeCursorX = caretPos.getX() - x;
-        const int relativeCursorY = caretPos.getY() - y;
-
-        if (relativeCursorX < jmax (1, proportionOfWidth (0.05f)))
+        if (relativeCursor.x < jmax (1, proportionOfWidth (0.05f)))
         {
-            x += relativeCursorX - proportionOfWidth (0.2f);
+            viewPos.x += relativeCursor.x - proportionOfWidth (0.2f);
         }
-        else if (relativeCursorX > jmax (0, viewport->getMaximumVisibleWidth() - (wordWrap ? 2 : 10)))
+        else if (relativeCursor.x > jmax (0, viewport->getMaximumVisibleWidth() - (wordWrap ? 2 : 10)))
         {
-            x += relativeCursorX + (isMultiLine() ? proportionOfWidth (0.2f) : 10) - viewport->getMaximumVisibleWidth();
+            viewPos.x += relativeCursor.x + (isMultiLine() ? proportionOfWidth (0.2f) : 10) - viewport->getMaximumVisibleWidth();
         }
 
-        x = jlimit (0, jmax (0, textHolder->getWidth() + 8 - viewport->getMaximumVisibleWidth()), x);
+        viewPos.x = jlimit (0, jmax (0, textHolder->getWidth() + 8 - viewport->getMaximumVisibleWidth()), viewPos.x);
 
         if (! isMultiLine())
         {
-            y = (getHeight() - textHolder->getHeight() - topIndent) / -2;
+            viewPos.y = (getHeight() - textHolder->getHeight() - topIndent) / -2;
         }
-        else
+        else if (relativeCursor.y < 0)
         {
-            if (relativeCursorY < 0)
-            {
-                y = jmax (0, relativeCursorY + y);
-            }
-            else if (relativeCursorY > jmax (0, viewport->getMaximumVisibleHeight() - topIndent - caretPos.getHeight()))
-            {
-                y += relativeCursorY + 2 + caretPos.getHeight() + topIndent - viewport->getMaximumVisibleHeight();
-            }
+            viewPos.y = jmax (0, relativeCursor.y + viewPos.y);
+        }
+        else if (relativeCursor.y > jmax (0, viewport->getMaximumVisibleHeight() - topIndent - caretRect.getHeight()))
+        {
+            viewPos.y += relativeCursor.y + 2 + caretRect.getHeight() + topIndent - viewport->getMaximumVisibleHeight();
         }
 
-        viewport->setViewPosition (x, y);
+        viewport->setViewPosition (viewPos);
     }
 }
 
-void TextEditor::moveCaretTo (const int newPosition,
-                              const bool isSelecting)
+void TextEditor::moveCaretTo (const int newPosition, const bool isSelecting)
 {
     if (isSelecting)
     {
@@ -1582,41 +1501,29 @@ void TextEditor::moveCaretTo (const int newPosition,
     }
 }
 
-int TextEditor::getTextIndexAt (const int x,
-                                const int y)
+int TextEditor::getTextIndexAt (const int x, const int y)
 {
     return indexAtPosition ((float) (x + viewport->getViewPositionX() - leftIndent),
                             (float) (y + viewport->getViewPositionY() - topIndent));
 }
 
-void TextEditor::insertTextAtCaret (const String& newText_)
+void TextEditor::insertTextAtCaret (const String& t)
 {
-    String newText (newText_);
+    String newText (inputFilter != nullptr ? inputFilter->filterNewText (*this, t) : t);
 
-    if (allowedCharacters.isNotEmpty())
-        newText = newText.retainCharacters (allowedCharacters);
-
-    if (! isMultiLine())
-        newText = newText.replaceCharacters ("\r\n", "  ");
-    else
+    if (isMultiLine())
         newText = newText.replace ("\r\n", "\n");
+    else
+        newText = newText.replaceCharacters ("\r\n", "  ");
 
-    const int newCaretPos = selection.getStart() + newText.length();
     const int insertIndex = selection.getStart();
+    const int newCaretPos = insertIndex + newText.length();
 
     remove (selection, getUndoManager(),
             newText.isNotEmpty() ? newCaretPos - 1 : newCaretPos);
 
-    if (maxTextLength > 0)
-        newText = newText.substring (0, maxTextLength - getTotalNumChars());
-
-    if (newText.isNotEmpty())
-        insert (newText,
-                insertIndex,
-                currentFont,
-                findColour (textColourId),
-                getUndoManager(),
-                newCaretPos);
+    insert (newText, insertIndex, currentFont, findColour (textColourId),
+            getUndoManager(), newCaretPos);
 
     textChanged();
 }
@@ -1672,25 +1579,24 @@ void TextEditor::drawContent (Graphics& g)
 
         Iterator i (sections, wordWrapWidth, passwordCharacter);
 
-        while (i.lineY + 200.0 < clip.getY() && i.next())
-        {}
-
         if (! selection.isEmpty())
         {
-            g.setColour (findColour (highlightColourId).withMultipliedAlpha (hasKeyboardFocus (true) ? 1.0f : 0.5f));
-
-            selectedTextColour = findColour (highlightedTextColourId);
-
             Iterator i2 (i);
+            RectangleList<float> selectionArea;
 
             while (i2.next() && i2.lineY < clip.getBottom())
             {
                 if (i2.lineY + i2.lineHeight >= clip.getY()
                      && selection.intersects (Range<int> (i2.indexInText, i2.indexInText + i2.atom->numChars)))
                 {
-                    i2.drawSelection (g, selection);
+                    i2.addSelection (selectionArea, selection);
                 }
             }
+
+            g.setColour (findColour (highlightColourId).withMultipliedAlpha (hasKeyboardFocus (true) ? 1.0f : 0.5f));
+            g.fillRectList (selectionArea);
+
+            selectedTextColour = findColour (highlightedTextColourId);
         }
 
         const UniformTextSection* lastSection = nullptr;
@@ -1713,7 +1619,7 @@ void TextEditor::drawContent (Graphics& g)
 
         for (int j = underlinedSections.size(); --j >= 0;)
         {
-            const Range<int>& underlinedSection = underlinedSections.getReference (j);
+            const Range<int> underlinedSection = underlinedSections.getReference (j);
 
             Iterator i2 (sections, wordWrapWidth, passwordCharacter);
 
@@ -1744,29 +1650,63 @@ void TextEditor::paintOverChildren (Graphics& g)
         g.setFont (getFont());
 
         if (isMultiLine())
-        {
-            g.drawText (textToShowWhenEmpty,
-                        0, 0, getWidth(), getHeight(),
+            g.drawText (textToShowWhenEmpty, getLocalBounds(),
                         Justification::centred, true);
-        }
         else
-        {
             g.drawText (textToShowWhenEmpty,
                         leftIndent, 0, viewport->getWidth() - leftIndent, getHeight(),
                         Justification::centredLeft, true);
-        }
     }
 
     getLookAndFeel().drawTextEditorOutline (g, getWidth(), getHeight(), *this);
 }
 
 //==============================================================================
+void TextEditor::addPopupMenuItems (PopupMenu& m, const MouseEvent*)
+{
+    const bool writable = ! isReadOnly();
+
+    if (passwordCharacter == 0)
+    {
+        m.addItem (StandardApplicationCommandIDs::cut,   TRANS("Cut"), writable);
+        m.addItem (StandardApplicationCommandIDs::copy,  TRANS("Copy"), ! selection.isEmpty());
+    }
+
+    m.addItem (StandardApplicationCommandIDs::paste,     TRANS("Paste"), writable);
+    m.addItem (StandardApplicationCommandIDs::del,       TRANS("Delete"), writable);
+    m.addSeparator();
+    m.addItem (StandardApplicationCommandIDs::selectAll, TRANS("Select All"));
+    m.addSeparator();
+
+    if (getUndoManager() != nullptr)
+    {
+        m.addItem (StandardApplicationCommandIDs::undo, TRANS("Undo"), undoManager.canUndo());
+        m.addItem (StandardApplicationCommandIDs::redo, TRANS("Redo"), undoManager.canRedo());
+    }
+}
+
+void TextEditor::performPopupMenuAction (const int menuItemID)
+{
+    switch (menuItemID)
+    {
+        case StandardApplicationCommandIDs::cut:        cutToClipboard(); break;
+        case StandardApplicationCommandIDs::copy:       copyToClipboard(); break;
+        case StandardApplicationCommandIDs::paste:      pasteFromClipboard(); break;
+        case StandardApplicationCommandIDs::del:        cut(); break;
+        case StandardApplicationCommandIDs::selectAll:  selectAll(); break;
+        case StandardApplicationCommandIDs::undo:       undo(); break;
+        case StandardApplicationCommandIDs::redo:       redo(); break;
+        default: break;
+    }
+}
+
 static void textEditorMenuCallback (int menuResult, TextEditor* editor)
 {
     if (editor != nullptr && menuResult != 0)
         editor->performPopupMenuAction (menuResult);
 }
 
+//==============================================================================
 void TextEditor::mouseDown (const MouseEvent& e)
 {
     beginDragAutoRepeat (100);
@@ -1794,12 +1734,8 @@ void TextEditor::mouseDown (const MouseEvent& e)
 void TextEditor::mouseDrag (const MouseEvent& e)
 {
     if (wasFocused || ! selectAllTextWhenFocused)
-    {
         if (! (popupMenuEnabled && e.mods.isPopupMenu()))
-        {
             moveCaretTo (getTextIndexAt (e.x, e.y), true);
-        }
-    }
 }
 
 void TextEditor::mouseUp (const MouseEvent& e)
@@ -1808,12 +1744,8 @@ void TextEditor::mouseUp (const MouseEvent& e)
     textHolder->restartTimer();
 
     if (wasFocused || ! selectAllTextWhenFocused)
-    {
         if (e.mouseWasClicked() && ! (popupMenuEnabled && e.mods.isPopupMenu()))
-        {
             moveCaret (getTextIndexAt (e.x, e.y));
-        }
-    }
 
     wasFocused = true;
 }
@@ -1821,11 +1753,10 @@ void TextEditor::mouseUp (const MouseEvent& e)
 void TextEditor::mouseDoubleClick (const MouseEvent& e)
 {
     int tokenEnd = getTextIndexAt (e.x, e.y);
-    int tokenStart = tokenEnd;
+    int tokenStart = 0;
 
     if (e.getNumberOfClicks() > 3)
     {
-        tokenStart = 0;
         tokenEnd = getTotalNumChars();
     }
     else
@@ -1881,14 +1812,14 @@ void TextEditor::mouseDoubleClick (const MouseEvent& e)
     moveCaretTo (tokenStart, true);
 }
 
-void TextEditor::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY)
+void TextEditor::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& wheel)
 {
-    if (! viewport->useMouseWheelMoveIfNeeded (e, wheelIncrementX, wheelIncrementY))
-        Component::mouseWheelMove (e, wheelIncrementX, wheelIncrementY);
+    if (! viewport->useMouseWheelMoveIfNeeded (e, wheel))
+        Component::mouseWheelMove (e, wheel);
 }
 
 //==============================================================================
-bool TextEditor::moveCaretWithTransation (const int newPos, const bool selecting)
+bool TextEditor::moveCaretWithTransaction (const int newPos, const bool selecting)
 {
     newTransaction();
     moveCaretTo (newPos, selecting);
@@ -1904,7 +1835,7 @@ bool TextEditor::moveCaretLeft (bool moveInWholeWordSteps, bool selecting)
     else
         --pos;
 
-    return moveCaretWithTransation (pos, selecting);
+    return moveCaretWithTransaction (pos, selecting);
 }
 
 bool TextEditor::moveCaretRight (bool moveInWholeWordSteps, bool selecting)
@@ -1916,7 +1847,7 @@ bool TextEditor::moveCaretRight (bool moveInWholeWordSteps, bool selecting)
     else
         ++pos;
 
-    return moveCaretWithTransation (pos, selecting);
+    return moveCaretWithTransaction (pos, selecting);
 }
 
 bool TextEditor::moveCaretUp (bool selecting)
@@ -1925,7 +1856,7 @@ bool TextEditor::moveCaretUp (bool selecting)
         return moveCaretToStartOfLine (selecting);
 
     const Rectangle<float> caretPos (getCaretRectangle().toFloat());
-    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getY() - 1.0f), selecting);
+    return moveCaretWithTransaction (indexAtPosition (caretPos.getX(), caretPos.getY() - 1.0f), selecting);
 }
 
 bool TextEditor::moveCaretDown (bool selecting)
@@ -1934,7 +1865,7 @@ bool TextEditor::moveCaretDown (bool selecting)
         return moveCaretToEndOfLine (selecting);
 
     const Rectangle<float> caretPos (getCaretRectangle().toFloat());
-    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getBottom() + 1.0f), selecting);
+    return moveCaretWithTransaction (indexAtPosition (caretPos.getX(), caretPos.getBottom() + 1.0f), selecting);
 }
 
 bool TextEditor::pageUp (bool selecting)
@@ -1943,7 +1874,7 @@ bool TextEditor::pageUp (bool selecting)
         return moveCaretToStartOfLine (selecting);
 
     const Rectangle<float> caretPos (getCaretRectangle().toFloat());
-    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getY() - viewport->getViewHeight()), selecting);
+    return moveCaretWithTransaction (indexAtPosition (caretPos.getX(), caretPos.getY() - viewport->getViewHeight()), selecting);
 }
 
 bool TextEditor::pageDown (bool selecting)
@@ -1952,14 +1883,12 @@ bool TextEditor::pageDown (bool selecting)
         return moveCaretToEndOfLine (selecting);
 
     const Rectangle<float> caretPos (getCaretRectangle().toFloat());
-    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getBottom() + viewport->getViewHeight()), selecting);
+    return moveCaretWithTransaction (indexAtPosition (caretPos.getX(), caretPos.getBottom() + viewport->getViewHeight()), selecting);
 }
 
 void TextEditor::scrollByLines (int deltaLines)
 {
-    ScrollBar* scrollbar = viewport->getVerticalScrollBar();
-
-    if (scrollbar != nullptr)
+    if (ScrollBar* scrollbar = viewport->getVerticalScrollBar())
         scrollbar->moveScrollbarInSteps (deltaLines);
 }
 
@@ -1977,24 +1906,24 @@ bool TextEditor::scrollUp()
 
 bool TextEditor::moveCaretToTop (bool selecting)
 {
-    return moveCaretWithTransation (0, selecting);
+    return moveCaretWithTransaction (0, selecting);
 }
 
 bool TextEditor::moveCaretToStartOfLine (bool selecting)
 {
     const Rectangle<float> caretPos (getCaretRectangle().toFloat());
-    return moveCaretWithTransation (indexAtPosition (0.0f, caretPos.getY()), selecting);
+    return moveCaretWithTransaction (indexAtPosition (0.0f, caretPos.getY()), selecting);
 }
 
 bool TextEditor::moveCaretToEnd (bool selecting)
 {
-    return moveCaretWithTransation (getTotalNumChars(), selecting);
+    return moveCaretWithTransaction (getTotalNumChars(), selecting);
 }
 
 bool TextEditor::moveCaretToEndOfLine (bool selecting)
 {
     const Rectangle<float> caretPos (getCaretRectangle().toFloat());
-    return moveCaretWithTransation (indexAtPosition ((float) textHolder->getWidth(), caretPos.getY()), selecting);
+    return moveCaretWithTransaction (indexAtPosition ((float) textHolder->getWidth(), caretPos.getY()), selecting);
 }
 
 bool TextEditor::deleteBackwards (bool moveInWholeWordSteps)
@@ -2048,6 +1977,11 @@ bool TextEditor::selectAll()
 }
 
 //==============================================================================
+void TextEditor::setEscapeAndReturnKeysConsumed (bool shouldBeConsumed) noexcept
+{
+    consumeEscAndReturnKeys = shouldBeConsumed;
+}
+
 bool TextEditor::keyPressed (const KeyPress& key)
 {
     if (isReadOnly() && key != KeyPress ('c', ModifierKeys::commandModifier, 0))
@@ -2062,13 +1996,17 @@ bool TextEditor::keyPressed (const KeyPress& key)
             if (returnKeyStartsNewLine)
                 insertTextAtCaret ("\n");
             else
+            {
                 returnPressed();
+                return consumeEscAndReturnKeys;
+            }
         }
         else if (key.isKeyCode (KeyPress::escapeKey))
         {
             newTransaction();
             moveCaretTo (getCaretPosition(), false);
             escapePressed();
+            return consumeEscAndReturnKeys;
         }
         else if (key.getTextCharacter() >= ' '
                   || (tabKeyUsed && (key.getTextCharacter() == '\t')))
@@ -2096,49 +2034,13 @@ bool TextEditor::keyStateChanged (const bool isKeyDown)
         return false;  // We need to explicitly allow alt-F4 to pass through on Windows
    #endif
 
+    if ((! consumeEscAndReturnKeys)
+         && (KeyPress (KeyPress::escapeKey).isCurrentlyDown()
+          || KeyPress (KeyPress::returnKey).isCurrentlyDown()))
+        return false;
+
     // (overridden to avoid forwarding key events to the parent)
     return ! ModifierKeys::getCurrentModifiers().isCommandDown();
-}
-
-//==============================================================================
-const int baseMenuItemID = 0x7fff0000;
-
-void TextEditor::addPopupMenuItems (PopupMenu& m, const MouseEvent*)
-{
-    const bool writable = ! isReadOnly();
-
-    if (passwordCharacter == 0)
-    {
-        m.addItem (baseMenuItemID + 1, TRANS("cut"), writable);
-        m.addItem (baseMenuItemID + 2, TRANS("copy"), ! selection.isEmpty());
-        m.addItem (baseMenuItemID + 3, TRANS("paste"), writable);
-    }
-
-    m.addItem (baseMenuItemID + 4, TRANS("delete"), writable);
-    m.addSeparator();
-    m.addItem (baseMenuItemID + 5, TRANS("select all"));
-    m.addSeparator();
-
-    if (getUndoManager() != nullptr)
-    {
-        m.addItem (baseMenuItemID + 6, TRANS("undo"), undoManager.canUndo());
-        m.addItem (baseMenuItemID + 7, TRANS("redo"), undoManager.canRedo());
-    }
-}
-
-void TextEditor::performPopupMenuAction (const int menuItemID)
-{
-    switch (menuItemID)
-    {
-        case baseMenuItemID + 1:    cutToClipboard(); break;
-        case baseMenuItemID + 2:    copyToClipboard(); break;
-        case baseMenuItemID + 3:    pasteFromClipboard(); break;
-        case baseMenuItemID + 4:    cut(); break;
-        case baseMenuItemID + 5:    selectAll(); break;
-        case baseMenuItemID + 6:    undo(); break;
-        case baseMenuItemID + 7:    redo(); break;
-        default: break;
-    }
 }
 
 //==============================================================================
@@ -2155,9 +2057,9 @@ void TextEditor::focusGained (FocusChangeType)
     repaint();
     updateCaretPosition();
 
-    ComponentPeer* const peer = getPeer();
-    if (peer != nullptr && ! isReadOnly())
-        peer->textInputRequired (getScreenPosition() - peer->getScreenPosition());
+    if (ComponentPeer* const peer = getPeer())
+        if (! isReadOnly())
+            peer->textInputRequired (peer->globalToLocal (getScreenPosition()), *this);
 }
 
 void TextEditor::focusLost (FocusChangeType)
@@ -2169,8 +2071,7 @@ void TextEditor::focusLost (FocusChangeType)
 
     underlinedSections.clear();
 
-    ComponentPeer* const peer = getPeer();
-    if (peer != nullptr)
+    if (ComponentPeer* const peer = getPeer())
         peer->dismissPendingTextInput();
 
     updateCaretPosition();
@@ -2187,14 +2088,10 @@ void TextEditor::resized()
 
     updateTextHolderSize();
 
-    if (! isMultiLine())
-    {
-        scrollToMakeSureCursorIsVisible();
-    }
-    else
-    {
+    if (isMultiLine())
         updateCaretPosition();
-    }
+    else
+        scrollToMakeSureCursorIsVisible();
 }
 
 void TextEditor::handleCommandMessage (const int commandId)
@@ -2228,8 +2125,6 @@ void TextEditor::handleCommandMessage (const int commandId)
 
 void TextEditor::enablementChanged()
 {
-    setMouseCursor (isReadOnly() ? MouseCursor::NormalCursor
-                                 : MouseCursor::IBeamCursor);
     repaint();
 }
 
@@ -2242,7 +2137,7 @@ void TextEditor::setTemporaryUnderlining (const Array <Range<int> >& newUnderlin
 //==============================================================================
 UndoManager* TextEditor::getUndoManager() noexcept
 {
-    return isReadOnly() ? 0 : &undoManager;
+    return readOnly ? nullptr : &undoManager;
 }
 
 void TextEditor::clearInternal (UndoManager* const um)
@@ -2253,7 +2148,7 @@ void TextEditor::clearInternal (UndoManager* const um)
 void TextEditor::insert (const String& text,
                          const int insertIndex,
                          const Font& font,
-                         const Colour& colour,
+                         const Colour colour,
                          UndoManager* const um,
                          const int caretPositionToMoveTo)
 {
@@ -2281,17 +2176,13 @@ void TextEditor::insert (const String& text,
 
                 if (insertIndex == index)
                 {
-                    sections.insert (i, new UniformTextSection (text,
-                                                                font, colour,
-                                                                passwordCharacter));
+                    sections.insert (i, new UniformTextSection (text, font, colour, passwordCharacter));
                     break;
                 }
                 else if (insertIndex > index && insertIndex < nextIndex)
                 {
                     splitSection (i, insertIndex - index);
-                    sections.insert (i + 1, new UniformTextSection (text,
-                                                                    font, colour,
-                                                                    passwordCharacter));
+                    sections.insert (i + 1, new UniformTextSection (text, font, colour, passwordCharacter));
                     break;
                 }
 
@@ -2299,9 +2190,7 @@ void TextEditor::insert (const String& text,
             }
 
             if (nextIndex == insertIndex)
-                sections.add (new UniformTextSection (text,
-                                                      font, colour,
-                                                      passwordCharacter));
+                sections.add (new UniformTextSection (text, font, colour, passwordCharacter));
 
             coalesceSimilarSections();
             totalNumChars = -1;
@@ -2315,8 +2204,7 @@ void TextEditor::insert (const String& text,
     }
 }
 
-void TextEditor::reinsert (const int insertIndex,
-                           const Array <UniformTextSection*>& sectionsToInsert)
+void TextEditor::reinsert (const int insertIndex, const OwnedArray<UniformTextSection>& sectionsToInsert)
 {
     int index = 0;
     int nextIndex = 0;
@@ -2356,9 +2244,7 @@ void TextEditor::reinsert (const int insertIndex,
     valueTextNeedsUpdating = true;
 }
 
-void TextEditor::remove (const Range<int>& range,
-                         UndoManager* const um,
-                         const int caretPositionToMoveTo)
+void TextEditor::remove (Range<int> range, UndoManager* const um, const int caretPositionToMoveTo)
 {
     if (! range.isEmpty())
     {
@@ -2391,7 +2277,7 @@ void TextEditor::remove (const Range<int>& range,
 
         if (um != nullptr)
         {
-            Array <UniformTextSection*> removedSections;
+            Array<UniformTextSection*> removedSections;
 
             for (int i = 0; i < sections.size(); ++i)
             {
@@ -2426,9 +2312,7 @@ void TextEditor::remove (const Range<int>& range,
 
                 if (remainingRange.getStart() <= index && remainingRange.getEnd() >= nextIndex)
                 {
-                    sections.remove(i);
-                    section->clear();
-                    delete section;
+                    sections.remove (i);
 
                     remainingRange.setEnd (remainingRange.getEnd() - (nextIndex - index));
                     if (remainingRange.isEmpty())
@@ -2462,7 +2346,7 @@ String TextEditor::getText() const
     for (int i = 0; i < sections.size(); ++i)
         sections.getUnchecked (i)->appendAllText (mo);
 
-    return mo.toString();
+    return mo.toUTF8();
 }
 
 String TextEditor::getTextInRange (const Range<int>& range) const
@@ -2491,7 +2375,7 @@ String TextEditor::getTextInRange (const Range<int>& range) const
         index = nextIndex;
     }
 
-    return mo.toString();
+    return mo.toUTF8();
 }
 
 String TextEditor::getHighlightedText() const
@@ -2609,8 +2493,7 @@ int TextEditor::findWordBreakBefore (const int position) const
 
 
 //==============================================================================
-void TextEditor::splitSection (const int sectionIndex,
-                               const int charToSplitAt)
+void TextEditor::splitSection (const int sectionIndex, const int charToSplitAt)
 {
     jassert (sections[sectionIndex] != nullptr);
 
@@ -2630,42 +2513,7 @@ void TextEditor::coalesceSimilarSections()
         {
             s1->append (*s2, passwordCharacter);
             sections.remove (i + 1);
-            delete s2;
             --i;
         }
     }
-}
-
-void TextEditor::Listener::textEditorTextChanged (TextEditor&) {}
-void TextEditor::Listener::textEditorReturnKeyPressed (TextEditor&) {}
-void TextEditor::Listener::textEditorEscapeKeyPressed (TextEditor&) {}
-void TextEditor::Listener::textEditorFocusLost (TextEditor&) {}
-
-//==============================================================================
-const Identifier TextEditor::Ids::tagType ("TEXTEDITOR");
-const Identifier TextEditor::Ids::text ("text");
-const Identifier TextEditor::Ids::font ("font");
-const Identifier TextEditor::Ids::mode ("mode");
-const Identifier TextEditor::Ids::readOnly ("readOnly");
-const Identifier TextEditor::Ids::scrollbarsShown ("scrollbarsShown");
-const Identifier TextEditor::Ids::caretVisible ("caretVisible");
-const Identifier TextEditor::Ids::popupMenuEnabled ("popupMenuEnabled");
-
-void TextEditor::refreshFromValueTree (const ValueTree& state, ComponentBuilder&)
-{
-    ComponentBuilder::refreshBasicComponentProperties (*this, state);
-
-    setReadOnly (state [Ids::readOnly]);
-    setScrollbarsShown (state [Ids::scrollbarsShown]);
-    setCaretVisible (state [Ids::caretVisible]);
-    setPopupMenuEnabled (state [Ids::popupMenuEnabled]);
-    const int mode = state [Ids::mode];
-    setMultiLine (mode > 1, true);
-    setReturnKeyStartsNewLine (mode != 3);
-
-    const Font font (Font::fromString (state [Ids::font]));
-    if (getFont() != font)
-        applyFontToAllText (font);
-
-    setText (state [Ids::text].toString());
 }

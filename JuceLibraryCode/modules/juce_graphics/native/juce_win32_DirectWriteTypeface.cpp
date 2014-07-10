@@ -1,29 +1,69 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
 #if JUCE_USE_DIRECTWRITE
+namespace
+{
+    static String getLocalisedName (IDWriteLocalizedStrings* names)
+    {
+        jassert (names != nullptr);
+
+        uint32 index = 0;
+        BOOL exists = false;
+        HRESULT hr = names->FindLocaleName (L"en-us", &index, &exists);
+        if (! exists)
+            index = 0;
+
+        uint32 length = 0;
+        hr = names->GetStringLength (index, &length);
+
+        HeapBlock<wchar_t> name (length + 1);
+        hr = names->GetString (index, name, length + 1);
+
+        return static_cast <const wchar_t*> (name);
+    }
+
+    static String getFontFamilyName (IDWriteFontFamily* family)
+    {
+        jassert (family != nullptr);
+        ComSmartPtr<IDWriteLocalizedStrings> familyNames;
+        HRESULT hr = family->GetFamilyNames (familyNames.resetAndGetPointerAddress());
+        jassert (SUCCEEDED (hr)); (void) hr;
+        return getLocalisedName (familyNames);
+    }
+
+    static String getFontFaceName (IDWriteFont* font)
+    {
+        jassert (font != nullptr);
+        ComSmartPtr<IDWriteLocalizedStrings> faceNames;
+        HRESULT hr = font->GetFaceNames (faceNames.resetAndGetPointerAddress());
+        jassert (SUCCEEDED (hr)); (void) hr;
+
+        return getLocalisedName (faceNames);
+    }
+}
+
 class Direct2DFactories
 {
 public:
@@ -31,7 +71,8 @@ public:
     {
         if (direct2dDll.open ("d2d1.dll"))
         {
-            JUCE_DLL_FUNCTION (D2D1CreateFactory, d2d1CreateFactory, HRESULT, direct2dDll, (D2D1_FACTORY_TYPE, REFIID, D2D1_FACTORY_OPTIONS*, void**))
+            JUCE_LOAD_WINAPI_FUNCTION (direct2dDll, D2D1CreateFactory, d2d1CreateFactory,
+                                       HRESULT, (D2D1_FACTORY_TYPE, REFIID, D2D1_FACTORY_OPTIONS*, void**))
 
             if (d2d1CreateFactory != nullptr)
             {
@@ -45,7 +86,8 @@ public:
 
         if (directWriteDll.open ("DWrite.dll"))
         {
-            JUCE_DLL_FUNCTION (DWriteCreateFactory, dWriteCreateFactory, HRESULT, directWriteDll, (DWRITE_FACTORY_TYPE, REFIID, IUnknown**))
+            JUCE_LOAD_WINAPI_FUNCTION (directWriteDll, DWriteCreateFactory, dWriteCreateFactory,
+                                       HRESULT, (DWRITE_FACTORY_TYPE, REFIID, IUnknown**))
 
             if (dWriteCreateFactory != nullptr)
             {
@@ -65,20 +107,14 @@ public:
         systemFonts = nullptr;
     }
 
-    static const Direct2DFactories& getInstance()
-    {
-        static Direct2DFactories instance;
-        return instance;
-    }
-
-    ComSmartPtr <ID2D1Factory> d2dFactory;
-    ComSmartPtr <IDWriteFactory> directWriteFactory;
-    ComSmartPtr <IDWriteFontCollection> systemFonts;
+    ComSmartPtr<ID2D1Factory> d2dFactory;
+    ComSmartPtr<IDWriteFactory> directWriteFactory;
+    ComSmartPtr<IDWriteFontCollection> systemFonts;
 
 private:
     DynamicLibrary direct2dDll, directWriteDll;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Direct2DFactories);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Direct2DFactories)
 };
 
 //==================================================================================================
@@ -86,8 +122,8 @@ class WindowsDirectWriteTypeface  : public Typeface
 {
 public:
     WindowsDirectWriteTypeface (const Font& font, IDWriteFontCollection* fontCollection)
-        : Typeface (font.getTypefaceName()),
-          ascent (0.0f)
+        : Typeface (font.getTypefaceName(), font.getTypefaceStyle()),
+          unitsToHeightScaleFactor (1.0f), heightToPointsFactor (1.0f), ascent (0.0f)
     {
         jassert (fontCollection != nullptr);
 
@@ -102,33 +138,59 @@ public:
         ComSmartPtr<IDWriteFontFamily> dwFontFamily;
         hr = fontCollection->GetFontFamily (fontIndex, dwFontFamily.resetAndGetPointerAddress());
 
-        // Get a specific font in the font family using certain weight and style flags
+        // Get a specific font in the font family using typeface style
         ComSmartPtr<IDWriteFont> dwFont;
-        DWRITE_FONT_WEIGHT dwWeight = font.isBold() ? DWRITE_FONT_WEIGHT_BOLD  : DWRITE_FONT_WEIGHT_NORMAL;
-        DWRITE_FONT_STYLE dwStyle = font.isItalic() ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL;
+        uint32 fontFacesCount = 0;
+        fontFacesCount = dwFontFamily->GetFontCount();
 
-        hr = dwFontFamily->GetFirstMatchingFont (dwWeight, DWRITE_FONT_STRETCH_NORMAL, dwStyle, dwFont.resetAndGetPointerAddress());
+        for (int i = fontFacesCount; --i >= 0;)
+        {
+            hr = dwFontFamily->GetFont (i, dwFont.resetAndGetPointerAddress());
+
+            if (i == 0)
+                break;
+
+            ComSmartPtr<IDWriteLocalizedStrings> faceNames;
+            hr = dwFont->GetFaceNames (faceNames.resetAndGetPointerAddress());
+
+            if (font.getTypefaceStyle() == getLocalisedName (faceNames))
+                break;
+        }
+
+        jassert (dwFont != nullptr);
         hr = dwFont->CreateFontFace (dwFontFace.resetAndGetPointerAddress());
 
-        DWRITE_FONT_METRICS dwFontMetrics;
-        dwFontFace->GetMetrics (&dwFontMetrics);
+        if (dwFontFace != nullptr)
+        {
+            DWRITE_FONT_METRICS dwFontMetrics;
+            dwFontFace->GetMetrics (&dwFontMetrics);
 
-        // All Font Metrics are in design units so we need to get designUnitsPerEm value to get the metrics
-        // into Em/Design Independent Pixels
-        designUnitsPerEm = dwFontMetrics.designUnitsPerEm;
+            // All Font Metrics are in design units so we need to get designUnitsPerEm value
+            // to get the metrics into Em/Design Independent Pixels
+            designUnitsPerEm = dwFontMetrics.designUnitsPerEm;
 
-        ascent = std::abs ((float) dwFontMetrics.ascent);
-        const float totalSize = ascent + std::abs ((float) dwFontMetrics.descent);
-        ascent /= totalSize;
-        unitsToHeightScaleFactor = 1.0f / (totalSize / designUnitsPerEm);
-        const float pathAscent = (((float) dwFontMetrics.ascent) / ((float) designUnitsPerEm)) * 1024.0f;
-        const float pathDescent = (((float) dwFontMetrics.descent) / ((float) designUnitsPerEm)) * 1024.0f;
-        const float pathTotalSize = std::abs (pathAscent) + std::abs (pathDescent);
-        pathTransform = AffineTransform::identity.scale (1.0f / pathTotalSize, 1.0f / pathTotalSize);
+            ascent = std::abs ((float) dwFontMetrics.ascent);
+            const float totalSize = ascent + std::abs ((float) dwFontMetrics.descent);
+            ascent /= totalSize;
+            unitsToHeightScaleFactor = designUnitsPerEm / totalSize;
+
+            HDC tempDC = GetDC (0);
+            float dpi = (GetDeviceCaps (tempDC, LOGPIXELSX) + GetDeviceCaps (tempDC, LOGPIXELSY)) / 2.0f;
+            heightToPointsFactor = (dpi / GetDeviceCaps (tempDC, LOGPIXELSY)) * unitsToHeightScaleFactor;
+            ReleaseDC (0, tempDC);
+
+            const float pathAscent  = (1024.0f * dwFontMetrics.ascent)  / designUnitsPerEm;
+            const float pathDescent = (1024.0f * dwFontMetrics.descent) / designUnitsPerEm;
+            const float pathScale   = 1.0f / (std::abs (pathAscent) + std::abs (pathDescent));
+            pathTransform = AffineTransform::scale (pathScale);
+        }
     }
 
-    float getAscent() const     { return ascent; }
-    float getDescent() const    { return 1.0f - ascent; }
+    bool loadedOk() const noexcept          { return dwFontFace != nullptr; }
+
+    float getAscent() const                 { return ascent; }
+    float getDescent() const                { return 1.0f - ascent; }
+    float getHeightToPointsFactor() const   { return heightToPointsFactor; }
 
     float getStringWidth (const String& text)
     {
@@ -169,17 +231,6 @@ public:
         }
     }
 
-    EdgeTable* getEdgeTableForGlyph (int glyphNumber, const AffineTransform& transform)
-    {
-        Path path;
-
-        if (getOutlineForGlyph (glyphNumber, path) && ! path.isEmpty())
-            return new EdgeTable (path.getBoundsTransformed (transform).getSmallestIntegerContainer().expanded (1, 0),
-                                  path, transform);
-
-        return nullptr;
-    }
-
     bool getOutlineForGlyph (int glyphNumber, Path& path)
     {
         jassert (path.isEmpty());  // we might need to apply a transform to the path, so this must be empty
@@ -195,16 +246,19 @@ public:
         return true;
     }
 
+    IDWriteFontFace* getIDWriteFontFace() const noexcept    { return dwFontFace; }
+
 private:
+    SharedResourcePointer<Direct2DFactories> factories;
     ComSmartPtr<IDWriteFontFace> dwFontFace;
-    float unitsToHeightScaleFactor, ascent;
+    float unitsToHeightScaleFactor, heightToPointsFactor, ascent;
     int designUnitsPerEm;
     AffineTransform pathTransform;
 
     class PathGeometrySink  : public ComBaseClassHelper<IDWriteGeometrySink>
     {
     public:
-        PathGeometrySink()   { resetReferenceCount(); }
+        PathGeometrySink() : ComBaseClassHelper<IDWriteGeometrySink> (0) {}
 
         void __stdcall AddBeziers (const D2D1_BEZIER_SEGMENT *beziers, UINT beziersCount)
         {
@@ -244,10 +298,10 @@ private:
         Path path;
 
     private:
-        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PathGeometrySink);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PathGeometrySink)
     };
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowsDirectWriteTypeface);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowsDirectWriteTypeface)
 };
 
 #endif

@@ -1,65 +1,60 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
 int64 juce_fileSetPosition (void* handle, int64 pos);
 
+
 //==============================================================================
 FileInputStream::FileInputStream (const File& f)
     : file (f),
       fileHandle (nullptr),
       currentPosition (0),
-      totalSize (0),
-      status (Result::ok()),
-      needToSeek (true)
+      status (Result::ok())
 {
     openHandle();
 }
 
-FileInputStream::~FileInputStream()
-{
-    closeHandle();
-}
-
-//==============================================================================
 int64 FileInputStream::getTotalLength()
 {
-    return totalSize;
+    // You should always check that a stream opened successfully before using it!
+    jassert (openedOk());
+
+    return file.getSize();
 }
 
 int FileInputStream::read (void* buffer, int bytesToRead)
 {
+    // You should always check that a stream opened successfully before using it!
     jassert (openedOk());
+
+    // The buffer should never be null, and a negative size is probably a
+    // sign that something is broken!
     jassert (buffer != nullptr && bytesToRead >= 0);
-
-    if (needToSeek)
-    {
-        if (juce_fileSetPosition (fileHandle, currentPosition) < 0)
-            return 0;
-
-        needToSeek = false;
-    }
 
     const size_t num = readInternal (buffer, (size_t) bytesToRead);
     currentPosition += num;
@@ -69,7 +64,7 @@ int FileInputStream::read (void* buffer, int bytesToRead)
 
 bool FileInputStream::isExhausted()
 {
-    return currentPosition >= totalSize;
+    return currentPosition >= getTotalLength();
 }
 
 int64 FileInputStream::getPosition()
@@ -79,11 +74,11 @@ int64 FileInputStream::getPosition()
 
 bool FileInputStream::setPosition (int64 pos)
 {
+    // You should always check that a stream opened successfully before using it!
     jassert (openedOk());
-    pos = jlimit ((int64) 0, totalSize, pos);
 
-    needToSeek |= (currentPosition != pos);
-    currentPosition = pos;
+    if (pos != currentPosition)
+        currentPosition = juce_fileSetPosition (fileHandle, pos);
 
-    return true;
+    return currentPosition == pos;
 }

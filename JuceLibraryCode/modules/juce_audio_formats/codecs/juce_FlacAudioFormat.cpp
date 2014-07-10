@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -46,7 +45,27 @@ namespace FlacNamespace
   #define SIZE_MAX 0xffffffff
  #endif
 
+ #if JUCE_CLANG
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wconversion"
+  #pragma clang diagnostic ignored "-Wshadow"
+  #pragma clang diagnostic ignored "-Wdeprecated-register"
+ #endif
+
+ #if JUCE_INTEL
+  #if JUCE_32BIT
+   #define FLAC__CPU_IA32 1
+  #endif
+  #if JUCE_64BIT
+   #define FLAC__CPU_X86_64 1
+  #endif
+  #define FLAC__HAS_X86INTRIN 1
+ #endif
+
+ #undef __STDC_LIMIT_MACROS
  #define __STDC_LIMIT_MACROS 1
+ #define flac_max jmax
+ #define flac_min jmin
  #include "flac/all.h"
  #include "flac/libFLAC/bitmath.c"
  #include "flac/libFLAC/bitreader.c"
@@ -67,6 +86,10 @@ namespace FlacNamespace
 #else
  #include <FLAC/all.h>
 #endif
+
+ #if JUCE_CLANG
+  #pragma clang diagnostic pop
+ #endif
 }
 
 #undef max
@@ -74,17 +97,14 @@ namespace FlacNamespace
 
 //==============================================================================
 static const char* const flacFormatName = "FLAC file";
-static const char* const flacExtensions[] = { ".flac", 0 };
 
 
 //==============================================================================
 class FlacReader  : public AudioFormatReader
 {
 public:
-    //==============================================================================
     FlacReader (InputStream* const in)
-        : AudioFormatReader (in, TRANS (flacFormatName)),
-          reservoir (2, 0),
+        : AudioFormatReader (in, flacFormatName),
           reservoirStart (0),
           samplesInReservoir (0),
           scanningForLength (false)
@@ -136,7 +156,7 @@ public:
 
     // returns the number of samples read
     bool readSamples (int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
-                      int64 startSampleInFile, int numSamples)
+                      int64 startSampleInFile, int numSamples) override
     {
         using namespace FlacNamespace;
 
@@ -156,7 +176,7 @@ public:
                 for (int i = jmin (numDestChannels, reservoir.getNumChannels()); --i >= 0;)
                     if (destSamples[i] != nullptr)
                         memcpy (destSamples[i] + startOffsetInDestBuffer,
-                                reservoir.getSampleData (i, (int) (startSampleInFile - reservoirStart)),
+                                reservoir.getReadPointer (i, (int) (startSampleInFile - reservoirStart)),
                                 sizeof (int) * (size_t) num);
 
                 startOffsetInDestBuffer += num;
@@ -223,7 +243,7 @@ public:
 
                 if (src != nullptr)
                 {
-                    int* const dest = reinterpret_cast<int*> (reservoir.getSampleData(i));
+                    int* const dest = reinterpret_cast<int*> (reservoir.getWritePointer(i));
 
                     for (int j = 0; j < numSamples; ++j)
                         dest[j] = src[j] << bitsToShift;
@@ -238,34 +258,34 @@ public:
     static FlacNamespace::FLAC__StreamDecoderReadStatus readCallback_ (const FlacNamespace::FLAC__StreamDecoder*, FlacNamespace::FLAC__byte buffer[], size_t* bytes, void* client_data)
     {
         using namespace FlacNamespace;
-        *bytes = (size_t) static_cast <const FlacReader*> (client_data)->input->read (buffer, (int) *bytes);
+        *bytes = (size_t) static_cast<const FlacReader*> (client_data)->input->read (buffer, (int) *bytes);
         return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
     }
 
     static FlacNamespace::FLAC__StreamDecoderSeekStatus seekCallback_ (const FlacNamespace::FLAC__StreamDecoder*, FlacNamespace::FLAC__uint64 absolute_byte_offset, void* client_data)
     {
         using namespace FlacNamespace;
-        static_cast <const FlacReader*> (client_data)->input->setPosition ((int) absolute_byte_offset);
+        static_cast<const FlacReader*> (client_data)->input->setPosition ((int) absolute_byte_offset);
         return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
     }
 
     static FlacNamespace::FLAC__StreamDecoderTellStatus tellCallback_ (const FlacNamespace::FLAC__StreamDecoder*, FlacNamespace::FLAC__uint64* absolute_byte_offset, void* client_data)
     {
         using namespace FlacNamespace;
-        *absolute_byte_offset = (uint64) static_cast <const FlacReader*> (client_data)->input->getPosition();
+        *absolute_byte_offset = (uint64) static_cast<const FlacReader*> (client_data)->input->getPosition();
         return FLAC__STREAM_DECODER_TELL_STATUS_OK;
     }
 
     static FlacNamespace::FLAC__StreamDecoderLengthStatus lengthCallback_ (const FlacNamespace::FLAC__StreamDecoder*, FlacNamespace::FLAC__uint64* stream_length, void* client_data)
     {
         using namespace FlacNamespace;
-        *stream_length = (uint64) static_cast <const FlacReader*> (client_data)->input->getTotalLength();
+        *stream_length = (uint64) static_cast<const FlacReader*> (client_data)->input->getTotalLength();
         return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
     }
 
     static FlacNamespace::FLAC__bool eofCallback_ (const FlacNamespace::FLAC__StreamDecoder*, void* client_data)
     {
-        return static_cast <const FlacReader*> (client_data)->input->isExhausted();
+        return static_cast<const FlacReader*> (client_data)->input->isExhausted();
     }
 
     static FlacNamespace::FLAC__StreamDecoderWriteStatus writeCallback_ (const FlacNamespace::FLAC__StreamDecoder*,
@@ -274,7 +294,7 @@ public:
                                                                          void* client_data)
     {
         using namespace FlacNamespace;
-        static_cast <FlacReader*> (client_data)->useSamples (buffer, (int) frame->header.blocksize);
+        static_cast<FlacReader*> (client_data)->useSamples (buffer, (int) frame->header.blocksize);
         return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
     }
 
@@ -282,7 +302,7 @@ public:
                                    const FlacNamespace::FLAC__StreamMetadata* metadata,
                                    void* client_data)
     {
-        static_cast <FlacReader*> (client_data)->useMetadata (metadata->data.stream_info);
+        static_cast<FlacReader*> (client_data)->useMetadata (metadata->data.stream_info);
     }
 
     static void errorCallback_ (const FlacNamespace::FLAC__StreamDecoder*, FlacNamespace::FLAC__StreamDecoderErrorStatus, void*)
@@ -295,7 +315,7 @@ private:
     int reservoirStart, samplesInReservoir;
     bool ok, scanningForLength;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlacReader);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlacReader)
 };
 
 
@@ -303,11 +323,8 @@ private:
 class FlacWriter  : public AudioFormatWriter
 {
 public:
-    //==============================================================================
-    FlacWriter (OutputStream* const out, double sampleRate_,
-                uint32 numChannels_, uint32 bitsPerSample_, int qualityOptionIndex)
-        : AudioFormatWriter (out, TRANS (flacFormatName),
-                             sampleRate_, numChannels_, bitsPerSample_)
+    FlacWriter (OutputStream* const out, double rate, uint32 numChans, uint32 bits, int qualityOptionIndex)
+        : AudioFormatWriter (out, flacFormatName, rate, numChans, bits)
     {
         using namespace FlacNamespace;
         encoder = FLAC__stream_encoder_new();
@@ -346,7 +363,7 @@ public:
     }
 
     //==============================================================================
-    bool write (const int** samplesToWrite, int numSamples)
+    bool write (const int** samplesToWrite, int numSamples) override
     {
         using namespace FlacNamespace;
         if (! ok)
@@ -373,15 +390,15 @@ public:
                     destData[j] = (samplesToWrite[i][j] >> bitsToShift);
             }
 
-            samplesToWrite = const_cast <const int**> (channels.getData());
+            samplesToWrite = const_cast<const int**> (channels.getData());
         }
 
-        return FLAC__stream_encoder_process (encoder, (const FLAC__int32**) samplesToWrite, (size_t) numSamples) != 0;
+        return FLAC__stream_encoder_process (encoder, (const FLAC__int32**) samplesToWrite, (unsigned) numSamples) != 0;
     }
 
     bool writeData (const void* const data, const int size) const
     {
-        return output->write (data, size);
+        return output->write (data, (size_t) size);
     }
 
     static void packUint32 (FlacNamespace::FLAC__uint32 val, FlacNamespace::FLAC__byte* b, const int bytes)
@@ -435,7 +452,7 @@ public:
                                                                               void* client_data)
     {
         using namespace FlacNamespace;
-        return static_cast <FlacWriter*> (client_data)->writeData (buffer, (int) bytes)
+        return static_cast<FlacWriter*> (client_data)->writeData (buffer, (int) bytes)
                 ? FLAC__STREAM_ENCODER_WRITE_STATUS_OK
                 : FLAC__STREAM_ENCODER_WRITE_STATUS_FATAL_ERROR;
     }
@@ -452,13 +469,13 @@ public:
         if (client_data == nullptr)
             return FLAC__STREAM_ENCODER_TELL_STATUS_UNSUPPORTED;
 
-        *absolute_byte_offset = (FLAC__uint64) static_cast <FlacWriter*> (client_data)->output->getPosition();
+        *absolute_byte_offset = (FLAC__uint64) static_cast<FlacWriter*> (client_data)->output->getPosition();
         return FLAC__STREAM_ENCODER_TELL_STATUS_OK;
     }
 
     static void encodeMetadataCallback (const FlacNamespace::FLAC__StreamEncoder*, const FlacNamespace::FLAC__StreamMetadata* metadata, void* client_data)
     {
-        static_cast <FlacWriter*> (client_data)->writeMetaData (metadata);
+        static_cast<FlacWriter*> (client_data)->writeMetaData (metadata);
     }
 
     bool ok;
@@ -466,13 +483,13 @@ public:
 private:
     FlacNamespace::FLAC__StreamEncoder* encoder;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlacWriter);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlacWriter)
 };
 
 
 //==============================================================================
 FlacAudioFormat::FlacAudioFormat()
-    : AudioFormat (TRANS (flacFormatName), StringArray (flacExtensions))
+    : AudioFormat (flacFormatName, ".flac")
 {
 }
 
@@ -482,14 +499,17 @@ FlacAudioFormat::~FlacAudioFormat()
 
 Array<int> FlacAudioFormat::getPossibleSampleRates()
 {
-    const int rates[] = { 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 0 };
-    return Array <int> (rates);
+    const int rates[] = { 8000, 11025, 12000, 16000, 22050, 32000, 44100, 48000,
+                          88200, 96000, 176400, 192000, 352800, 384000 };
+
+    return Array<int> (rates, numElementsInArray (rates));
 }
 
 Array<int> FlacAudioFormat::getPossibleBitDepths()
 {
-    const int depths[] = { 16, 24, 0 };
-    return Array <int> (depths);
+    const int depths[] = { 16, 24 };
+
+    return Array<int> (depths, numElementsInArray (depths));
 }
 
 bool FlacAudioFormat::canDoStereo()     { return true; }
@@ -529,7 +549,7 @@ AudioFormatWriter* FlacAudioFormat::createWriterFor (OutputStream* out,
 
 StringArray FlacAudioFormat::getQualityOptions()
 {
-    const char* options[] = { "0 (Fastest)", "1", "2", "3", "4", "5 (Default)","6", "7", "8 (Highest quality)", 0 };
+    static const char* options[] = { "0 (Fastest)", "1", "2", "3", "4", "5 (Default)","6", "7", "8 (Highest quality)", 0 };
     return StringArray (options);
 }
 

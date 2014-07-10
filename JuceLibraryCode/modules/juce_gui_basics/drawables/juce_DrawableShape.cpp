@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -46,11 +45,11 @@ DrawableShape::~DrawableShape()
 class DrawableShape::RelativePositioner  : public RelativeCoordinatePositionerBase
 {
 public:
-    RelativePositioner (DrawableShape& component_, const DrawableShape::RelativeFillType& fill_, bool isMainFill_)
-        : RelativeCoordinatePositionerBase (component_),
-          owner (component_),
-          fill (fill_),
-          isMainFill (isMainFill_)
+    RelativePositioner (DrawableShape& comp, const DrawableShape::RelativeFillType& f, bool isMain)
+        : RelativeCoordinatePositionerBase (comp),
+          owner (comp),
+          fill (f),
+          isMainFill (isMain)
     {
     }
 
@@ -79,7 +78,7 @@ private:
     const DrawableShape::RelativeFillType fill;
     const bool isMainFill;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RelativePositioner);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RelativePositioner)
 };
 
 void DrawableShape::setFill (const FillType& newFill)
@@ -189,8 +188,8 @@ Rectangle<float> DrawableShape::getDrawableBounds() const
 {
     if (isStrokeVisible())
         return strokePath.getBounds();
-    else
-        return path.getBounds();
+
+    return path.getBounds();
 }
 
 bool DrawableShape::hitTest (int x, int y)
@@ -452,4 +451,22 @@ void DrawableShape::FillAndStrokeState::setStrokeType (const PathStrokeType& new
                                      ? "miter" : (newStrokeType.getJointStyle() == PathStrokeType::curved ? "curved" : "bevel"), undoManager);
     state.setProperty (capStyle, newStrokeType.getEndStyle() == PathStrokeType::butt
                                      ? "butt" : (newStrokeType.getEndStyle() == PathStrokeType::square ? "square" : "round"), undoManager);
+}
+
+static bool replaceColourInFill (DrawableShape::RelativeFillType& fill, Colour original, Colour replacement)
+{
+    if (fill.fill.colour == original && fill.fill.isColour())
+    {
+        fill = FillType (replacement);
+        return true;
+    }
+
+    return false;
+}
+
+bool DrawableShape::replaceColour (Colour original, Colour replacement)
+{
+    bool changed1 = replaceColourInFill (mainFill,   original, replacement);
+    bool changed2 = replaceColourInFill (strokeFill, original, replacement);
+    return changed1 || changed2;
 }

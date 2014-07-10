@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -35,10 +34,10 @@ AffineTransform::AffineTransform (const AffineTransform& other) noexcept
 {
 }
 
-AffineTransform::AffineTransform (const float mat00_, const float mat01_, const float mat02_,
-                                  const float mat10_, const float mat11_, const float mat12_) noexcept
- :  mat00 (mat00_), mat01 (mat01_), mat02 (mat02_),
-    mat10 (mat10_), mat11 (mat11_), mat12 (mat12_)
+AffineTransform::AffineTransform (const float m00, const float m01, const float m02,
+                                  const float m10, const float m11, const float m12) noexcept
+ :  mat00 (m00), mat01 (m01), mat02 (m02),
+    mat10 (m10), mat11 (m11), mat12 (m12)
 {
 }
 
@@ -105,6 +104,12 @@ AffineTransform AffineTransform::translation (const float dx, const float dy) no
                             0, 1.0f, dy);
 }
 
+AffineTransform AffineTransform::withAbsoluteTranslation (const float tx, const float ty) const noexcept
+{
+    return AffineTransform (mat00, mat01, tx,
+                            mat10, mat11, ty);
+}
+
 AffineTransform AffineTransform::rotated (const float rad) const noexcept
 {
     const float cosRad = std::cos (rad);
@@ -147,10 +152,20 @@ AffineTransform AffineTransform::scaled (const float factorX, const float factor
                             factorY * mat10, factorY * mat11, factorY * mat12);
 }
 
+AffineTransform AffineTransform::scaled (const float factor) const noexcept
+{
+    return AffineTransform (factor * mat00, factor * mat01, factor * mat02,
+                            factor * mat10, factor * mat11, factor * mat12);
+}
+
 AffineTransform AffineTransform::scale (const float factorX, const float factorY) noexcept
 {
-    return AffineTransform (factorX, 0, 0,
-                            0, factorY, 0);
+    return AffineTransform (factorX, 0, 0, 0, factorY, 0);
+}
+
+AffineTransform AffineTransform::scale (const float factor) noexcept
+{
+    return AffineTransform (factor, 0, 0, 0, factor, 0);
 }
 
 AffineTransform AffineTransform::scaled (const float factorX, const float factorY,
@@ -243,5 +258,5 @@ bool AffineTransform::isOnlyTranslation() const noexcept
 
 float AffineTransform::getScaleFactor() const noexcept
 {
-    return juce_hypot (mat00 + mat01, mat10 + mat11);
+    return (mat00 + mat11) / 2.0f;
 }

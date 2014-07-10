@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -483,17 +482,16 @@ public:
     template <class F1, class E1, class F2, class E2>
     struct Test5
     {
-        static void test (UnitTest& unitTest)
+        static void test (UnitTest& unitTest, Random& r)
         {
-            test (unitTest, false);
-            test (unitTest, true);
+            test (unitTest, false, r);
+            test (unitTest, true, r);
         }
 
-        static void test (UnitTest& unitTest, bool inPlace)
+        static void test (UnitTest& unitTest, bool inPlace, Random& r)
         {
             const int numSamples = 2048;
             int32 original [numSamples], converted [numSamples], reversed [numSamples];
-            Random r;
 
             {
                 AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::NonConst> d (original);
@@ -550,49 +548,50 @@ public:
     template <class F1, class E1, class FormatType>
     struct Test3
     {
-        static void test (UnitTest& unitTest)
+        static void test (UnitTest& unitTest, Random& r)
         {
-            Test5 <F1, E1, FormatType, AudioData::BigEndian>::test (unitTest);
-            Test5 <F1, E1, FormatType, AudioData::LittleEndian>::test (unitTest);
+            Test5 <F1, E1, FormatType, AudioData::BigEndian>::test (unitTest, r);
+            Test5 <F1, E1, FormatType, AudioData::LittleEndian>::test (unitTest, r);
         }
     };
 
     template <class FormatType, class Endianness>
     struct Test2
     {
-        static void test (UnitTest& unitTest)
+        static void test (UnitTest& unitTest, Random& r)
         {
-            Test3 <FormatType, Endianness, AudioData::Int8>::test (unitTest);
-            Test3 <FormatType, Endianness, AudioData::UInt8>::test (unitTest);
-            Test3 <FormatType, Endianness, AudioData::Int16>::test (unitTest);
-            Test3 <FormatType, Endianness, AudioData::Int24>::test (unitTest);
-            Test3 <FormatType, Endianness, AudioData::Int32>::test (unitTest);
-            Test3 <FormatType, Endianness, AudioData::Float32>::test (unitTest);
+            Test3 <FormatType, Endianness, AudioData::Int8>::test (unitTest, r);
+            Test3 <FormatType, Endianness, AudioData::UInt8>::test (unitTest, r);
+            Test3 <FormatType, Endianness, AudioData::Int16>::test (unitTest, r);
+            Test3 <FormatType, Endianness, AudioData::Int24>::test (unitTest, r);
+            Test3 <FormatType, Endianness, AudioData::Int32>::test (unitTest, r);
+            Test3 <FormatType, Endianness, AudioData::Float32>::test (unitTest, r);
         }
     };
 
     template <class FormatType>
     struct Test1
     {
-        static void test (UnitTest& unitTest)
+        static void test (UnitTest& unitTest, Random& r)
         {
-            Test2 <FormatType, AudioData::BigEndian>::test (unitTest);
-            Test2 <FormatType, AudioData::LittleEndian>::test (unitTest);
+            Test2 <FormatType, AudioData::BigEndian>::test (unitTest, r);
+            Test2 <FormatType, AudioData::LittleEndian>::test (unitTest, r);
         }
     };
 
     void runTest()
     {
+        Random r = getRandom();
         beginTest ("Round-trip conversion: Int8");
-        Test1 <AudioData::Int8>::test (*this);
+        Test1 <AudioData::Int8>::test (*this, r);
         beginTest ("Round-trip conversion: Int16");
-        Test1 <AudioData::Int16>::test (*this);
+        Test1 <AudioData::Int16>::test (*this, r);
         beginTest ("Round-trip conversion: Int24");
-        Test1 <AudioData::Int24>::test (*this);
+        Test1 <AudioData::Int24>::test (*this, r);
         beginTest ("Round-trip conversion: Int32");
-        Test1 <AudioData::Int32>::test (*this);
+        Test1 <AudioData::Int32>::test (*this, r);
         beginTest ("Round-trip conversion: Float32");
-        Test1 <AudioData::Float32>::test (*this);
+        Test1 <AudioData::Float32>::test (*this, r);
     }
 };
 

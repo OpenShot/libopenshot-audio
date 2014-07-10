@@ -1,33 +1,33 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the juce_core module of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission to use, copy, modify, and/or distribute this software for any purpose with
+   or without fee is hereby granted, provided that the above copyright notice and this
+   permission notice appear in all copies.
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
+   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+   ------------------------------------------------------------------------------
 
-  ------------------------------------------------------------------------------
+   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
+   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
+   using any other modules, be sure to check that you also comply with their license.
 
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   For more details, visit www.juce.com
 
   ==============================================================================
 */
 
-#ifndef __JUCE_THREAD_JUCEHEADER__
-#define __JUCE_THREAD_JUCEHEADER__
-
-#include "juce_WaitableEvent.h"
-#include "juce_CriticalSection.h"
+#ifndef JUCE_THREAD_H_INCLUDED
+#define JUCE_THREAD_H_INCLUDED
 
 
 //==============================================================================
@@ -58,10 +58,10 @@ public:
 
     /** Destructor.
 
-        Deleting a Thread object that is running will only give the thread a
-        brief opportunity to stop itself cleanly, so it's recommended that you
-        should always call stopThread() with a decent timeout before deleting,
-        to avoid the thread being forcibly killed (which is a Bad Thing).
+        You must never attempt to delete a Thread object while it's still running -
+        always call stopThread() and make sure your thread has stopped before deleting
+        the object. Failing to do so will throw an assertion, and put you firmly into
+        undefined behaviour territory.
     */
     virtual ~Thread();
 
@@ -81,8 +81,8 @@ public:
 
     /** Starts the thread running.
 
-        This will start the thread's run() method.
-        (if it's already started, startThread() won't do anything).
+        This will cause the thread's run() method to be called by a new thread.
+        If this thread is already running, startThread() won't do anything.
 
         @see stopThread
     */
@@ -113,9 +113,11 @@ public:
         @param timeOutMilliseconds  The number of milliseconds to wait for the
                                     thread to finish before killing it by force. A negative
                                     value in here will wait forever.
+        @returns    true if the thread was cleanly stopped before the timeout, or false
+                    if it had to be killed by force.
         @see signalThreadShouldExit, threadShouldExit, waitForThreadToExit, isThreadRunning
     */
-    void stopThread (int timeOutMilliseconds);
+    bool stopThread (int timeOutMilliseconds);
 
     //==============================================================================
     /** Returns true if the thread is currently active */
@@ -183,12 +185,10 @@ public:
     void setAffinityMask (uint32 affinityMask);
 
     /** Changes the affinity mask for the caller thread.
-
         This will change the affinity mask for the thread that calls this static method.
-
         @see setAffinityMask
     */
-    static void setCurrentThreadAffinityMask (uint32 affinityMask);
+    static void JUCE_CALLTYPE setCurrentThreadAffinityMask (uint32 affinityMask);
 
     //==============================================================================
     // this can be called from any thread that needs to pause..
@@ -230,14 +230,14 @@ public:
         @returns    a unique identifier that identifies the calling thread.
         @see getThreadId
     */
-    static ThreadID getCurrentThreadId();
+    static ThreadID JUCE_CALLTYPE getCurrentThreadId();
 
     /** Finds the thread object that is currently running.
 
         Note that the main UI thread (or other non-Juce threads) don't have a Thread
         object associated with them, so this will return 0.
     */
-    static Thread* getCurrentThread();
+    static Thread* JUCE_CALLTYPE getCurrentThread();
 
     /** Returns the ID of this thread.
 
@@ -259,7 +259,7 @@ public:
     /** Changes the name of the caller thread.
         Different OSes may place different length or content limits on this name.
     */
-    static void setCurrentThreadName (const String& newThreadName);
+    static void JUCE_CALLTYPE setCurrentThreadName (const String& newThreadName);
 
 
 private:
@@ -283,7 +283,7 @@ private:
     void threadEntryPoint();
     static bool setThreadPriority (void*, int);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Thread);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Thread)
 };
 
-#endif   // __JUCE_THREAD_JUCEHEADER__
+#endif   // JUCE_THREAD_H_INCLUDED

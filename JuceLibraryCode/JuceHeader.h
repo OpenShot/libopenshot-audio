@@ -34,8 +34,8 @@
 namespace ProjectInfo
 {
     const char* const  projectName    = "libopenshot-audio";
-    const char* const  versionString  = "0.1.0";
-    const int          versionNumber  = 0x100;
+    const char* const  versionString  = "0.0.1";
+    const int          versionNumber  = 0x1;
 }
 
 #endif   // __APPHEADERFILE_IIUU5J__

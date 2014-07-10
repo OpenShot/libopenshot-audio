@@ -1,29 +1,28 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#if defined (__JUCE_GUI_EXTRA_JUCEHEADER__) && ! JUCE_AMALGAMATED_INCLUDE
+#if defined (JUCE_GUI_EXTRA_H_INCLUDED) && ! JUCE_AMALGAMATED_INCLUDE
  /* When you add this cpp file to your project, you mustn't include it in a file where you've
     already included any other headers - just put it inside a file on its own, possibly with your config
     flags preceding it, but don't include anything else. That also includes avoiding any automatic prefix
@@ -62,7 +61,7 @@
  #include <commdlg.h>
 
  #if JUCE_WEB_BROWSER
-  #include <Exdisp.h>
+  #include <exdisp.h>
   #include <exdispid.h>
  #endif
 
@@ -79,12 +78,16 @@
 namespace juce
 {
 
-// START_AUTOINCLUDE documents/*.cpp, code_editor/*.cpp, embedding/*.cpp, lookandfeel/*.cpp, misc/*.cpp
+#if JUCE_MAC || JUCE_IOS
+ #include "../juce_core/native/juce_osx_ObjCHelpers.h"
+#endif
+
 #include "documents/juce_FileBasedDocument.cpp"
 #include "code_editor/juce_CodeDocument.cpp"
 #include "code_editor/juce_CodeEditorComponent.cpp"
 #include "code_editor/juce_CPlusPlusCodeTokeniser.cpp"
-#include "lookandfeel/juce_OldSchoolLookAndFeel.cpp"
+#include "code_editor/juce_XMLCodeTokeniser.cpp"
+#include "code_editor/juce_LuaCodeTokeniser.cpp"
 #include "misc/juce_BubbleMessageComponent.cpp"
 #include "misc/juce_ColourSelector.cpp"
 #include "misc/juce_KeyMappingEditorComponent.cpp"
@@ -92,7 +95,7 @@ namespace juce
 #include "misc/juce_RecentlyOpenedFilesList.cpp"
 #include "misc/juce_SplashScreen.cpp"
 #include "misc/juce_SystemTrayIconComponent.cpp"
-// END_AUTOINCLUDE
+#include "misc/juce_LiveConstantEditor.cpp"
 
 }
 
@@ -104,12 +107,12 @@ namespace juce
 //==============================================================================
 #if JUCE_MAC || JUCE_IOS
  #include "../juce_core/native/juce_osx_ObjCHelpers.h"
- #include "../juce_core/native/juce_mac_ObjCSuffix.h"
  #include "../juce_graphics/native/juce_mac_CoreGraphicsHelpers.h"
 
  #if JUCE_MAC
   #include "native/juce_mac_NSViewComponent.mm"
   #include "native/juce_mac_AppleRemote.mm"
+  #include "native/juce_mac_SystemTrayIcon.cpp"
  #endif
 
  #if JUCE_IOS
@@ -144,4 +147,9 @@ namespace juce
  #endif
 #endif
 
+#if JUCE_WEB_BROWSER
+ bool WebBrowserComponent::pageAboutToLoad (const String&)  { return true; }
+ void WebBrowserComponent::pageFinishedLoading (const String&) {}
+ void WebBrowserComponent::windowCloseRequest() {}
+#endif
 }

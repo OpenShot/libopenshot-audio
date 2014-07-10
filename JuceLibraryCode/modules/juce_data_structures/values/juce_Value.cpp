@@ -1,24 +1,23 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
@@ -29,33 +28,35 @@ Value::ValueSource::ValueSource()
 
 Value::ValueSource::~ValueSource()
 {
-}
-
-void Value::ValueSource::sendChangeMessage (const bool synchronous)
-{
-    if (synchronous)
-    {
-        // (hold a local reference to this object in case it's freed during the callbacks)
-        const ReferenceCountedObjectPtr<ValueSource> localRef (this);
-
-        for (int i = valuesWithListeners.size(); --i >= 0;)
-        {
-            Value* const v = valuesWithListeners[i];
-
-            if (v != nullptr)
-                v->callListeners();
-        }
-    }
-    else
-    {
-        if (valuesWithListeners.size() > 0)
-            triggerAsyncUpdate();
-    }
+    cancelPendingUpdate();
 }
 
 void Value::ValueSource::handleAsyncUpdate()
 {
     sendChangeMessage (true);
+}
+
+void Value::ValueSource::sendChangeMessage (const bool synchronous)
+{
+    const int numListeners = valuesWithListeners.size();
+
+    if (numListeners > 0)
+    {
+        if (synchronous)
+        {
+            const ReferenceCountedObjectPtr<ValueSource> localRef (this);
+
+            cancelPendingUpdate();
+
+            for (int i = numListeners; --i >= 0;)
+                if (Value* const v = valuesWithListeners[i])
+                    v->callListeners();
+        }
+        else
+        {
+            triggerAsyncUpdate();
+        }
+    }
 }
 
 //==============================================================================
@@ -88,7 +89,7 @@ public:
 private:
     var value;
 
-    JUCE_DECLARE_NON_COPYABLE (SimpleValueSource);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleValueSource)
 };
 
 
@@ -98,10 +99,10 @@ Value::Value()
 {
 }
 
-Value::Value (ValueSource* const value_)
-    : value (value_)
+Value::Value (ValueSource* const v)
+    : value (v)
 {
-    jassert (value_ != nullptr);
+    jassert (v != nullptr);
 }
 
 Value::Value (const var& initialValue)
@@ -122,13 +123,13 @@ Value& Value::operator= (const Value& other)
 
 #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
 Value::Value (Value&& other) noexcept
-    : value (static_cast <ReferenceCountedObjectPtr <ValueSource>&&> (other.value))
+    : value (static_cast<ReferenceCountedObjectPtr<ValueSource>&&> (other.value))
 {
 }
 
 Value& Value::operator= (Value&& other) noexcept
 {
-    value = static_cast <ReferenceCountedObjectPtr <ValueSource>&&> (other.value);
+    value = static_cast<ReferenceCountedObjectPtr<ValueSource>&&> (other.value);
     return *this;
 }
 #endif
@@ -218,8 +219,11 @@ void Value::removeListener (ValueListener* const listener)
 
 void Value::callListeners()
 {
-    Value v (*this); // (create a copy in case this gets deleted by a callback)
-    listeners.call (&ValueListener::valueChanged, v);
+    if (listeners.size() > 0)
+    {
+        Value v (*this); // (create a copy in case this gets deleted by a callback)
+        listeners.call (&ValueListener::valueChanged, v);
+    }
 }
 
 OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const Value& value)

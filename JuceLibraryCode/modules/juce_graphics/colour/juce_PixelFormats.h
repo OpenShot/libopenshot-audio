@@ -1,46 +1,48 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PIXELFORMATS_JUCEHEADER__
-#define __JUCE_PIXELFORMATS_JUCEHEADER__
+#ifndef JUCE_PIXELFORMATS_H_INCLUDED
+#define JUCE_PIXELFORMATS_H_INCLUDED
 
 
 //==============================================================================
-#ifndef DOXYGEN
- #if JUCE_MSVC
-  #pragma pack (push, 1)
-  #define PACKED
- #elif JUCE_GCC
-  #define PACKED __attribute__((packed))
- #else
-  #define PACKED
- #endif
+#if JUCE_MSVC
+ #pragma pack (push, 1)
 #endif
 
 class PixelRGB;
 class PixelAlpha;
+
+inline uint32 maskPixelComponents (uint32 x) noexcept
+{
+    return (x >> 8) & 0x00ff00ff;
+}
+
+inline uint32 clampPixelComponents (uint32 x) noexcept
+{
+    return (x | (0x01000100 - maskPixelComponents (x))) & 0x00ff00ff;
+}
 
 //==============================================================================
 /**
@@ -60,8 +62,8 @@ public:
 
     /** Creates a pixel from a 32-bit argb value.
     */
-    PixelARGB (const uint32 argb_) noexcept
-        : argb (argb_)
+    PixelARGB (const uint32 argbValue) noexcept
+        : argb (argbValue)
     {
     }
 
@@ -84,6 +86,19 @@ public:
     forcedinline uint8 getGreen() const noexcept    { return components.g; }
     forcedinline uint8 getBlue() const noexcept     { return components.b; }
 
+   #if JUCE_GCC && ! JUCE_CLANG
+    // NB these are here as a workaround because GCC refuses to bind to packed values.
+    forcedinline uint8& getAlpha() noexcept         { return comps [indexA]; }
+    forcedinline uint8& getRed() noexcept           { return comps [indexR]; }
+    forcedinline uint8& getGreen() noexcept         { return comps [indexG]; }
+    forcedinline uint8& getBlue() noexcept          { return comps [indexB]; }
+   #else
+    forcedinline uint8& getAlpha() noexcept         { return components.a; }
+    forcedinline uint8& getRed() noexcept           { return components.r; }
+    forcedinline uint8& getGreen() noexcept         { return components.g; }
+    forcedinline uint8& getBlue() noexcept          { return components.b; }
+   #endif
+
     /** Blends another pixel onto this one.
 
         This takes into account the opacity of the pixel being overlaid, and blends
@@ -92,13 +107,10 @@ public:
     template <class Pixel>
     forcedinline void blend (const Pixel& src) noexcept
     {
-        uint32 sargb = src.getARGB();
-        const uint32 alpha = 0x100 - (sargb >> 24);
-
-        sargb += 0x00ff00ff & ((getRB() * alpha) >> 8);
-        sargb += 0xff00ff00 & (getAG() * alpha);
-
-        argb = sargb;
+        const uint32 alpha = 0x100 - src.getAlpha();
+        uint32 rb = src.getRB() + maskPixelComponents (getRB() * alpha);
+        uint32 ag = src.getAG() + maskPixelComponents (getAG() * alpha);
+        argb = clampPixelComponents (rb) + (clampPixelComponents (ag) << 8);
     }
 
     /** Blends another pixel onto this one.
@@ -106,7 +118,7 @@ public:
         This takes into account the opacity of the pixel being overlaid, and blends
         it accordingly.
     */
-    forcedinline void blend (const PixelRGB& src) noexcept;
+    forcedinline void blend (const PixelRGB src) noexcept;
 
 
     /** Blends another pixel onto this one, applying an extra multiplier to its opacity.
@@ -117,17 +129,14 @@ public:
     template <class Pixel>
     forcedinline void blend (const Pixel& src, uint32 extraAlpha) noexcept
     {
-        ++extraAlpha;
+        uint32 ag = maskPixelComponents (extraAlpha * src.getAG());
+        const uint32 alpha = 0x100 - (ag >> 16);
+        ag += maskPixelComponents (getAG() * alpha);
 
-        uint32 sargb = ((extraAlpha * src.getAG()) & 0xff00ff00)
-                         | (((extraAlpha * src.getRB()) >> 8) & 0x00ff00ff);
+        uint32 rb = maskPixelComponents (extraAlpha * src.getRB())
+                     + maskPixelComponents (getRB() * alpha);
 
-        const uint32 alpha = 0x100 - (sargb >> 24);
-
-        sargb += 0x00ff00ff & ((getRB() * alpha) >> 8);
-        sargb += 0xff00ff00 & (getAG() * alpha);
-
-        argb = sargb;
+        argb = clampPixelComponents(rb) + (clampPixelComponents (ag) << 8);
     }
 
     /** Blends another pixel with this one, creating a colour that is somewhere
@@ -271,20 +280,23 @@ private:
     struct Components
     {
        #if JUCE_BIG_ENDIAN
-        uint8 a : 8, r : 8, g : 8, b : 8;
+        uint8 a, r, g, b;
        #else
         uint8 b, g, r, a;
        #endif
-    } PACKED;
+    } JUCE_PACKED;
 
     union
     {
         uint32 argb;
         Components components;
+       #if JUCE_GCC
+        uint8 comps[4];
+       #endif
     };
 }
 #ifndef DOXYGEN
- PACKED
+ JUCE_PACKED
 #endif
 ;
 
@@ -326,6 +338,10 @@ public:
     forcedinline uint8 getGreen() const noexcept    { return g; }
     forcedinline uint8 getBlue() const noexcept     { return b; }
 
+    forcedinline uint8& getRed() noexcept           { return r; }
+    forcedinline uint8& getGreen() noexcept         { return g; }
+    forcedinline uint8& getBlue() noexcept          { return b; }
+
     /** Blends another pixel onto this one.
 
         This takes into account the opacity of the pixel being overlaid, and blends
@@ -334,18 +350,17 @@ public:
     template <class Pixel>
     forcedinline void blend (const Pixel& src) noexcept
     {
-        uint32 sargb = src.getARGB();
-        const uint32 alpha = 0x100 - (sargb >> 24);
+        const uint32 alpha = 0x100 - src.getAlpha();
 
-        sargb += 0x00ff00ff & ((getRB() * alpha) >> 8);
-        sargb += 0x0000ff00 & (g * alpha);
+        uint32 rb = clampPixelComponents (src.getRB() + maskPixelComponents (getRB() * alpha));
+        uint32 ag = src.getAG() + (g * alpha >> 8);
 
-        r = (uint8) (sargb >> 16);
-        g = (uint8) (sargb >> 8);
-        b = (uint8) sargb;
+        r = (uint8) (rb >> 16);
+        g = (uint8) clampPixelComponents (ag);
+        b = (uint8) rb;
     }
 
-    forcedinline void blend (const PixelRGB& src) noexcept
+    forcedinline void blend (const PixelRGB src) noexcept
     {
         set (src);
     }
@@ -358,19 +373,16 @@ public:
     template <class Pixel>
     forcedinline void blend (const Pixel& src, uint32 extraAlpha) noexcept
     {
-        ++extraAlpha;
-        const uint32 srb = (extraAlpha * src.getRB()) >> 8;
-        const uint32 sag = extraAlpha * src.getAG();
-        uint32 sargb = (sag & 0xff00ff00) | (srb & 0x00ff00ff);
+        uint32 ag = maskPixelComponents (extraAlpha * src.getAG());
+        const uint32 alpha = 0x100 - (ag >> 16);
+        ag += g * alpha >> 8;
 
-        const uint32 alpha = 0x100 - (sargb >> 24);
+        uint32 rb = clampPixelComponents (maskPixelComponents (extraAlpha * src.getRB())
+                                           + maskPixelComponents (getRB() * alpha));
 
-        sargb += 0x00ff00ff & ((getRB() * alpha) >> 8);
-        sargb += 0x0000ff00 & (g * alpha);
-
-        b = (uint8) sargb;
-        g = (uint8) (sargb >> 8);
-        r = (uint8) (sargb >> 16);
+        b = (uint8) rb;
+        g = (uint8) clampPixelComponents (ag);
+        r = (uint8) (rb >> 16);
     }
 
     /** Blends another pixel with this one, creating a colour that is somewhere
@@ -414,11 +426,11 @@ public:
     forcedinline void multiplyAlpha (float) noexcept {}
 
     /** Sets the pixel's colour from individual components. */
-    void setARGB (const uint8, const uint8 r_, const uint8 g_, const uint8 b_) noexcept
+    void setARGB (const uint8, const uint8 red, const uint8 green, const uint8 blue) noexcept
     {
-        r = r_;
-        g = g_;
-        b = b_;
+        r = red;
+        g = green;
+        b = blue;
     }
 
     /** Premultiplies the pixel's RGB values by its alpha. */
@@ -450,11 +462,11 @@ private:
 
 }
 #ifndef DOXYGEN
- PACKED
+ JUCE_PACKED
 #endif
 ;
 
-forcedinline void PixelARGB::blend (const PixelRGB& src) noexcept
+forcedinline void PixelARGB::blend (const PixelRGB src) noexcept
 {
     set (src);
 }
@@ -490,6 +502,8 @@ public:
     forcedinline uint32 getAG() const noexcept      { return (((uint32) a) << 16) | a; }
 
     forcedinline uint8 getAlpha() const noexcept    { return a; }
+    forcedinline uint8& getAlpha() noexcept         { return a; }
+
     forcedinline uint8 getRed() const noexcept      { return 0; }
     forcedinline uint8 getGreen() const noexcept    { return 0; }
     forcedinline uint8 getBlue() const noexcept     { return 0; }
@@ -576,10 +590,10 @@ public:
 
 private:
     //==============================================================================
-    uint8 a : 8;
+    uint8 a;
 }
 #ifndef DOXYGEN
- PACKED
+ JUCE_PACKED
 #endif
 ;
 
@@ -587,6 +601,4 @@ private:
  #pragma pack (pop)
 #endif
 
-#undef PACKED
-
-#endif   // __JUCE_PIXELFORMATS_JUCEHEADER__
+#endif   // JUCE_PIXELFORMATS_H_INCLUDED

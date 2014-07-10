@@ -1,35 +1,30 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_PROPERTYCOMPONENT_JUCEHEADER__
-#define __JUCE_PROPERTYCOMPONENT_JUCEHEADER__
+#ifndef JUCE_PROPERTYCOMPONENT_H_INCLUDED
+#define JUCE_PROPERTYCOMPONENT_H_INCLUDED
 
-class EditableProperty;
-
-#include "../components/juce_Component.h"
-#include "../mouse/juce_TooltipClient.h"
 
 //==============================================================================
 /**
@@ -97,15 +92,43 @@ public:
 
         @see LookAndFeel::drawPropertyComponentBackground(), LookAndFeel::drawPropertyComponentLabel()
     */
-    void paint (Graphics& g);
+    void paint (Graphics&) override;
 
     /** The default resize method positions any child component to the right of this
         one, based on the look and feel's default label size.
     */
-    void resized();
+    void resized() override;
 
     /** By default, this just repaints the component. */
-    void enablementChanged();
+    void enablementChanged() override;
+
+    //==============================================================================
+    /** A set of colour IDs to use to change the colour of various aspects of the combo box.
+
+        These constants can be used either via the Component::setColour(), or LookAndFeel::setColour()
+        methods.
+
+        To change the colours of the menu that pops up
+
+        @see Component::setColour, Component::findColour, LookAndFeel::setColour, LookAndFeel::findColour
+    */
+    enum ColourIds
+    {
+        backgroundColourId     = 0x1008300,    /**< The background colour to fill the component with. */
+        labelTextColourId      = 0x1008301,    /**< The colour for the property's label text. */
+    };
+
+    //==============================================================================
+    /** This abstract base class is implemented by LookAndFeel classes. */
+    struct JUCE_API  LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {}
+
+        virtual void drawPropertyPanelSectionHeader (Graphics&, const String& name, bool isOpen, int width, int height) = 0;
+        virtual void drawPropertyComponentBackground (Graphics&, int width, int height, PropertyComponent&) = 0;
+        virtual void drawPropertyComponentLabel (Graphics&, int width, int height, PropertyComponent&) = 0;
+        virtual Rectangle<int> getPropertyComponentContentPosition (PropertyComponent&) = 0;
+    };
 
 protected:
     /** Used by the PropertyPanel to determine how high this component needs to be.
@@ -114,11 +137,9 @@ protected:
     */
     int preferredHeight;
 
-
 private:
-    //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertyComponent);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertyComponent)
 };
 
 
-#endif   // __JUCE_PROPERTYCOMPONENT_JUCEHEADER__
+#endif   // JUCE_PROPERTYCOMPONENT_H_INCLUDED

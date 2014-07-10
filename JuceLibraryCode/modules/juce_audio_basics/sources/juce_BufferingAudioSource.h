@@ -1,32 +1,29 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-11 by Raw Material Software Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2013 - Raw Material Software Ltd.
 
-  ------------------------------------------------------------------------------
+   Permission is granted to use this software under the terms of either:
+   a) the GPL v2 (or any later version)
+   b) the Affero GPL v3
 
-   JUCE can be redistributed and/or modified under the terms of the GNU General
-   Public License (Version 2), as published by the Free Software Foundation.
-   A copy of the license is included in the JUCE distribution, or can be found
-   online at www.gnu.org/licenses.
+   Details of these licenses can be found at: www.gnu.org/licenses
 
    JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
    A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-  ------------------------------------------------------------------------------
+   ------------------------------------------------------------------------------
 
    To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.rawmaterialsoftware.com/juce for more information.
+   available: visit www.juce.com for more information.
 
   ==============================================================================
 */
 
-#ifndef __JUCE_BUFFERINGAUDIOSOURCE_JUCEHEADER__
-#define __JUCE_BUFFERINGAUDIOSOURCE_JUCEHEADER__
-
-#include "juce_PositionableAudioSource.h"
+#ifndef JUCE_BUFFERINGAUDIOSOURCE_H_INCLUDED
+#define JUCE_BUFFERINGAUDIOSOURCE_H_INCLUDED
 
 
 //==============================================================================
@@ -71,26 +68,26 @@ public:
 
     //==============================================================================
     /** Implementation of the AudioSource method. */
-    void prepareToPlay (int samplesPerBlockExpected, double sampleRate);
+    void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override;
 
     /** Implementation of the AudioSource method. */
-    void releaseResources();
+    void releaseResources() override;
 
     /** Implementation of the AudioSource method. */
-    void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
+    void getNextAudioBlock (const AudioSourceChannelInfo&) override;
 
     //==============================================================================
     /** Implements the PositionableAudioSource method. */
-    void setNextReadPosition (int64 newPosition);
+    void setNextReadPosition (int64 newPosition) override;
 
     /** Implements the PositionableAudioSource method. */
-    int64 getNextReadPosition() const;
+    int64 getNextReadPosition() const override;
 
     /** Implements the PositionableAudioSource method. */
-    int64 getTotalLength() const                { return source->getTotalLength(); }
+    int64 getTotalLength() const override       { return source->getTotalLength(); }
 
     /** Implements the PositionableAudioSource method. */
-    bool isLooping() const                      { return source->isLooping(); }
+    bool isLooping() const override             { return source->isLooping(); }
 
 private:
     //==============================================================================
@@ -103,13 +100,12 @@ private:
     double volatile sampleRate;
     bool wasSourceLooping, isPrepared;
 
-    friend class SharedBufferingAudioSourceThread;
     bool readNextBufferChunk();
     void readBufferSection (int64 start, int length, int bufferOffset);
-    int useTimeSlice();
+    int useTimeSlice() override;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BufferingAudioSource);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BufferingAudioSource)
 };
 
 
-#endif   // __JUCE_BUFFERINGAUDIOSOURCE_JUCEHEADER__
+#endif   // JUCE_BUFFERINGAUDIOSOURCE_H_INCLUDED
