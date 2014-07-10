@@ -1,17 +1,31 @@
-OpenShot Video Library is a program that creates, modifies, and edits video files.
-Copyright (C) 2011  OpenShot Studios, LLC
+------------------------------------------------------------------------------
+OpenShot Audio Library (libopenshot-audio) is a program that allows the 
+high-quality editing and playback of audio, and is based on the amazing 
+JUCE library.
+ 
+  Copyright 2004-2014 by Raw Material Software Ltd.
+  Copyright (C) 2011-2014 OpenShot Studios, LLC.
+  
+------------------------------------------------------------------------------
 
-OpenShot Video Editor is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+OpenShot Audio Library (libopenshot-audio) is free software: you can 
+redistribute it and/or modify it under the terms of the GNU Affero General 
+Public License as published by the Free Software Foundation, either 
+version 3 of the License, or (at your option) any later version.
 
-OpenShot Video Editor is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+OpenShot Audio Library (libopenshot-audio) is distributed in the hope that 
+it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty 
+of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with OpenShot Video Editor.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License
+along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
 
-
+------------------------------------------------------------------------------
+To release a closed-source product which uses JUCE (i.e. audio playback and 
+editing), commercial licenses are available: visit 
+www.rawmaterialsoftware.com/juce for more information.
+  
+To release a closed-source product which uses libopenshot (i.e. video playback
+and editing), commercial licenses are available: contact sales@openshot.org 
+for more information.
