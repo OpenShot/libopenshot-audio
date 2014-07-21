@@ -277,16 +277,20 @@ inline int numElementsInArray (Type (&array)[N])
 //==============================================================================
 // Some useful maths functions that aren't always present with all compilers and build settings.
 
+
 /** Using juce_hypot is easier than dealing with the different types of hypot function
     that are provided by the various platforms and compilers. */
 template <typename Type>
 inline Type juce_hypot (Type a, Type b) noexcept
 {
+
+#ifndef IGNORE_JUCE_HYPOT
    #if JUCE_MSVC
     return static_cast <Type> (_hypot (a, b));
    #else
     return static_cast <Type> (hypot (a, b));
    #endif
+#endif
 }
 
 /** 64-bit abs function. */
