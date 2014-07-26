@@ -107,7 +107,9 @@ ELSE (WIN32)
             SET(EXTENSION "mm")
             
             SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
-            SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc")
+            SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
+		
+            SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++0x")
 		
         ELSE (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
