@@ -141,6 +141,9 @@ FILE(GLOB JUCE_SOURCES
 	JuceLibraryCode/modules/juce_audio_processors/juce_audio_processors.${EXTENSION}
 )
 
+# Disable RPATH
+SET(CMAKE_MACOSX_RPATH 0)
+
 ADD_LIBRARY(openshot-audio SHARED
 	${JUCE_SOURCES}
 )
@@ -149,7 +152,8 @@ ADD_LIBRARY(openshot-audio SHARED
 set_target_properties(openshot-audio
 			PROPERTIES
 			VERSION ${PROJECT_VERSION}
-			SOVERSION ${SO_VERSION})
+			SOVERSION ${SO_VERSION}
+			INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 
 TARGET_LINK_LIBRARIES(openshot-audio
 	${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
