@@ -109,7 +109,7 @@ ELSE (WIN32)
             SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
             SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
 		
-            SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++0x")
+            SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -x objective-c++ -flax-vector-conversions -std=c++0x")
 		
         ELSE (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
