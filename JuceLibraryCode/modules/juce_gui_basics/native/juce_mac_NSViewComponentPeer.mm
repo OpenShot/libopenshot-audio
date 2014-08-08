@@ -1727,7 +1727,7 @@ private:
 
     static void becomeKeyWindow (id self, SEL)
     {
-        sendSuperclassMessage (self, @selector (becomeKeyWindow));
+        //sendSuperclassMessage (self, @selector (becomeKeyWindow));
 
         if (NSViewComponentPeer* const owner = getOwner (self))
             owner->becomeKeyWindow();

@@ -49,7 +49,7 @@ private:
     static void dealloc (id self, SEL)
     {
         delete getIvar<StringArray*> (self, "filters");
-        sendSuperclassMessage (self, @selector (dealloc));
+        //sendSuperclassMessage (self, @selector (dealloc));
     }
 
     static BOOL shouldShowFilename (id self, SEL, id /*sender*/, NSString* filename)

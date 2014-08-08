@@ -140,11 +140,11 @@ struct ObjCClass
         jassert (b); (void) b;
     }
 
-    static id sendSuperclassMessage (id self, SEL selector)
-    {
-        objc_super s = { self, [SuperclassType class] };
-        return objc_msgSendSuper (&s, selector);
-    }
+//    static id sendSuperclassMessage (id self, SEL selector)
+//    {
+//        objc_super s = { self, [SuperclassType class] };
+//        return objc_msgSendSuper (&s, selector);
+//    }
 
     template <typename Type>
     static Type getIvar (id self, const char* name)
