@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -40,18 +40,19 @@ class WebInputStream  : public InputStream
 public:
     WebInputStream (const String& address_, bool isPost_, const MemoryBlock& postData_,
                     URL::OpenStreamProgressCallback* progressCallback, void* progressCallbackContext,
-                    const String& headers_, int timeOutMs_, StringPairArray* responseHeaders)
+                    const String& headers_, int timeOutMs_, StringPairArray* responseHeaders, int numRedirectsToFollow)
       : statusCode (0), connection (0), request (0),
         address (address_), headers (headers_), postData (postData_), position (0),
         finished (false), isPost (isPost_), timeOutMs (timeOutMs_)
     {
-        createConnection (progressCallback, progressCallbackContext);
-
-        if (! isError())
+        while (numRedirectsToFollow-- >= 0)
         {
-            if (responseHeaders != nullptr)
+            createConnection (progressCallback, progressCallbackContext);
+
+            if (! isError())
             {
                 DWORD bufferSizeBytes = 4096;
+                StringPairArray headers (false);
 
                 for (;;)
                 {
@@ -65,11 +66,10 @@ public:
                         for (int i = 0; i < headersArray.size(); ++i)
                         {
                             const String& header = headersArray[i];
-                            const String key (header.upToFirstOccurrenceOf (": ", false, false));
+                            const String key   (header.upToFirstOccurrenceOf (": ", false, false));
                             const String value (header.fromFirstOccurrenceOf (": ", false, false));
-                            const String previousValue ((*responseHeaders) [key]);
-
-                            responseHeaders->set (key, previousValue.isEmpty() ? value : (previousValue + "," + value));
+                            const String previousValue (headers[key]);
+                            headers.set (key, previousValue.isEmpty() ? value : (previousValue + "," + value));
                         }
 
                         break;
@@ -77,14 +77,47 @@ public:
 
                     if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
                         break;
+
+                    bufferSizeBytes += 4096;
                 }
+
+                DWORD status = 0;
+                DWORD statusSize = sizeof (status);
+
+                if (HttpQueryInfo (request, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &status, &statusSize, 0))
+                {
+                    statusCode = (int) status;
+
+                    if (numRedirectsToFollow >= 0
+                         && (statusCode == 301 || statusCode == 302 || statusCode == 303 || statusCode == 307))
+                    {
+                        String newLocation (headers["Location"]);
+
+                        // Check whether location is a relative URI - this is an incomplete test for relative path,
+                        // but we'll use it for now (valid protocols for this implementation are http, https & ftp)
+                        if (! (newLocation.startsWithIgnoreCase ("http://")
+                                || newLocation.startsWithIgnoreCase ("https://")
+                                || newLocation.startsWithIgnoreCase ("ftp://")))
+                        {
+                            if (newLocation.startsWithChar ('/'))
+                                newLocation = URL (address).withNewSubPath (newLocation).toString (true);
+                            else
+                                newLocation = address + "/" + newLocation;
+                        }
+
+                        if (newLocation.isNotEmpty() && newLocation != address)
+                        {
+                            address = newLocation;
+                            continue;
+                        }
+                    }
+                }
+
+                if (responseHeaders != nullptr)
+                    responseHeaders->addArray (headers);
             }
 
-            DWORD status = 0;
-            DWORD statusSize = sizeof (status);
-
-            if (HttpQueryInfo (request, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &status, &statusSize, 0))
-                statusCode = (int) status;
+            break;
         }
     }
 
@@ -259,7 +292,8 @@ private:
     {
         const TCHAR* mimeTypes[] = { _T("*/*"), nullptr };
 
-        DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_NO_COOKIES;
+        DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_NO_COOKIES
+                        | INTERNET_FLAG_NO_AUTO_REDIRECT | SECURITY_SET_MASK;
 
         if (address.startsWithIgnoreCase ("https:"))
             flags |= INTERNET_FLAG_SECURE;  // (this flag only seems necessary if the OS is running IE6 -
@@ -270,6 +304,8 @@ private:
 
         if (request != 0)
         {
+            setSecurityFlags();
+
             INTERNET_BUFFERS buffers = { 0 };
             buffers.dwStructSize = sizeof (INTERNET_BUFFERS);
             buffers.lpcszHeader = headers.toWideCharPointer();
@@ -311,6 +347,14 @@ private:
         }
 
         close();
+    }
+
+    void setSecurityFlags()
+    {
+        DWORD dwFlags = 0, dwBuffLen = sizeof (DWORD);
+        InternetQueryOption (request, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, &dwBuffLen);
+        dwFlags |= SECURITY_FLAG_IGNORE_UNKNOWN_CA | SECURITY_SET_MASK;
+        InternetSetOption (request, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof (dwFlags));
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebInputStream)

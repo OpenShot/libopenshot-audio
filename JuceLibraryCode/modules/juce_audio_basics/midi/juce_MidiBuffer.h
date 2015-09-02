@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -186,9 +186,10 @@ public:
 
         /** Retrieves a copy of the next event from the buffer.
 
-            @param result   on return, this will be the message (the MidiMessage's timestamp
-                            is not set)
-            @param samplePosition   on return, this will be the position of the event
+            @param result   on return, this will be the message. The MidiMessage's timestamp
+                            is set to the same value as samplePosition.
+            @param samplePosition   on return, this will be the position of the event, as a
+                            sample index in the buffer
             @returns        true if an event was found, or false if the iterator has reached
                             the end of the buffer
         */
@@ -203,7 +204,8 @@ public:
                                 temporarily until the MidiBuffer is altered.
             @param numBytesOfMidiData   on return, this is the number of bytes of data used by the
                                         midi message
-            @param samplePosition   on return, this will be the position of the event
+            @param samplePosition   on return, this will be the position of the event, as a
+                                    sample index in the buffer
             @returns        true if an event was found, or false if the iterator has reached
                             the end of the buffer
         */

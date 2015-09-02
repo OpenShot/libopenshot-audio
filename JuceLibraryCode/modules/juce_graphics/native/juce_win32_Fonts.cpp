@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -506,8 +506,8 @@ private:
         lf.lfOutPrecision = OUT_OUTLINE_PRECIS;
         lf.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
         lf.lfQuality = PROOF_QUALITY;
-        lf.lfItalic = (BYTE) (style == "Italic" ? TRUE : FALSE);
-        lf.lfWeight = style == "Bold" ? FW_BOLD : FW_NORMAL;
+        lf.lfItalic = (BYTE) (style.contains ("Italic") ? TRUE : FALSE);
+        lf.lfWeight = style.contains ("Bold") ? FW_BOLD : FW_NORMAL;
         lf.lfHeight = -256;
         name.copyToUTF16 (lf.lfFaceName, sizeof (lf.lfFaceName));
 

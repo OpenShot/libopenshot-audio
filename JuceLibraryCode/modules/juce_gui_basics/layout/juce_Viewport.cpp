@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -30,6 +30,7 @@ Viewport::Viewport (const String& name)
     showHScrollbar (true),
     showVScrollbar (true),
     deleteContent (true),
+    customScrollBarThickness (false),
     allowScrollingWithoutScrollbarV (false),
     allowScrollingWithoutScrollbarH (false),
     verticalScrollBar (true),
@@ -38,6 +39,8 @@ Viewport::Viewport (const String& name)
     // content holder is used to clip the contents so they don't overlap the scrollbars
     addAndMakeVisible (contentHolder);
     contentHolder.setInterceptsMouseClicks (false, true);
+
+    scrollBarThickness = getLookAndFeel().getDefaultScrollbarWidth();
 
     addChildComponent (verticalScrollBar);
     addChildComponent (horizontalScrollBar);
@@ -171,6 +174,12 @@ bool Viewport::autoScroll (const int mouseX, const int mouseY, const int activeB
 void Viewport::componentMovedOrResized (Component&, bool, bool)
 {
     updateVisibleArea();
+}
+
+void Viewport::lookAndFeelChanged()
+{
+    if (! customScrollBarThickness)
+        scrollBarThickness = getLookAndFeel().getDefaultScrollbarWidth();
 }
 
 void Viewport::resized()
@@ -313,17 +322,32 @@ void Viewport::setScrollBarsShown (const bool showVerticalScrollbarIfNeeded,
 
 void Viewport::setScrollBarThickness (const int thickness)
 {
-    if (scrollBarThickness != thickness)
+    int newThickness;
+
+    // To stay compatible with the previous code: use the
+    // default thickness if thickness parameter is zero
+    // or negative
+    if (thickness <= 0)
     {
-        scrollBarThickness = thickness;
+        customScrollBarThickness = false;
+        newThickness = getLookAndFeel().getDefaultScrollbarWidth();
+    }
+    else
+    {
+        customScrollBarThickness = true;
+        newThickness = thickness;
+    }
+
+    if (scrollBarThickness != newThickness)
+    {
+        scrollBarThickness = newThickness;
         updateVisibleArea();
     }
 }
 
 int Viewport::getScrollBarThickness() const
 {
-    return scrollBarThickness > 0 ? scrollBarThickness
-                                  : getLookAndFeel().getDefaultScrollbarWidth();
+    return scrollBarThickness;
 }
 
 void Viewport::scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart)
@@ -346,15 +370,15 @@ void Viewport::mouseWheelMove (const MouseEvent& e, const MouseWheelDetails& whe
         Component::mouseWheelMove (e, wheel);
 }
 
-static float rescaleMouseWheelDistance (float distance, int singleStepSize) noexcept
+static int rescaleMouseWheelDistance (float distance, int singleStepSize) noexcept
 {
     if (distance == 0)
         return 0;
 
     distance *= 14.0f * singleStepSize;
 
-    return distance < 0 ? jmin (distance, -1.0f)
-                        : jmax (distance,  1.0f);
+    return roundToInt (distance < 0 ? jmin (distance, -1.0f)
+                                    : jmax (distance,  1.0f));
 }
 
 bool Viewport::useMouseWheelMoveIfNeeded (const MouseEvent& e, const MouseWheelDetails& wheel)
@@ -366,26 +390,23 @@ bool Viewport::useMouseWheelMoveIfNeeded (const MouseEvent& e, const MouseWheelD
 
         if (canScrollHorz || canScrollVert)
         {
-            float wheelIncrementX = rescaleMouseWheelDistance (wheel.deltaX, singleStepX);
-            float wheelIncrementY = rescaleMouseWheelDistance (wheel.deltaY, singleStepY);
+            const int deltaX = rescaleMouseWheelDistance (wheel.deltaX, singleStepX);
+            const int deltaY = rescaleMouseWheelDistance (wheel.deltaY, singleStepY);
 
             Point<int> pos (getViewPosition());
 
-            if (wheelIncrementX != 0 && wheelIncrementY != 0 && canScrollHorz && canScrollVert)
+            if (deltaX != 0 && deltaY != 0 && canScrollHorz && canScrollVert)
             {
-                pos.setX (pos.x - roundToInt (wheelIncrementX));
-                pos.setY (pos.y - roundToInt (wheelIncrementY));
+                pos.x -= deltaX;
+                pos.y -= deltaY;
             }
-            else if (canScrollHorz && (wheelIncrementX != 0 || e.mods.isShiftDown() || ! canScrollVert))
+            else if (canScrollHorz && (deltaX != 0 || e.mods.isShiftDown() || ! canScrollVert))
             {
-                if (wheelIncrementX == 0 && ! canScrollVert)
-                    wheelIncrementX = wheelIncrementY;
-
-                pos.setX (pos.x - roundToInt (wheelIncrementX));
+                pos.x -= deltaX != 0 ? deltaX : deltaY;
             }
-            else if (canScrollVert && wheelIncrementY != 0)
+            else if (canScrollVert && deltaY != 0)
             {
-                pos.setY (pos.y - roundToInt (wheelIncrementY));
+                pos.y -= deltaY;
             }
 
             if (pos != getViewPosition())

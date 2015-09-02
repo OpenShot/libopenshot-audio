@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -89,12 +89,12 @@ public:
     */
     String (const char* text, size_t maxChars);
 
-    /** Creates a string from a whcar_t character string.
+    /** Creates a string from a wchar_t character string.
         Depending on the platform, this may be treated as either UTF-32 or UTF-16.
     */
     String (const wchar_t* text);
 
-    /** Creates a string from a whcar_t character string.
+    /** Creates a string from a wchar_t character string.
         Depending on the platform, this may be treated as either UTF-32 or UTF-16.
     */
     String (const wchar_t* text, size_t maxChars);
@@ -167,7 +167,7 @@ public:
     typedef CharPointer_UTF32 CharPointerType;
    #elif (JUCE_STRING_UTF_TYPE == 16)
     typedef CharPointer_UTF16 CharPointerType;
-   #elif (JUCE_STRING_UTF_TYPE == 8)
+   #elif (DOXYGEN || JUCE_STRING_UTF_TYPE == 8)
     typedef CharPointer_UTF8  CharPointerType;
    #else
     #error "You must set the value of JUCE_STRING_UTF_TYPE to be either 8, 16, or 32!"
@@ -181,7 +181,7 @@ public:
     int64 hashCode64() const noexcept;
 
     /** Generates a probably-unique hashcode from this string. */
-    std::size_t hash() const noexcept;
+    size_t hash() const noexcept;
 
     /** Returns the number of characters in the string. */
     int length() const noexcept;
@@ -299,13 +299,13 @@ public:
         Note that there's also an isNotEmpty() method to help write readable code.
         @see containsNonWhitespaceChars()
     */
-    inline bool isEmpty() const noexcept                    { return text[0] == 0; }
+    inline bool isEmpty() const noexcept                    { return text.isEmpty(); }
 
     /** Returns true if the string contains at least one character.
         Note that there's also an isEmpty() method to help write readable code.
         @see containsNonWhitespaceChars()
     */
-    inline bool isNotEmpty() const noexcept                 { return text[0] != 0; }
+    inline bool isNotEmpty() const noexcept                 { return ! text.isEmpty(); }
 
     /** Resets this string to be empty. */
     void clear() noexcept;
@@ -346,15 +346,15 @@ public:
     */
     int compareIgnoreCase (const String& other) const noexcept;
 
-    /** Lexicographic comparison with another string.
+    /** Compares two strings, taking into account textual characteristics like numbers and spaces.
 
-        The comparison used here is case-insensitive and ignores leading non-alphanumeric
-        characters, making it good for sorting human-readable strings.
+        This comparison is case-insensitive and can detect words and embedded numbers in the
+        strings, making it good for sorting human-readable lists of things like filenames.
 
         @returns     0 if the two strings are identical; negative if this string comes before
                      the other one alphabetically, or positive if it comes after it.
     */
-    int compareLexicographically (const String& other) const noexcept;
+    int compareNatural (StringRef other) const noexcept;
 
     /** Tests whether the string begins with another string.
         If the parameter is an empty string, this will always return true.
@@ -1204,16 +1204,16 @@ public:
 
     //==============================================================================
    #if JUCE_MAC || JUCE_IOS || DOXYGEN
-    /** MAC ONLY - Creates a String from an OSX CFString. */
+    /** OSX ONLY - Creates a String from an OSX CFString. */
     static String fromCFString (CFStringRef cfString);
 
-    /** MAC ONLY - Converts this string to a CFString.
+    /** OSX ONLY - Converts this string to a CFString.
         Remember that you must use CFRelease() to free the returned string when you're
         finished with it.
     */
     CFStringRef toCFString() const;
 
-    /** MAC ONLY - Returns a copy of this string in which any decomposed unicode characters have
+    /** OSX ONLY - Returns a copy of this string in which any decomposed unicode characters have
         been converted to their precomposed equivalents. */
     String convertToPrecomposedUnicode() const;
    #endif

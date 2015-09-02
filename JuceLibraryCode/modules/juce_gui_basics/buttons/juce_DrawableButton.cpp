@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -59,6 +59,7 @@ void DrawableButton::setImages (const Drawable* normal,
     overImageOn     = copyDrawableIfNotNull (overOn);
     downImageOn     = copyDrawableIfNotNull (downOn);
     disabledImageOn = copyDrawableIfNotNull (disabledOn);
+    currentImage    = nullptr;
 
     buttonStateChanged();
 }
@@ -80,6 +81,31 @@ void DrawableButton::setEdgeIndent (const int numPixelsIndent)
     resized();
 }
 
+Rectangle<float> DrawableButton::getImageBounds() const
+{
+    Rectangle<int> r (getLocalBounds());
+
+    if (style != ImageStretched)
+    {
+        int indentX = jmin (edgeIndent, proportionOfWidth  (0.3f));
+        int indentY = jmin (edgeIndent, proportionOfHeight (0.3f));
+
+        if (style == ImageOnButtonBackground)
+        {
+            indentX = jmax (getWidth()  / 4, indentX);
+            indentY = jmax (getHeight() / 4, indentY);
+        }
+        else if (style == ImageAboveTextLabel)
+        {
+            r = r.withTrimmedBottom (jmin (16, proportionOfHeight (0.25f)));
+        }
+
+        r = r.reduced (indentX, indentY);
+    }
+
+    return r.toFloat();
+}
+
 void DrawableButton::resized()
 {
     Button::resized();
@@ -87,36 +113,11 @@ void DrawableButton::resized()
     if (currentImage != nullptr)
     {
         if (style == ImageRaw)
-        {
             currentImage->setOriginWithOriginalSize (Point<float>());
-        }
-        else if (style == ImageStretched)
-        {
-            currentImage->setTransformToFit (getLocalBounds().toFloat(), RectanglePlacement::stretchToFit);
-        }
         else
-        {
-            Rectangle<int> imageSpace;
-
-            const int indentX = jmin (edgeIndent, proportionOfWidth  (0.3f));
-            const int indentY = jmin (edgeIndent, proportionOfHeight (0.3f));
-
-            if (style == ImageOnButtonBackground)
-            {
-                imageSpace = getLocalBounds().reduced (jmax (getWidth()  / 4, indentX),
-                                                       jmax (getHeight() / 4, indentY));
-            }
-            else
-            {
-                const int textH = (style == ImageAboveTextLabel) ? jmin (16, proportionOfHeight (0.25f)) : 0;
-
-                imageSpace.setBounds (indentX, indentY,
-                                      getWidth()  - indentX * 2,
-                                      getHeight() - indentY * 2 - textH);
-            }
-
-            currentImage->setTransformToFit (imageSpace.toFloat(), RectanglePlacement::centred);
-        }
+            currentImage->setTransformToFit (getImageBounds(),
+                                             style == ImageStretched ? RectanglePlacement::stretchToFit
+                                                                     : RectanglePlacement::centred);
     }
 }
 
@@ -152,7 +153,7 @@ void DrawableButton::buttonStateChanged()
         {
             currentImage->setInterceptsMouseClicks (false, false);
             addAndMakeVisible (currentImage);
-            DrawableButton::resized();
+            resized();
         }
     }
 

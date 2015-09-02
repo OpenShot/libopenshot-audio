@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -123,6 +123,16 @@ public:
     */
     void dismiss();
 
+    /** Determines whether the mouse events for clicks outside the calloutbox are
+        consumed, or allowed to arrive at the other component that they were aimed at.
+
+        By default this is false, so that when you click on something outside the calloutbox,
+        that event will also be sent to the component that was clicked on. If you set it to
+        true, then the first click will always just dismiss the box and not be sent to
+        anything else.
+    */
+    void setDismissalMouseClicksAreAlwaysConsumed (bool shouldAlwaysBeConsumed) noexcept;
+
     //==============================================================================
     /** This abstract base class is implemented by LookAndFeel classes. */
     struct JUCE_API  LookAndFeelMethods
@@ -130,6 +140,7 @@ public:
         virtual ~LookAndFeelMethods() {}
 
         virtual void drawCallOutBoxBackground (CallOutBox&, Graphics&, const Path&, Image& cachedImage) = 0;
+        virtual int getCallOutBoxBorderSize (const CallOutBox&) = 0;
     };
 
     //==============================================================================
@@ -160,6 +171,7 @@ private:
     Point<float> targetPoint;
     Rectangle<int> availableArea, targetArea;
     Image background;
+    bool dismissalMouseClicksAreAlwaysConsumed;
 
     void refreshPath();
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -155,7 +155,7 @@
     #define JUCE_BIG_ENDIAN 1
   #endif
 
-  #if defined (__LP64__) || defined (_LP64)
+  #if defined (__LP64__) || defined (_LP64) || defined (__arm64__)
     #define JUCE_64BIT 1
   #else
     #define JUCE_32BIT 1
@@ -192,7 +192,7 @@
   #endif
 
   #if JUCE_64BIT || ! JUCE_VC7_OR_EARLIER
-    #define JUCE_USE_INTRINSICS 1
+    #define JUCE_USE_MSVC_INTRINSICS 1
   #endif
 #else
   #error unknown compiler

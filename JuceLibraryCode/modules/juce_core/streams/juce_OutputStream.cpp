@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -252,12 +252,12 @@ bool OutputStream::writeText (const String& text, const bool asUTF16,
     return true;
 }
 
-int OutputStream::writeFromInputStream (InputStream& source, int64 numBytesToWrite)
+int64 OutputStream::writeFromInputStream (InputStream& source, int64 numBytesToWrite)
 {
     if (numBytesToWrite < 0)
         numBytesToWrite = std::numeric_limits<int64>::max();
 
-    int numWritten = 0;
+    int64 numWritten = 0;
 
     while (numBytesToWrite > 0)
     {

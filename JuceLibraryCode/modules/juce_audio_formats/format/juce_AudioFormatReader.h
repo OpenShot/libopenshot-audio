@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -44,7 +44,7 @@ protected:
         @param sourceStream     the stream to read from - this will be deleted
                                 by this object when it is no longer needed. (Some
                                 specialised readers might not use this parameter and
-                                can leave it as 0).
+                                can leave it as nullptr).
         @param formatName       the description that will be returned by the getFormatName()
                                 method
     */
@@ -127,6 +127,25 @@ public:
         highest and lowest sample levels from the channels in that section, returning
         these as normalised floating-point levels.
 
+        @param startSample  the offset into the audio stream to start reading from. It's
+                            ok for this to be beyond the start or end of the stream.
+        @param numSamples   how many samples to read
+        @param results      this array will be filled with Range values for each channel.
+                            The array must contain numChannels elements.
+        @param numChannelsToRead  the number of channels of data to scan. This must be
+                            more than zero, but not more than the total number of channels
+                            that the reader contains
+        @see read
+    */
+    virtual void readMaxLevels (int64 startSample, int64 numSamples,
+                                Range<float>* results, int numChannelsToRead);
+
+    /** Finds the highest and lowest sample levels from a section of the audio stream.
+
+        This will read a block of samples from the stream, and measure the
+        highest and lowest sample levels from the channels in that section, returning
+        these as normalised floating-point levels.
+
         @param startSample          the offset into the audio stream to start reading from. It's
                                     ok for this to be beyond the start or end of the stream.
         @param numSamples           how many samples to read
@@ -138,12 +157,9 @@ public:
                                     channel (if there is one)
         @see read
     */
-    virtual void readMaxLevels (int64 startSample,
-                                int64 numSamples,
-                                float& lowestLeft,
-                                float& highestLeft,
-                                float& lowestRight,
-                                float& highestRight);
+    virtual void readMaxLevels (int64 startSample, int64 numSamples,
+                                float& lowestLeft,  float& highestLeft,
+                                float& lowestRight, float& highestRight);
 
     /** Scans the source looking for a sample whose magnitude is in a specified range.
 
@@ -231,8 +247,8 @@ protected:
     template <class DestSampleType, class SourceSampleType, class SourceEndianness>
     struct ReadHelper
     {
-        typedef AudioData::Pointer <DestSampleType, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst>    DestType;
-        typedef AudioData::Pointer <SourceSampleType, SourceEndianness, AudioData::Interleaved, AudioData::Const>               SourceType;
+        typedef AudioData::Pointer<DestSampleType, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst>    DestType;
+        typedef AudioData::Pointer<SourceSampleType, SourceEndianness, AudioData::Interleaved, AudioData::Const>               SourceType;
 
         template <typename TargetType>
         static void read (TargetType* const* destData, int destOffset, int numDestChannels,

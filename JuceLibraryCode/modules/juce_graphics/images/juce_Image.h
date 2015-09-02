@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -67,7 +67,7 @@ public:
 
     //==============================================================================
     /** Creates a null image. */
-    Image();
+    Image() noexcept;
 
     /** Creates an image with a specified size and format.
 
@@ -106,7 +106,7 @@ public:
         point to the same shared image data. To make sure that an Image object has its own unique,
         unshared internal data, call duplicateIfShared().
     */
-    Image (const Image&);
+    Image (const Image&) noexcept;
 
     /** Makes this image refer to the same underlying image as another object.
 
@@ -408,7 +408,7 @@ public:
     ImagePixelData* getPixelData() const noexcept       { return image; }
 
     /** @internal */
-    explicit Image (ImagePixelData*);
+    explicit Image (ImagePixelData*) noexcept;
 
 private:
     //==============================================================================
@@ -443,6 +443,11 @@ public:
     virtual ImageType* createType() const = 0;
     /** Initialises a BitmapData object. */
     virtual void initialiseBitmapData (Image::BitmapData&, int x, int y, Image::BitmapData::ReadWriteMode) = 0;
+    /** Returns the number of Image objects which are currently referring to the same internal
+        shared image data. This is different to the reference count as an instance of ImagePixelData
+        can internally depend on another ImagePixelData via it's member variables. */
+    virtual int getSharedCount() const noexcept;
+
 
     /** The pixel format of the image data. */
     const Image::PixelFormat pixelFormat;

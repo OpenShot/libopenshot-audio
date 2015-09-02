@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -414,7 +414,7 @@ private:
 
     ScopedPointer<Displays> displays;
 
-    Point<int> lastFakeMouseMove;
+    Point<float> lastFakeMouseMove;
     void sendMouseMove();
 
     int mouseClickCounter, mouseWheelCounter;
@@ -441,10 +441,12 @@ private:
     void removeDesktopComponent (Component*);
     void componentBroughtToFront (Component*);
 
-    void setKioskComponent (Component*, bool enableOrDisable, bool allowMenusAndBars);
+    void setKioskComponent (Component*, bool shouldBeEnabled, bool allowMenusAndBars);
 
     void triggerFocusCallback();
     void handleAsyncUpdate() override;
+
+    static Point<float> getMousePositionFloat();
 
     static double getDefaultMasterScale();
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -102,6 +102,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
     static bool isNumericOrUndefined (const var& v)  { return v.isInt() || v.isDouble() || v.isInt64() || v.isBool() || v.isUndefined(); }
     static int64 getOctalValue (const String& s)     { BigInteger b; b.parseString (s, 8); return b.toInt64(); }
     static Identifier getPrototypeIdentifier()       { static const Identifier i ("prototype"); return i; }
+    static var* getPropertyPointer (DynamicObject* o, const Identifier& i)   { return o->getProperties().getVarPointer (i); }
 
     //==============================================================================
     struct CodeLocation
@@ -135,19 +136,23 @@ struct JavascriptEngine::RootObject   : public DynamicObject
         ReferenceCountedObjectPtr<RootObject> root;
         DynamicObject::Ptr scope;
 
-        var findFunctionCall (const CodeLocation& location, const var& targetObject, Identifier functionName) const
+        var findFunctionCall (const CodeLocation& location, const var& targetObject, const Identifier& functionName) const
         {
             if (DynamicObject* o = targetObject.getDynamicObject())
             {
-                if (var* prop = o->getProperties().getVarPointer (functionName))
+                if (const var* prop = getPropertyPointer (o, functionName))
                     return *prop;
 
                 for (DynamicObject* p = o->getProperty (getPrototypeIdentifier()).getDynamicObject(); p != nullptr;
                      p = p->getProperty (getPrototypeIdentifier()).getDynamicObject())
                 {
-                    if (var* prop = p->getProperties().getVarPointer (functionName))
+                    if (const var* prop = getPropertyPointer (p, functionName))
                         return *prop;
                 }
+
+                // if there's a class with an overridden DynamicObject::hasMethod, this avoids an error
+                if (o->hasMethod (functionName))
+                    return var();
             }
 
             if (targetObject.isString())
@@ -165,32 +170,30 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             return var();
         }
 
-        var* findRootClassProperty (Identifier className, Identifier propName) const
+        var* findRootClassProperty (const Identifier& className, const Identifier& propName) const
         {
             if (DynamicObject* cls = root->getProperty (className).getDynamicObject())
-                return cls->getProperties().getVarPointer (propName);
+                return getPropertyPointer (cls, propName);
 
             return nullptr;
         }
 
-        var findSymbolInParentScopes (Identifier name) const
+        var findSymbolInParentScopes (const Identifier& name) const
         {
-            if (var* v = scope->getProperties().getVarPointer (name))
+            if (const var* v = getPropertyPointer (scope, name))
                 return *v;
 
             return parent != nullptr ? parent->findSymbolInParentScopes (name)
                                      : var::undefined();
         }
 
-        bool findAndInvokeMethod (Identifier function, const var::NativeFunctionArgs& args, var& result) const
+        bool findAndInvokeMethod (const Identifier& function, const var::NativeFunctionArgs& args, var& result) const
         {
-            const NamedValueSet& props = scope->getProperties();
-
             DynamicObject* target = args.thisObject.getDynamicObject();
 
             if (target == nullptr || target == scope)
             {
-                if (const var* m = props.getVarPointer (function))
+                if (const var* m = getPropertyPointer (scope, function))
                 {
                     if (FunctionObject* fo = dynamic_cast<FunctionObject*> (m->getObject()))
                     {
@@ -199,6 +202,8 @@ struct JavascriptEngine::RootObject   : public DynamicObject
                     }
                 }
             }
+
+            const NamedValueSet& props = scope->getProperties();
 
             for (int i = 0; i < props.size(); ++i)
                 if (DynamicObject* o = props.getValueAt (i).getDynamicObject())
@@ -347,13 +352,13 @@ struct JavascriptEngine::RootObject   : public DynamicObject
 
     struct UnqualifiedName  : public Expression
     {
-        UnqualifiedName (const CodeLocation& l, Identifier n) noexcept : Expression (l), name (n) {}
+        UnqualifiedName (const CodeLocation& l, const Identifier& n) noexcept : Expression (l), name (n) {}
 
         var getResult (const Scope& s) const override  { return s.findSymbolInParentScopes (name); }
 
         void assign (const Scope& s, const var& newValue) const override
         {
-            if (var* v = s.scope->getProperties().getVarPointer (name))
+            if (var* v = getPropertyPointer (s.scope, name))
                 *v = newValue;
             else
                 s.root->setProperty (name, newValue);
@@ -364,7 +369,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
 
     struct DotOperator  : public Expression
     {
-        DotOperator (const CodeLocation& l, ExpPtr& p, Identifier c) noexcept : Expression (l), parent (p), child (c) {}
+        DotOperator (const CodeLocation& l, ExpPtr& p, const Identifier& c) noexcept : Expression (l), parent (p), child (c) {}
 
         var getResult (const Scope& s) const override
         {
@@ -378,7 +383,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             }
 
             if (DynamicObject* o = p.getDynamicObject())
-                if (var* v = o->getProperties().getVarPointer (child))
+                if (const var* v = getPropertyPointer (o, child))
                     return *v;
 
             return var::undefined();
@@ -543,14 +548,14 @@ struct JavascriptEngine::RootObject   : public DynamicObject
     struct DivideOp  : public BinaryOperator
     {
         DivideOp (const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator (l, a, b, TokenTypes::divide) {}
-        var getWithDoubles (double a, double b) const override  { return a / b; }
-        var getWithInts (int64 a, int64 b) const override       { return a / b; }
+        var getWithDoubles (double a, double b) const override  { return b != 0 ? a / b : std::numeric_limits<double>::infinity(); }
+        var getWithInts (int64 a, int64 b) const override       { return b != 0 ? var (a / (double) b) : var (std::numeric_limits<double>::infinity()); }
     };
 
     struct ModuloOp  : public BinaryOperator
     {
         ModuloOp (const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator (l, a, b, TokenTypes::modulo) {}
-        var getWithInts (int64 a, int64 b) const override   { return a % b; }
+        var getWithInts (int64 a, int64 b) const override   { return b != 0 ? var (a % b) : var (std::numeric_limits<double>::infinity()); }
     };
 
     struct BitwiseOrOp  : public BinaryOperator
@@ -698,6 +703,11 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             if (FunctionObject* fo = dynamic_cast<FunctionObject*> (function.getObject()))
                 return fo->invoke (s, args);
 
+            if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
+                if (DynamicObject* o = thisObject.getDynamicObject())
+                    if (o->hasMethod (dot->child)) // allow an overridden DynamicObject::invokeMethod to accept a method call.
+                        return o->invokeMethod (dot->child, args);
+
             location.throwError ("This expression is not a function!"); return var();
         }
 
@@ -843,7 +853,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
                 String::CharPointerType end (p);
                 while (isIdentifierBody (*++end)) {}
 
-                const size_t len = end - p;
+                const size_t len = (size_t) (end - p);
                 #define JUCE_JS_COMPARE_KEYWORD(name, str) if (len == sizeof (str) - 1 && matchToken (TokenTypes::name, len)) return TokenTypes::name;
                 JUCE_JS_KEYWORDS (JUCE_JS_COMPARE_KEYWORD)
 
@@ -1145,8 +1155,14 @@ struct JavascriptEngine::RootObject   : public DynamicObject
                 match (TokenTypes::semicolon);
             }
 
-            s->iterator = parseExpression();
-            match (TokenTypes::closeParen);
+            if (matchIf (TokenTypes::closeParen))
+                s->iterator = new Statement (location);
+            else
+            {
+                s->iterator = parseExpression();
+                match (TokenTypes::closeParen);
+            }
+
             s->body = parseStatement();
             return s.release();
         }
@@ -1446,12 +1462,12 @@ struct JavascriptEngine::RootObject   : public DynamicObject
         ObjectClass()
         {
             setMethod ("dump",  dump);
-            setMethod ("clone", clone);
+            setMethod ("clone", cloneFn);
         }
 
         static Identifier getClassName()   { static const Identifier i ("Object"); return i; }
         static var dump  (Args a)          { DBG (JSON::toString (a.thisObject)); (void) a; return var::undefined(); }
-        static var clone (Args a)          { return a.thisObject.clone(); }
+        static var cloneFn (Args a)        { return a.thisObject.clone(); }
     };
 
     //==============================================================================
@@ -1555,6 +1571,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             setMethod ("log",       Math_log);              setMethod ("log10",     Math_log10);
             setMethod ("exp",       Math_exp);              setMethod ("pow",       Math_pow);
             setMethod ("sqr",       Math_sqr);              setMethod ("sqrt",      Math_sqrt);
+            setMethod ("ceil",      Math_ceil);             setMethod ("floor",     Math_floor);
         }
 
         static var Math_pi        (Args)   { return double_Pi; }
@@ -1567,8 +1584,8 @@ struct JavascriptEngine::RootObject   : public DynamicObject
         static var Math_range     (Args a) { return isInt (a, 0) ? var (jlimit (getInt (a, 1), getInt (a, 2), getInt (a, 0))) : var (jlimit (getDouble (a, 1), getDouble (a, 2), getDouble (a, 0))); }
         static var Math_min       (Args a) { return (isInt (a, 0) && isInt (a, 1)) ? var (jmin (getInt (a, 0), getInt (a, 1))) : var (jmin (getDouble (a, 0), getDouble (a, 1))); }
         static var Math_max       (Args a) { return (isInt (a, 0) && isInt (a, 1)) ? var (jmax (getInt (a, 0), getInt (a, 1))) : var (jmax (getDouble (a, 0), getDouble (a, 1))); }
-        static var Math_toDegrees (Args a) { return (180.0 / double_Pi) * getDouble (a, 0); }
-        static var Math_toRadians (Args a) { return (double_Pi / 180.0) * getDouble (a, 0); }
+        static var Math_toDegrees (Args a) { return radiansToDegrees (getDouble (a, 0)); }
+        static var Math_toRadians (Args a) { return degreesToRadians (getDouble (a, 0)); }
         static var Math_sin       (Args a) { return sin   (getDouble (a, 0)); }
         static var Math_asin      (Args a) { return asin  (getDouble (a, 0)); }
         static var Math_cos       (Args a) { return cos   (getDouble (a, 0)); }
@@ -1587,6 +1604,8 @@ struct JavascriptEngine::RootObject   : public DynamicObject
         static var Math_pow       (Args a) { return pow   (getDouble (a, 0), getDouble (a, 1)); }
         static var Math_sqr       (Args a) { double x = getDouble (a, 0); return x * x; }
         static var Math_sqrt      (Args a) { return std::sqrt  (getDouble (a, 0)); }
+        static var Math_ceil      (Args a) { return std::ceil  (getDouble (a, 0)); }
+        static var Math_floor     (Args a) { return std::floor (getDouble (a, 0)); }
 
         static Identifier getClassName()   { static const Identifier i ("Math"); return i; }
         template <typename Type> static Type sign (Type n) noexcept  { return n > 0 ? (Type) 1 : (n < 0 ? (Type) -1 : 0); }
@@ -1649,9 +1668,9 @@ JavascriptEngine::JavascriptEngine()  : maximumExecutionTime (15.0), root (new R
 
 JavascriptEngine::~JavascriptEngine() {}
 
-void JavascriptEngine::prepareTimeout() const   { root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
+void JavascriptEngine::prepareTimeout() const noexcept   { root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
 
-void JavascriptEngine::registerNativeObject (Identifier name, DynamicObject* object)
+void JavascriptEngine::registerNativeObject (const Identifier& name, DynamicObject* object)
 {
     root->setProperty (name, object);
 }
@@ -1687,7 +1706,7 @@ var JavascriptEngine::evaluate (const String& code, Result* result)
     return var::undefined();
 }
 
-var JavascriptEngine::callFunction (Identifier function, const var::NativeFunctionArgs& args, Result* result)
+var JavascriptEngine::callFunction (const Identifier& function, const var::NativeFunctionArgs& args, Result* result)
 {
     var returnVal (var::undefined());
 
@@ -1703,6 +1722,11 @@ var JavascriptEngine::callFunction (Identifier function, const var::NativeFuncti
     }
 
     return returnVal;
+}
+
+const NamedValueSet& JavascriptEngine::getRootObjectProperties() const noexcept
+{
+    return root->getProperties();
 }
 
 #if JUCE_MSVC

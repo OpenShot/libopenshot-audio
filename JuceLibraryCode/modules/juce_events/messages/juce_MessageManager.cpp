@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -66,21 +66,21 @@ void MessageManager::deleteInstance()
 }
 
 //==============================================================================
-void MessageManager::MessageBase::post()
+bool MessageManager::MessageBase::post()
 {
     MessageManager* const mm = MessageManager::instance;
 
     if (mm == nullptr || mm->quitMessagePosted || ! postMessageToSystemQueue (this))
+    {
         Ptr deleter (this); // (this will delete messages that were just created with a 0 ref count)
+        return false;
+    }
+
+    return true;
 }
 
 //==============================================================================
 #if JUCE_MODAL_LOOPS_PERMITTED && ! (JUCE_MAC || JUCE_IOS)
-void MessageManager::runDispatchLoop()
-{
-    runDispatchLoopUntil (-1);
-}
-
 bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 {
     jassert (isThisTheMessageThread()); // must only be called by the message thread
@@ -102,7 +102,9 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 
     return ! quitMessageReceived;
 }
+#endif
 
+#if ! (JUCE_MAC || JUCE_IOS || JUCE_ANDROID)
 class MessageManager::QuitMessage   : public MessageManager::MessageBase
 {
 public:
@@ -117,12 +119,46 @@ public:
     JUCE_DECLARE_NON_COPYABLE (QuitMessage)
 };
 
+void MessageManager::runDispatchLoop()
+{
+    jassert (isThisTheMessageThread()); // must only be called by the message thread
+
+    while (! quitMessageReceived)
+    {
+        JUCE_TRY
+        {
+            if (! dispatchNextMessageOnSystemQueue (false))
+                Thread::sleep (1);
+        }
+        JUCE_CATCH_EXCEPTION
+    }
+}
+
 void MessageManager::stopDispatchLoop()
 {
     (new QuitMessage())->post();
     quitMessagePosted = true;
 }
 
+#endif
+
+//==============================================================================
+#if JUCE_COMPILER_SUPPORTS_LAMBDAS
+struct AsyncFunction  : private MessageManager::MessageBase
+{
+    AsyncFunction (std::function<void(void)> f)  : fn (f)  { post(); }
+
+private:
+    std::function<void(void)> fn;
+    void messageCallback() override    { fn(); }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AsyncFunction)
+};
+
+void MessageManager::callAsync (std::function<void(void)> f)
+{
+    new AsyncFunction (f);
+}
 #endif
 
 //==============================================================================
@@ -158,9 +194,15 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* cons
     jassert (! currentThreadHasLockedMessageManager());
 
     const ReferenceCountedObjectPtr<AsyncFunctionCallback> message (new AsyncFunctionCallback (func, parameter));
-    message->post();
-    message->finished.wait();
-    return message->result;
+
+    if (message->post())
+    {
+        message->finished.wait();
+        return message->result;
+    }
+
+    jassertfalse; // the OS message queue failed to send the message!
+    return nullptr;
 }
 
 //==============================================================================
@@ -275,7 +317,12 @@ bool MessageManagerLock::attemptLock (Thread* const threadToCheck, ThreadPoolJob
     }
 
     blockingMessage = new BlockingMessage();
-    blockingMessage->post();
+
+    if (! blockingMessage->post())
+    {
+        blockingMessage = nullptr;
+        return false;
+    }
 
     while (! blockingMessage->lockedEvent.wait (20))
     {

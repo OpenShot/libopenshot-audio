@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -129,7 +129,7 @@ MidiMessage::MidiMessage (const MidiMessage& other)
 {
     if (other.allocatedData != nullptr)
     {
-        allocatedData.malloc (size);
+        allocatedData.malloc ((size_t) size);
         memcpy (allocatedData, other.allocatedData, (size_t) size);
     }
     else
@@ -143,7 +143,7 @@ MidiMessage::MidiMessage (const MidiMessage& other, const double newTimeStamp)
 {
     if (other.allocatedData != nullptr)
     {
-        allocatedData.malloc (size);
+        allocatedData.malloc ((size_t) size);
         memcpy (allocatedData, other.allocatedData, (size_t) size);
     }
     else
@@ -255,7 +255,7 @@ MidiMessage& MidiMessage::operator= (const MidiMessage& other)
 
         if (other.allocatedData != nullptr)
         {
-            allocatedData.malloc (size);
+            allocatedData.malloc ((size_t) size);
             memcpy (allocatedData, other.allocatedData, (size_t) size);
         }
         else
@@ -297,7 +297,7 @@ uint8* MidiMessage::allocateSpace (int bytes)
 {
     if (bytes > 4)
     {
-        allocatedData.malloc (bytes);
+        allocatedData.malloc ((size_t) bytes);
         return allocatedData;
     }
 
@@ -661,7 +661,7 @@ String MidiMessage::getTextFromTextMetaEvent() const
 
 MidiMessage MidiMessage::textMetaEvent (int type, StringRef text)
 {
-    jassert (type > 0 && type < 16)
+    jassert (type > 0 && type < 16);
 
     MidiMessage result;
 

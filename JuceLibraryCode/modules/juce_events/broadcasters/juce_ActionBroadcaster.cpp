@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -25,12 +25,11 @@
 class ActionBroadcaster::ActionMessage  : public MessageManager::MessageBase
 {
 public:
-    ActionMessage (const ActionBroadcaster* const broadcaster_,
-                   const String& messageText,
-                   ActionListener* const listener_) noexcept
-        : broadcaster (const_cast <ActionBroadcaster*> (broadcaster_)),
+    ActionMessage (const ActionBroadcaster* ab,
+                   const String& messageText, ActionListener* l) noexcept
+        : broadcaster (const_cast<ActionBroadcaster*> (ab)),
           message (messageText),
-          listener (listener_)
+          listener (l)
     {}
 
     void messageCallback() override

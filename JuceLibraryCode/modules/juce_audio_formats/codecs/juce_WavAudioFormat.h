@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -134,6 +134,9 @@ public:
     //==============================================================================
     /** Metadata property name used when reading an ISRC code from an AXML chunk. */
     static const char* const ISRC;
+
+    /** Metadata property name used when reading a WAV file with a Tracktion chunk. */
+    static const char* const tracktionLoopInfo;
 
     //==============================================================================
     Array<int> getPossibleSampleRates() override;

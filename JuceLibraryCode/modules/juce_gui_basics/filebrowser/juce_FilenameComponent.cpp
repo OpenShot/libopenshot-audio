@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -162,9 +162,14 @@ void FilenameComponent::fileDragExit (const StringArray&)
 }
 
 //==============================================================================
+String FilenameComponent::getCurrentFileText() const
+{
+    return filenameBox.getText();
+}
+
 File FilenameComponent::getCurrentFile() const
 {
-    File f (File::getCurrentWorkingDirectory().getChildFile (filenameBox.getText()));
+    File f (File::getCurrentWorkingDirectory().getChildFile (getCurrentFileText()));
 
     if (enforcedSuffix.isNotEmpty())
         f = f.withFileExtension (enforcedSuffix);

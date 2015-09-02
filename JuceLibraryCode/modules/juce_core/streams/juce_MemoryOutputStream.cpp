@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -89,14 +89,14 @@ char* MemoryOutputStream::prepareToWrite (size_t numBytes)
         if (storageNeeded >= blockToUse->getSize())
             blockToUse->ensureSize ((storageNeeded + jmin (storageNeeded / 2, (size_t) (1024 * 1024)) + 32) & ~31u);
 
-        data = static_cast <char*> (blockToUse->getData());
+        data = static_cast<char*> (blockToUse->getData());
     }
     else
     {
         if (storageNeeded > availableSize)
             return nullptr;
 
-        data = static_cast <char*> (externalData);
+        data = static_cast<char*> (externalData);
     }
 
     char* const writePointer = data + position;
@@ -157,7 +157,7 @@ const void* MemoryOutputStream::getData() const noexcept
         return externalData;
 
     if (blockToUse->getSize() > size)
-        static_cast <char*> (blockToUse->getData()) [size] = 0;
+        static_cast<char*> (blockToUse->getData()) [size] = 0;
 
     return blockToUse->getData();
 }
@@ -175,14 +175,14 @@ bool MemoryOutputStream::setPosition (int64 newPosition)
     return false;
 }
 
-int MemoryOutputStream::writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite)
+int64 MemoryOutputStream::writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite)
 {
     // before writing from an input, see if we can preallocate to make it more efficient..
     int64 availableData = source.getTotalLength() - source.getPosition();
 
     if (availableData > 0)
     {
-        if (maxNumBytesToWrite > availableData)
+        if (maxNumBytesToWrite > availableData || maxNumBytesToWrite < 0)
             maxNumBytesToWrite = availableData;
 
         if (blockToUse != nullptr)
@@ -194,7 +194,7 @@ int MemoryOutputStream::writeFromInputStream (InputStream& source, int64 maxNumB
 
 String MemoryOutputStream::toUTF8() const
 {
-    const char* const d = static_cast <const char*> (getData());
+    const char* const d = static_cast<const char*> (getData());
     return String (CharPointer_UTF8 (d), CharPointer_UTF8 (d + getDataSize()));
 }
 

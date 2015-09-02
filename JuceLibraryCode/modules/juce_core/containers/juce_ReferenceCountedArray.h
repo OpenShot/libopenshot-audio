@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -38,7 +38,7 @@
     The template parameter specifies the class of the object you want to point to - the easiest
     way to make a class reference-countable is to simply make it inherit from ReferenceCountedObject
     or SingleThreadedReferenceCountedObject, but if you need to, you can roll your own reference-countable
-    class by implementing a set of mathods called incReferenceCount(), decReferenceCount(), and
+    class by implementing a set of methods called incReferenceCount(), decReferenceCount(), and
     decReferenceCountWithoutDeleting(). See ReferenceCountedObject for examples of how these methods
     should behave.
 
@@ -72,7 +72,7 @@ public:
         const ScopedLockType lock (other.getLock());
         numUsed = other.size();
         data.setAllocatedSize (numUsed);
-        memcpy (data.elements, other.getRawDataPointer(), numUsed * sizeof (ObjectClass*));
+        memcpy (data.elements, other.getRawDataPointer(), (size_t) numUsed * sizeof (ObjectClass*));
 
         for (int i = numUsed; --i >= 0;)
             if (ObjectClass* o = data.elements[i])
@@ -119,24 +119,28 @@ public:
     */
     ~ReferenceCountedArray()
     {
-        clear();
+        releaseAllObjects();
     }
 
     //==============================================================================
     /** Removes all objects from the array.
-
-        Any objects in the array that are not referenced from elsewhere will be deleted.
+        Any objects in the array that whose reference counts drop to zero will be deleted.
     */
     void clear()
     {
         const ScopedLockType lock (getLock());
-
-        while (numUsed > 0)
-            if (ObjectClass* o = data.elements [--numUsed])
-                releaseObject (o);
-
-        jassert (numUsed == 0);
+        releaseAllObjects();
         data.setAllocatedSize (0);
+    }
+
+    /** Removes all objects from the array without freeing the array's allocated storage.
+        Any objects in the array that whose reference counts drop to zero will be deleted.
+        @see clear
+    */
+    void clearQuick()
+    {
+        const ScopedLockType lock (getLock());
+        releaseAllObjects();
     }
 
     /** Returns the current number of objects in the array. */
@@ -885,6 +889,15 @@ private:
     //==============================================================================
     ArrayAllocationBase <ObjectClass*, TypeOfCriticalSectionToUse> data;
     int numUsed;
+
+    void releaseAllObjects()
+    {
+        while (numUsed > 0)
+            if (ObjectClass* o = data.elements [--numUsed])
+                releaseObject (o);
+
+        jassert (numUsed == 0);
+    }
 
     static void releaseObject (ObjectClass* o)
     {

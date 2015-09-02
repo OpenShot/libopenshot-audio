@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -46,7 +46,7 @@ public:
         subclass of Component or use one of the other types of component from
         the library.
     */
-    Component();
+    Component() noexcept;
 
     /** Destructor.
 
@@ -66,7 +66,7 @@ public:
     /** Creates a component, setting its name at the same time.
         @see getName, setName
     */
-    explicit Component (const String& componentName);
+    explicit Component (const String& componentName) noexcept;
 
     /** Returns the name of this component.
         @see setName
@@ -315,16 +315,6 @@ public:
     */
     Rectangle<int> getBoundsInParent() const noexcept;
 
-    /** Returns the region of this component that's not obscured by other, opaque components.
-
-        The RectangleList that is returned represents the area of this component
-        which isn't covered by opaque child components.
-
-        If includeSiblings is true, it will also take into account any siblings
-        that may be overlapping the component.
-    */
-    void getVisibleArea (RectangleList<int>& result, bool includeSiblings) const;
-
     //==============================================================================
     /** Returns this component's x coordinate relative the screen's top-left origin.
         @see getX, localPointToGlobal
@@ -355,6 +345,15 @@ public:
     Point<int> getLocalPoint (const Component* sourceComponent,
                               Point<int> pointRelativeToSourceComponent) const;
 
+    /** Converts a point to be relative to this component's coordinate space.
+
+        This takes a point relative to a different component, and returns its position relative to this
+        component. If the sourceComponent parameter is null, the source point is assumed to be a global
+        screen coordinate.
+    */
+    Point<float> getLocalPoint (const Component* sourceComponent,
+                                Point<float> pointRelativeToSourceComponent) const;
+
     /** Converts a rectangle to be relative to this component's coordinate space.
 
         This takes a rectangle that is relative to a different component, and returns its position relative
@@ -372,6 +371,11 @@ public:
         @see getLocalPoint, localAreaToGlobal
     */
     Point<int> localPointToGlobal (Point<int> localPoint) const;
+
+    /** Converts a point relative to this component's top-left into a screen coordinate.
+        @see getLocalPoint, localAreaToGlobal
+    */
+    Point<float> localPointToGlobal (Point<float> localPoint) const;
 
     /** Converts a rectangle from this component's coordinate space to a screen coordinate.
 
@@ -439,7 +443,7 @@ public:
     /** Changes the component's position and size.
 
         The coordinates are relative to the top-left of the component's parent, or relative
-        to the origin of the screen is the component is on the desktop.
+        to the origin of the screen if the component is on the desktop.
 
         If this method changes the component's top-left position, it will make a synchronous
         call to moved(). If it changes the size, it will also make a call to resized().
@@ -455,7 +459,7 @@ public:
     /** Changes the component's position and size.
 
         The coordinates are relative to the top-left of the component's parent, or relative
-        to the origin of the screen is the component is on the desktop.
+        to the origin of the screen if the component is on the desktop.
 
         If this method changes the component's top-left position, it will make a synchronous
         call to moved(). If it changes the size, it will also make a call to resized().
@@ -476,42 +480,10 @@ public:
         component's bounds when the source values change. See RelativeRectangle::applyToComponent()
         for more details.
 
-        When using relative expressions, the following symbols are available:
-         - "left", "right", "top", "bottom" refer to the position of those edges in this component, so
-           e.g. for a component whose width is always 100, you might set the right edge to the "left + 100".
-         - "[id].left", "[id].right", "[id].top", "[id].bottom", "[id].width", "[id].height", where [id] is
-           the identifier of one of this component's siblings. A component's identifier is set with
-           Component::setComponentID(). So for example if you want your component to always be 50 pixels to the
-           right of the one called "xyz", you could set your left edge to be "xyz.right + 50".
-         - Instead of an [id], you can use the name "parent" to refer to this component's parent. Like
-           any other component, these values are relative to their component's parent, so "parent.right" won't be
-           very useful for positioning a component because it refers to a position with the parent's parent.. but
-           "parent.width" can be used for setting positions relative to the parent's size. E.g. to make a 10x10
-           component which remains 1 pixel away from its parent's bottom-right, you could use
-           "right - 10, bottom - 10, parent.width - 1, parent.height - 1".
-         - The name of one of the parent component's markers can also be used as a symbol. For markers to be
-           used, the parent component must implement its Component::getMarkers() method, and return at least one
-           valid MarkerList. So if you want your component's top edge to be 10 pixels below the
-           marker called "foobar", you'd set it to "foobar + 10".
+        For the syntax of the expressions that are allowed in the string, see the notes
+        for the RelativeCoordinate class.
 
-        See the Expression class for details about the operators that are supported, but for example
-        if you wanted to make your component remain centred within its parent with a size of 100, 100,
-        you could express it as:
-        @code myComp.setBounds (RelativeBounds ("parent.width / 2 - 50, parent.height / 2 - 50, left + 100, top + 100"));
-        @endcode
-        ..or an alternative way to achieve the same thing:
-        @code myComp.setBounds (RelativeBounds ("right - 100, bottom - 100, parent.width / 2 + 50, parent.height / 2 + 50"));
-        @endcode
-
-        Or if you wanted a 100x100 component whose top edge is lined up to a marker called "topMarker" and
-        which is positioned 50 pixels to the right of another component called "otherComp", you could write:
-        @code myComp.setBounds (RelativeBounds ("otherComp.right + 50, topMarker, left + 100, top + 100"));
-        @endcode
-
-        Be careful not to make your coordinate expressions recursive, though, or exceptions and assertions will
-        be thrown!
-
-        @see setBounds, RelativeRectangle::applyToComponent(), Expression
+        @see RelativeCoordinate, setBounds, RelativeRectangle::applyToComponent(), Expression
     */
     void setBounds (const RelativeRectangle& newBounds);
 
@@ -771,7 +743,13 @@ public:
     */
     void removeAllChildren();
 
-    /** Removes all this component's children, and deletes them.
+    /** Removes and deletes all of this component's children.
+        My advice is to avoid this method! It's an old function that is only kept here for
+        backwards-compatibility with legacy code, and should be viewed with extreme
+        suspicion by anyone attempting to write modern C++. In almost all cases, it's much
+        smarter to manage the lifetimes of your child components via modern RAII techniques
+        such as simply making them member variables, or using ScopedPointer, OwnedArray, etc
+        to manage their lifetimes appropriately.
         @see removeAllChildren
     */
     void deleteAllChildren();
@@ -786,14 +764,14 @@ public:
     /** Searches the parent components for a component of a specified class.
 
         For example findParentComponentOfClass \<MyComp\>() would return the first parent
-        component that can be dynamically cast to a MyComp, or will return 0 if none
+        component that can be dynamically cast to a MyComp, or will return nullptr if none
         of the parents are suitable.
     */
     template <class TargetClass>
     TargetClass* findParentComponentOfClass() const
     {
         for (Component* p = parentComponent; p != nullptr; p = p->parentComponent)
-            if (TargetClass* const target = dynamic_cast <TargetClass*> (p))
+            if (TargetClass* const target = dynamic_cast<TargetClass*> (p))
                 return target;
 
         return nullptr;
@@ -834,7 +812,7 @@ public:
     virtual void childrenChanged();
 
     //==============================================================================
-    /** Tests whether a given point inside the component.
+    /** Tests whether a given point is inside the component.
 
         Overriding this method allows you to create components which only intercept
         mouse-clicks within a user-defined area.
@@ -1003,17 +981,12 @@ public:
     /** Makes the component use an internal buffer to optimise its redrawing.
 
         Setting this flag to true will cause the component to allocate an
-        internal buffer into which it paints itself, so that when asked to
-        redraw itself, it can use this buffer rather than actually calling the
-        paint() method.
+        internal buffer into which it paints itself and all its child components, so that
+        when asked to redraw itself, it can use this buffer rather than actually calling
+        the paint() method.
 
-        The buffer is kept until the repaint() method is called directly on
-        this component (or until it is resized), when the image is invalidated
-        and then redrawn the next time the component is painted.
-
-        Note that only the drawing that happens within the component's paint()
-        method is drawn into the buffer, it's child components are not buffered, and
-        nor is the paintOverChildren() method.
+        Parts of the buffer are invalidated when repaint() is called on this component
+        or its children. The buffer is then repainted at the next paint() callback.
 
         @see repaint, paint, createComponentSnapshot
     */
@@ -1152,7 +1125,7 @@ public:
         By default, components are considered transparent, unless this is used to
         make it otherwise.
 
-        @see isOpaque, getVisibleArea
+        @see isOpaque
     */
     void setOpaque (bool shouldBeOpaque);
 
@@ -1743,11 +1716,14 @@ public:
     */
     virtual void focusLost (FocusChangeType cause);
 
-    /** Called to indicate that one of this component's children has been focused or unfocused.
+    /** Called to indicate a change in whether or not this component is the parent of the
+        currently-focused component.
 
-        Essentially this means that the return value of a call to hasKeyboardFocus (true) has
+        Essentially this is called when the return value of a call to hasKeyboardFocus (true) has
         changed. It happens when focus moves from one of this component's children (at any depth)
         to a component that isn't contained in this one, (or vice-versa).
+        Note that this method does NOT get called to when focus simply moves from one of its
+        child components to another.
 
         @see focusGained, setWantsKeyboardFocus, getCurrentlyFocusedComponent, hasKeyboardFocus
     */
@@ -1782,9 +1758,7 @@ public:
     bool isMouseButtonDown() const;
 
     /** True if the mouse is over this component, or if it's being dragged in this component.
-
         This is a handy equivalent to (isMouseOver() || isMouseButtonDown()).
-
         @see isMouseOver, isMouseButtonDown, isMouseButtonDownAnywhere
     */
     bool isMouseOverOrDragging() const;
@@ -2122,31 +2096,31 @@ public:
         SafePointer() noexcept {}
 
         /** Creates a SafePointer that points at the given component. */
-        SafePointer (ComponentType* const component)        : weakRef (component) {}
+        SafePointer (ComponentType* component)                : weakRef (component) {}
 
         /** Creates a copy of another SafePointer. */
-        SafePointer (const SafePointer& other) noexcept     : weakRef (other.weakRef) {}
+        SafePointer (const SafePointer& other) noexcept       : weakRef (other.weakRef) {}
 
         /** Copies another pointer to this one. */
-        SafePointer& operator= (const SafePointer& other)           { weakRef = other.weakRef; return *this; }
+        SafePointer& operator= (const SafePointer& other)     { weakRef = other.weakRef; return *this; }
 
         /** Copies another pointer to this one. */
-        SafePointer& operator= (ComponentType* const newComponent)  { weakRef = newComponent; return *this; }
+        SafePointer& operator= (ComponentType* newComponent)  { weakRef = newComponent; return *this; }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        ComponentType* getComponent() const noexcept        { return dynamic_cast <ComponentType*> (weakRef.get()); }
+        ComponentType* getComponent() const noexcept          { return dynamic_cast<ComponentType*> (weakRef.get()); }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        operator ComponentType*() const noexcept            { return getComponent(); }
+        operator ComponentType*() const noexcept              { return getComponent(); }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        ComponentType* operator->() noexcept                { return getComponent(); }
+        ComponentType* operator->() noexcept                  { return getComponent(); }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        const ComponentType* operator->() const noexcept    { return getComponent(); }
+        const ComponentType* operator->() const noexcept      { return getComponent(); }
 
         /** If the component is valid, this deletes it and sets this pointer to null. */
-        void deleteAndZero()                                { delete getComponent(); }
+        void deleteAndZero()                                  { delete getComponent(); }
 
         bool operator== (ComponentType* component) const noexcept   { return weakRef == component; }
         bool operator!= (ComponentType* component) const noexcept   { return weakRef != component; }
@@ -2254,20 +2228,20 @@ private:
     String componentName, componentID;
     Component* parentComponent;
     Rectangle<int> bounds;
-    ScopedPointer <Positioner> positioner;
-    ScopedPointer <AffineTransform> affineTransform;
-    Array <Component*> childComponentList;
+    ScopedPointer<Positioner> positioner;
+    ScopedPointer<AffineTransform> affineTransform;
+    Array<Component*> childComponentList;
     LookAndFeel* lookAndFeel;
     MouseCursor cursor;
     ImageEffectFilter* effect;
-    ScopedPointer <CachedComponentImage> cachedImage;
+    ScopedPointer<CachedComponentImage> cachedImage;
 
     class MouseListenerList;
     friend class MouseListenerList;
     friend struct ContainerDeletePolicy<MouseListenerList>;
-    ScopedPointer <MouseListenerList> mouseListeners;
-    ScopedPointer <Array <KeyListener*> > keyListeners;
-    ListenerList <ComponentListener> componentListeners;
+    ScopedPointer<MouseListenerList> mouseListeners;
+    ScopedPointer<Array<KeyListener*> > keyListeners;
+    ListenerList<ComponentListener> componentListeners;
     NamedValueSet properties;
 
     friend class WeakReference<Component>;
@@ -2292,9 +2266,11 @@ private:
         bool childCompFocusedFlag       : 1;
         bool dontClipGraphicsFlag       : 1;
         bool mouseDownWasBlocked        : 1;
-      #if JUCE_DEBUG
+        bool isMoveCallbackPending      : 1;
+        bool isResizeCallbackPending    : 1;
+       #if JUCE_DEBUG
         bool isInsidePaintCall          : 1;
-      #endif
+       #endif
     };
 
     union
@@ -2306,30 +2282,31 @@ private:
     uint8 componentTransparency;
 
     //==============================================================================
-    void internalMouseEnter (MouseInputSource, Point<int>, Time);
-    void internalMouseExit  (MouseInputSource, Point<int>, Time);
-    void internalMouseDown  (MouseInputSource, Point<int>, Time);
-    void internalMouseUp    (MouseInputSource, Point<int>, Time, const ModifierKeys oldModifiers);
-    void internalMouseDrag  (MouseInputSource, Point<int>, Time);
-    void internalMouseMove  (MouseInputSource, Point<int>, Time);
-    void internalMouseWheel (MouseInputSource, Point<int>, Time, const MouseWheelDetails&);
-    void internalMagnifyGesture (MouseInputSource, Point<int>, Time, float);
+    void internalMouseEnter (MouseInputSource, Point<float>, Time);
+    void internalMouseExit  (MouseInputSource, Point<float>, Time);
+    void internalMouseDown  (MouseInputSource, Point<float>, Time);
+    void internalMouseUp    (MouseInputSource, Point<float>, Time, const ModifierKeys oldModifiers);
+    void internalMouseDrag  (MouseInputSource, Point<float>, Time);
+    void internalMouseMove  (MouseInputSource, Point<float>, Time);
+    void internalMouseWheel (MouseInputSource, Point<float>, Time, const MouseWheelDetails&);
+    void internalMagnifyGesture (MouseInputSource, Point<float>, Time, float);
     void internalBroughtToFront();
-    void internalFocusGain (const FocusChangeType, const WeakReference<Component>&);
-    void internalFocusGain (const FocusChangeType);
-    void internalFocusLoss (const FocusChangeType);
+    void internalFocusGain (FocusChangeType, const WeakReference<Component>&);
+    void internalFocusGain (FocusChangeType);
+    void internalFocusLoss (FocusChangeType);
     void internalChildFocusChange (FocusChangeType, const WeakReference<Component>&);
     void internalModalInputAttempt();
     void internalModifierKeysChanged();
     void internalChildrenChanged();
     void internalHierarchyChanged();
-    void internalRepaint (const Rectangle<int>&);
-    void internalRepaintUnchecked (const Rectangle<int>&, bool);
+    void internalRepaint (Rectangle<int>);
+    void internalRepaintUnchecked (Rectangle<int>, bool);
     Component* removeChildComponent (int index, bool sendParentEvents, bool sendChildEvents);
     void reorderChildInternal (int sourceIndex, int destIndex);
     void paintComponentAndChildren (Graphics&);
     void paintWithinParentContext (Graphics&);
     void sendMovedResizedMessages (bool wasMoved, bool wasResized);
+    void sendMovedResizedMessagesIfPending();
     void repaintParent();
     void sendFakeMouseMove() const;
     void takeKeyboardFocus (const FocusChangeType);

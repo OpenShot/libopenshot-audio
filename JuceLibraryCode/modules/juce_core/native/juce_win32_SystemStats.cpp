@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -38,7 +38,7 @@ void Logger::outputDebugString (const String& text)
 #endif
 
 //==============================================================================
-#if JUCE_USE_INTRINSICS
+#if JUCE_USE_MSVC_INTRINSICS
 
 // CPU info functions using intrinsics...
 
@@ -105,6 +105,8 @@ void CPUInformation::initialise() noexcept
     hasSSE   = (info[3] & (1 << 25)) != 0;
     hasSSE2  = (info[3] & (1 << 26)) != 0;
     hasSSE3  = (info[2] & (1 <<  0)) != 0;
+    hasAVX   = (info[2] & (1 << 28)) != 0;
+    hasSSSE3 = (info[2] & (1 <<  9)) != 0;
     has3DNow = (info[1] & (1 << 31)) != 0;
 
     SYSTEM_INFO systemInfo;
@@ -131,16 +133,22 @@ static bool isWindowsVersionOrLater (SystemStats::OperatingSystemType target)
     zerostruct (info);
     info.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEX);
 
-    if (target >= SystemStats::WinVista)
+    if (target >= SystemStats::Windows10)
+    {
+        info.dwMajorVersion = 10;
+        info.dwMinorVersion = 0;
+    }
+    else if (target >= SystemStats::WinVista)
     {
         info.dwMajorVersion = 6;
 
         switch (target)
         {
-            case SystemStats::WinVista:  info.dwMinorVersion = 0; break;
-            case SystemStats::Windows7:  info.dwMinorVersion = 1; break;
-            case SystemStats::Windows8:  info.dwMinorVersion = 2; break;
-            default:                     jassertfalse; break;
+            case SystemStats::WinVista:    break;
+            case SystemStats::Windows7:    info.dwMinorVersion = 1; break;
+            case SystemStats::Windows8_0:  info.dwMinorVersion = 2; break;
+            case SystemStats::Windows8_1:  info.dwMinorVersion = 3; break;
+            default:                       jassertfalse; break;
         }
     }
     else
@@ -165,7 +173,7 @@ static bool isWindowsVersionOrLater (SystemStats::OperatingSystemType target)
 SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
 {
     const SystemStats::OperatingSystemType types[]
-            = { Windows8, Windows7, WinVista, WinXP, Win2000 };
+            = { Windows10, Windows8_1, Windows8_0, Windows7, WinVista, WinXP, Win2000 };
 
     for (int i = 0; i < numElementsInArray (types); ++i)
         if (isWindowsVersionOrLater (types[i]))
@@ -181,8 +189,10 @@ String SystemStats::getOperatingSystemName()
 
     switch (getOperatingSystemType())
     {
+        case Windows10:         name = "Windows 10";        break;
+        case Windows8_1:        name = "Windows 8.1";       break;
+        case Windows8_0:        name = "Windows 8.0";       break;
         case Windows7:          name = "Windows 7";         break;
-        case Windows8:          name = "Windows 8";         break;
         case WinVista:          name = "Windows Vista";     break;
         case WinXP:             name = "Windows XP";        break;
         case Win2000:           name = "Windows 2000";      break;
@@ -194,7 +204,7 @@ String SystemStats::getOperatingSystemName()
 
 String SystemStats::getDeviceDescription()
 {
-    return String::empty;
+    return String();
 }
 
 bool SystemStats::isOperatingSystem64Bit()
@@ -251,9 +261,23 @@ public:
     HiResCounterHandler()
         : hiResTicksOffset (0)
     {
-        const MMRESULT res = timeBeginPeriod (1);
+        // This macro allows you to override the default timer-period
+        // used on Windows. By default this is set to 1, because that has
+        // always been the value used in JUCE apps, and changing it could
+        // affect the behaviour of existing code, but you may wish to make
+        // it larger (or set it to 0 to use the system default) to make your
+        // app less demanding on the CPU.
+        // For more info, see win32 documentation about the timeBeginPeriod
+        // function.
+       #ifndef JUCE_WIN32_TIMER_PERIOD
+        #define JUCE_WIN32_TIMER_PERIOD 1
+       #endif
+
+       #if JUCE_WIN32_TIMER_PERIOD > 0
+        const MMRESULT res = timeBeginPeriod (JUCE_WIN32_TIMER_PERIOD);
         (void) res;
         jassert (res == TIMERR_NOERROR);
+       #endif
 
         LARGE_INTEGER f;
         QueryPerformanceFrequency (&f);
@@ -297,7 +321,7 @@ double Time::getMillisecondCounterHiRes() noexcept       { return hiResCounterHa
 //==============================================================================
 static int64 juce_getClockCycleCounter() noexcept
 {
-   #if JUCE_USE_INTRINSICS
+   #if JUCE_USE_MSVC_INTRINSICS
     // MS intrinsics version...
     return (int64) __rdtsc();
 

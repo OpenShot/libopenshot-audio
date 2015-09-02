@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -218,7 +218,7 @@ private:
 #else
   #define JUCE_ATOMICS_WINDOWS 1    // Windows with intrinsics
 
-  #if JUCE_USE_INTRINSICS
+  #if JUCE_USE_MSVC_INTRINSICS
     #ifndef __INTEL_COMPILER
      #pragma intrinsic (_InterlockedExchange, _InterlockedIncrement, _InterlockedDecrement, _InterlockedCompareExchange, \
                         _InterlockedCompareExchange64, _InterlockedExchangeAdd, _ReadWriteBarrier)

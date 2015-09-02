@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -88,14 +88,14 @@ MemoryBlock& MemoryBlock::operator= (const MemoryBlock& other)
 
 #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
 MemoryBlock::MemoryBlock (MemoryBlock&& other) noexcept
-    : data (static_cast <HeapBlock<char>&&> (other.data)),
+    : data (static_cast<HeapBlock<char>&&> (other.data)),
       size (other.size)
 {
 }
 
 MemoryBlock& MemoryBlock::operator= (MemoryBlock&& other) noexcept
 {
-    data = static_cast <HeapBlock<char>&&> (other.data);
+    data = static_cast<HeapBlock<char>&&> (other.data);
     size = other.size;
     return *this;
 }
@@ -259,7 +259,7 @@ void MemoryBlock::copyTo (void* const dst, int offset, size_t num) const noexcep
 
     if ((size_t) offset + num > size)
     {
-        const size_t newNum = size - (size_t) offset;
+        const size_t newNum = (size_t) size - (size_t) offset;
         zeromem (d + newNum, num - newNum);
         num = newNum;
     }
@@ -346,7 +346,7 @@ void MemoryBlock::loadFromHexString (StringRef hex)
 
                 if (c == 0)
                 {
-                    setSize (static_cast <size_t> (dest - data));
+                    setSize (static_cast<size_t> (dest - data));
                     return;
                 }
             }

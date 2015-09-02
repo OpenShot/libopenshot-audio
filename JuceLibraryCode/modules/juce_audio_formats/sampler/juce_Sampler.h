@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -82,8 +82,8 @@ public:
 
 
     //==============================================================================
-    bool appliesToNote (const int midiNoteNumber) override;
-    bool appliesToChannel (const int midiChannel) override;
+    bool appliesToNote (int midiNoteNumber) override;
+    bool appliesToChannel (int midiChannel) override;
 
 
 private:
@@ -124,9 +124,9 @@ public:
     bool canPlaySound (SynthesiserSound*) override;
 
     void startNote (int midiNoteNumber, float velocity, SynthesiserSound*, int pitchWheel) override;
-    void stopNote (bool allowTailOff) override;
+    void stopNote (float velocity, bool allowTailOff) override;
 
-    void pitchWheelMoved (int newValue);
+    void pitchWheelMoved (int newValue) override;
     void controllerMoved (int controllerNumber, int newValue) override;
 
     void renderNextBlock (AudioSampleBuffer&, int startSample, int numSamples) override;

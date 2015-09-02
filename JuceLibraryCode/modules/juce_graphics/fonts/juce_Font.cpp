@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -30,12 +30,16 @@ namespace FontValues
     }
 
     const float defaultFontHeight = 14.0f;
+    float minimumHorizontalScale = 0.7f;
     String fallbackFont;
     String fallbackFontStyle;
 }
 
 typedef Typeface::Ptr (*GetTypefaceForFont) (const Font&);
 GetTypefaceForFont juce_getTypefaceForFont = nullptr;
+
+float Font::getDefaultMinimumHorizontalScaleFactor() noexcept   { return FontValues::minimumHorizontalScale; }
+void Font::setDefaultMinimumHorizontalScaleFactor (float newValue) noexcept  { FontValues::minimumHorizontalScale = newValue; }
 
 //==============================================================================
 class TypefaceCache  : private DeletedAtShutdown
@@ -51,7 +55,7 @@ public:
         clearSingletonInstance();
     }
 
-    juce_DeclareSingleton (TypefaceCache, false);
+    juce_DeclareSingleton (TypefaceCache, false)
 
     void setSize (const int numToCache)
     {
@@ -278,13 +282,13 @@ Font& Font::operator= (const Font& other) noexcept
 
 #if JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS
 Font::Font (Font&& other) noexcept
-    : font (static_cast <ReferenceCountedObjectPtr <SharedFontInternal>&&> (other.font))
+    : font (static_cast<ReferenceCountedObjectPtr<SharedFontInternal>&&> (other.font))
 {
 }
 
 Font& Font::operator= (Font&& other) noexcept
 {
-    font = static_cast <ReferenceCountedObjectPtr <SharedFontInternal>&&> (other.font);
+    font = static_cast<ReferenceCountedObjectPtr<SharedFontInternal>&&> (other.font);
     return *this;
 }
 #endif
@@ -640,7 +644,7 @@ float Font::getStringWidthFloat (const String& text) const
     return w * font->height * font->horizontalScale;
 }
 
-void Font::getGlyphPositions (const String& text, Array <int>& glyphs, Array <float>& xOffsets) const
+void Font::getGlyphPositions (const String& text, Array<int>& glyphs, Array<float>& xOffsets) const
 {
     getTypeface()->getGlyphPositions (text, glyphs, xOffsets);
 

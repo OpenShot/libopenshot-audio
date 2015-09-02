@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -45,14 +45,16 @@
 
 #include <locale>
 #include <cctype>
-#include <sys/timeb.h>
 
 #if ! JUCE_ANDROID
+ #include <sys/timeb.h>
  #include <cwctype>
 #endif
 
 #if JUCE_WINDOWS
  #include <ctime>
+
+ #define _WINSOCK_DEPRECATED_NO_WARNINGS 1
  #include <winsock2.h>
  #include <ws2tcpip.h>
 
@@ -79,6 +81,11 @@
 
  #if JUCE_LINUX
   #include <langinfo.h>
+  #include <ifaddrs.h>
+
+  #if JUCE_USE_CURL
+   #include <curl/curl.h>
+  #endif
  #endif
 
  #include <pwd.h>
@@ -104,6 +111,11 @@
  #include <android/log.h>
 #endif
 
+//==============================================================================
+#ifndef    JUCE_STANDALONE_APPLICATION
+ JUCE_COMPILER_WARNING ("Please re-save your Introjucer project with the latest Introjucer version to avoid this warning")
+ #define   JUCE_STANDALONE_APPLICATION 0
+#endif
 
 //==============================================================================
 namespace juce
@@ -202,6 +214,9 @@ namespace juce
 #include "native/juce_linux_CommonFile.cpp"
 #include "native/juce_linux_Files.cpp"
 #include "native/juce_linux_Network.cpp"
+#if JUCE_USE_CURL
+ #include "native/juce_curl_Network.cpp"
+#endif
 #include "native/juce_linux_SystemStats.cpp"
 #include "native/juce_linux_Threads.cpp"
 

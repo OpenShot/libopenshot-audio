@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -75,6 +75,13 @@ public:
     {
         return position1 < position2 ? Range (position1, position2)
                                      : Range (position2, position1);
+    }
+
+    /** Returns a range with a given start and length. */
+    static Range withStartAndLength (const ValueType startValue, const ValueType length) noexcept
+    {
+        jassert (length >= ValueType());
+        return Range (startValue, startValue + length);
     }
 
     /** Returns a range with the specified start position and a length of zero. */

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -352,7 +352,7 @@ public:
 
     /** Returns the value of a named attribute as floating-point.
 
-        This will try to find the attribute and convert it to an integer (using
+        This will try to find the attribute and convert it to a double (using
         the String::getDoubleValue() method).
 
         @param attributeName        the name of the attribute to look up
@@ -599,10 +599,17 @@ public:
     /** Returns true if the given element is a child of this one. */
     bool containsChildElement (const XmlElement* possibleChild) const noexcept;
 
-    /** Recursively searches all sub-elements to find one that contains the specified
-        child element.
+    /** Recursively searches all sub-elements of this one, looking for an element
+        which is the direct parent of the specified element.
+
+        Because elements don't store a pointer to their parent, if you have one
+        and need to find its parent, the only way to do so is to exhaustively
+        search the whole tree for it.
+
+        If the given child is found somewhere in this element's hierarchy, then
+        this method will return its parent. If not, it will return nullptr.
     */
-    XmlElement* findParentElementOf (const XmlElement* elementToLookFor) noexcept;
+    XmlElement* findParentElementOf (const XmlElement* childToSearchFor) noexcept;
 
     //==============================================================================
     /** Sorts the child elements using a comparator.

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -22,16 +22,22 @@
   ==============================================================================
 */
 
-AudioProcessorEditor::AudioProcessorEditor (AudioProcessor* const p)
-    : owner (p)
+AudioProcessorEditor::AudioProcessorEditor (AudioProcessor& p) noexcept  : processor (p)
+{
+}
+
+AudioProcessorEditor::AudioProcessorEditor (AudioProcessor* p) noexcept  : processor (*p)
 {
     // the filter must be valid..
-    jassert (owner != nullptr);
+    jassert (p != nullptr);
 }
 
 AudioProcessorEditor::~AudioProcessorEditor()
 {
     // if this fails, then the wrapper hasn't called editorBeingDeleted() on the
     // filter for some reason..
-    jassert (owner->getActiveEditor() != this);
+    jassert (processor.getActiveEditor() != this);
 }
+
+void AudioProcessorEditor::setControlHighlight (ParameterControlHighlightInfo) {}
+int AudioProcessorEditor::getControlParameterIndex (Component&)  { return -1; }

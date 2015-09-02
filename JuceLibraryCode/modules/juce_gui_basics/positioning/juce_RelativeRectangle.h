@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -28,7 +28,7 @@
 
 //==============================================================================
 /**
-    An rectangle stored as a set of RelativeCoordinate values.
+    A rectangle stored as a set of RelativeCoordinate values.
 
     The rectangle's top, left, bottom and right edge positions are each stored as a RelativeCoordinate.
 
@@ -81,8 +81,9 @@ public:
     bool isDynamic() const;
 
     /** Returns a string which represents this point.
-        This returns a comma-separated list of coordinates, in the order left, top, right, bottom. For details of
-        the string syntax used by the coordinates, see the RelativeCoordinate constructor notes.
+        This returns a comma-separated list of coordinates, in the order left, top, right, bottom.
+        If you're using this to position a Component, then see the notes for
+        Component::setBounds (const RelativeRectangle&) for details of the syntax used.
         The string that is returned can be passed to the RelativeRectangle constructor to recreate the rectangle.
     */
     String toString() const;

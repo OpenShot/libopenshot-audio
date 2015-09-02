@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -57,6 +57,9 @@ public:
 
     /** Returns true if the point is (0, 0). */
     bool isOrigin() const noexcept                                  { return x == ValueType() && y == ValueType(); }
+
+    /** Returns true if the coordinates are finite values. */
+    inline bool isFinite() const noexcept                           { return juce_isfinite(x) && juce_isfinite(y); }
 
     /** Returns the point's x coordinate. */
     inline ValueType getX() const noexcept                          { return x; }
@@ -212,6 +215,9 @@ public:
 
     /** Casts this point to a Point<double> object. */
     Point<double> toDouble() const noexcept                       { return Point<double> (static_cast<double> (x), static_cast<double> (y)); }
+
+    /** Casts this point to a Point<int> object using roundToInt() to convert the values. */
+    Point<int> roundToInt() const noexcept                        { return Point<int> (juce::roundToInt (x), juce::roundToInt (y)); }
 
     /** Returns the point as a string in the form "x, y". */
     String toString() const                                       { return String (x) + ", " + String (y); }

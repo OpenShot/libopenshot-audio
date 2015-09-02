@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -91,6 +91,13 @@ public:
    #endif
 
     //==============================================================================
+   #if JUCE_COMPILER_SUPPORTS_LAMBDAS
+    /** Asynchronously invokes a function or C++11 lambda on the message thread.
+        Internally this uses the CallbackMessage class to invoke the callback.
+    */
+    static void callAsync (std::function<void(void)>);
+   #endif
+
     /** Calls a function using the message-thread.
 
         This can be used by any thread to cause this function to be called-back
@@ -170,7 +177,7 @@ public:
         virtual ~MessageBase() {}
 
         virtual void messageCallback() = 0;
-        void post();
+        bool post();
 
         typedef ReferenceCountedObjectPtr<MessageBase> Ptr;
 

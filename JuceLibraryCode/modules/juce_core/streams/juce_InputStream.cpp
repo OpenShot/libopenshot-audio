@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -209,10 +209,10 @@ String InputStream::readNextLine()
     return String::fromUTF8 (data, (int) i);
 }
 
-int InputStream::readIntoMemoryBlock (MemoryBlock& block, ssize_t numBytes)
+size_t InputStream::readIntoMemoryBlock (MemoryBlock& block, ssize_t numBytes)
 {
     MemoryOutputStream mo (block, true);
-    return mo.writeFromInputStream (*this, numBytes);
+    return (size_t) mo.writeFromInputStream (*this, numBytes);
 }
 
 String InputStream::readEntireStreamAsString()

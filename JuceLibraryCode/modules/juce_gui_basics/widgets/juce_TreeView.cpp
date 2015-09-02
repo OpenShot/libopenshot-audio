@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -67,7 +67,7 @@ public:
                         selectBasedOnModifiers (item, e.mods);
 
                     if (e.x >= pos.getX())
-                        item->itemClicked (e.withNewPosition (e.getPosition() - pos.getPosition()));
+                        item->itemClicked (e.withNewPosition (e.position - pos.getPosition().toFloat()));
                 }
             }
         }
@@ -92,7 +92,7 @@ public:
             Rectangle<int> pos;
             if (TreeViewItem* const item = findItemAt (e.y, pos))
                 if (e.x >= pos.getX() || ! owner.openCloseButtonsVisible)
-                    item->itemDoubleClicked (e.withNewPosition (e.getPosition() - pos.getPosition()));
+                    item->itemDoubleClicked (e.withNewPosition (e.position - pos.getPosition().toFloat()));
         }
     }
 
@@ -925,6 +925,14 @@ struct TreeView::InsertPoint
             pos.x = itemPos.getX();
             item = item->getParentItem();
         }
+        else if (TreeViewItem* root = view.getRootItem())
+        {
+            // If they're dragging beyond the bottom of the list, then insert at the end of the root item..
+            item = root;
+            insertIndex = root->getNumSubItems();
+            pos = root->getItemPosition (true).getBottomLeft();
+            pos.x += view.getIndentSize();
+        }
     }
 
     Point<int> pos;
@@ -1142,6 +1150,7 @@ TreeViewItem::TreeViewItem()
       drawLinesInside (false),
       drawLinesSet (false),
       drawsInLeftMargin (false),
+      drawsInRightMargin (false),
       openness (opennessDefault)
 {
     static int nextUID = 0;
@@ -1497,6 +1506,11 @@ void TreeViewItem::setDrawsInLeftMargin (bool canDrawInLeftMargin) noexcept
     drawsInLeftMargin = canDrawInLeftMargin;
 }
 
+void TreeViewItem::setDrawsInRightMargin (bool canDrawInRightMargin) noexcept
+{
+    drawsInRightMargin = canDrawInRightMargin;
+}
+
 namespace TreeViewHelpers
 {
     static int calculateDepth (const TreeViewItem* item, const bool rootIsVisible) noexcept
@@ -1524,7 +1538,7 @@ void TreeViewItem::paintRecursively (Graphics& g, int width)
         return;
 
     const int indent = getIndentX();
-    const int itemW = itemWidth < 0 ? width - indent : itemWidth;
+    const int itemW = (itemWidth < 0 || drawsInRightMargin) ? width - indent : itemWidth;
 
     {
         Graphics::ScopedSaveState ss (g);
@@ -1536,7 +1550,7 @@ void TreeViewItem::paintRecursively (Graphics& g, int width)
             if (isSelected())
                 g.fillAll (ownerView->findColour (TreeView::selectedItemBackgroundColourId));
 
-            paintItem (g, itemW, itemHeight);
+            paintItem (g, itemWidth < 0 ? width - indent : itemWidth, itemHeight);
         }
     }
 
@@ -1773,6 +1787,11 @@ TreeViewItem* TreeViewItem::getNextVisibleItem (const bool recurse) const noexce
     return nullptr;
 }
 
+static String escapeSlashesInTreeViewItemName (const String& s)
+{
+    return s.replaceCharacter ('/', '\\');
+}
+
 String TreeViewItem::getItemIdentifierString() const
 {
     String s;
@@ -1780,12 +1799,12 @@ String TreeViewItem::getItemIdentifierString() const
     if (parentItem != nullptr)
         s = parentItem->getItemIdentifierString();
 
-    return s + "/" + getUniqueName().replaceCharacter ('/', '\\');
+    return s + "/" + escapeSlashesInTreeViewItemName (getUniqueName());
 }
 
 TreeViewItem* TreeViewItem::findItemFromIdentifierString (const String& identifierString)
 {
-    const String thisId ("/" + getUniqueName());
+    const String thisId ("/" + escapeSlashesInTreeViewItemName (getUniqueName()));
 
     if (thisId == identifierString)
         return this;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission to use, copy, modify, and/or distribute this software for any purpose with
    or without fee is hereby granted, provided that the above copyright notice and this
@@ -223,6 +223,12 @@ namespace
         return statfs (f.getFullPathName().toUTF8(), &result) == 0;
     }
 
+   #if (JUCE_MAC && MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5) || JUCE_IOS
+    static int64 getCreationTime (const juce_statStruct& s) noexcept     { return (int64) s.st_birthtime; }
+   #else
+    static int64 getCreationTime (const juce_statStruct& s) noexcept     { return (int64) s.st_ctime; }
+   #endif
+
     void updateStatInfoForFile (const String& path, bool* const isDir, int64* const fileSize,
                                 Time* const modTime, Time* const creationTime, bool* const isReadOnly)
     {
@@ -232,9 +238,9 @@ namespace
             const bool statOk = juce_stat (path, info);
 
             if (isDir != nullptr)         *isDir        = statOk && ((info.st_mode & S_IFDIR) != 0);
-            if (fileSize != nullptr)      *fileSize     = statOk ? info.st_size : 0;
-            if (modTime != nullptr)       *modTime      = Time (statOk ? (int64) info.st_mtime * 1000 : 0);
-            if (creationTime != nullptr)  *creationTime = Time (statOk ? (int64) info.st_ctime * 1000 : 0);
+            if (fileSize != nullptr)      *fileSize     = statOk ? (int64) info.st_size : 0;
+            if (modTime != nullptr)       *modTime      = Time (statOk ? (int64) info.st_mtime  * 1000 : 0);
+            if (creationTime != nullptr)  *creationTime = Time (statOk ? getCreationTime (info) * 1000 : 0);
         }
 
         if (isReadOnly != nullptr)
@@ -259,8 +265,8 @@ bool File::isDirectory() const
 {
     juce_statStruct info;
 
-    return fullPath.isEmpty()
-            || (juce_stat (fullPath, info) && ((info.st_mode & S_IFDIR) != 0));
+    return fullPath.isNotEmpty()
+             && (juce_stat (fullPath, info) && ((info.st_mode & S_IFDIR) != 0));
 }
 
 bool File::exists() const
@@ -298,21 +304,31 @@ bool File::hasWriteAccess() const
     return false;
 }
 
-bool File::setFileReadOnlyInternal (const bool shouldBeReadOnly) const
+static bool setFileModeFlags (const String& fullPath, mode_t flags, bool shouldSet) noexcept
 {
     juce_statStruct info;
     if (! juce_stat (fullPath, info))
         return false;
 
-    info.st_mode &= 0777;   // Just permissions
+    info.st_mode &= 0777;
 
-    if (shouldBeReadOnly)
-        info.st_mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
+    if (shouldSet)
+        info.st_mode |= flags;
     else
-        // Give everybody write permission?
-        info.st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+        info.st_mode &= ~flags;
 
     return chmod (fullPath.toUTF8(), info.st_mode) == 0;
+}
+
+bool File::setFileReadOnlyInternal (bool shouldBeReadOnly) const
+{
+    // Hmm.. should we give global write permission or just the current user?
+    return setFileModeFlags (fullPath, S_IWUSR | S_IWGRP | S_IWOTH, ! shouldBeReadOnly);
+}
+
+bool File::setFileExecutableInternal (bool shouldBeExecutable) const
+{
+    return setFileModeFlags (fullPath, S_IXUSR | S_IXGRP | S_IXOTH, shouldBeExecutable);
 }
 
 void File::getFileTimesInternal (int64& modificationTime, int64& accessTime, int64& creationTime) const
@@ -322,11 +338,12 @@ void File::getFileTimesInternal (int64& modificationTime, int64& accessTime, int
     creationTime = 0;
 
     juce_statStruct info;
+
     if (juce_stat (fullPath, info))
     {
-        modificationTime = (int64) info.st_mtime * 1000;
-        accessTime = (int64) info.st_atime * 1000;
-        creationTime = (int64) info.st_ctime * 1000;
+        modificationTime  = (int64) info.st_mtime * 1000;
+        accessTime        = (int64) info.st_atime * 1000;
+        creationTime      = (int64) info.st_ctime * 1000;
     }
 }
 
@@ -664,6 +681,7 @@ int File::getVolumeSerialNumber() const
 }
 
 //==============================================================================
+#if ! JUCE_IOS
 void juce_runSystemCommand (const String&);
 void juce_runSystemCommand (const String& command)
 {
@@ -684,7 +702,7 @@ String juce_getOutputFromCommand (const String& command)
     tempFile.deleteFile();
     return result;
 }
-
+#endif
 
 //==============================================================================
 #if JUCE_IOS
@@ -837,12 +855,6 @@ extern "C" void* threadEntryProc (void* userData)
     JUCE_AUTORELEASEPOOL
     {
        #if JUCE_ANDROID
-        struct AndroidThreadScope
-        {
-            AndroidThreadScope()   { threadLocalJNIEnvHolder.attach(); }
-            ~AndroidThreadScope()  { threadLocalJNIEnvHolder.detach(); }
-        };
-
         const AndroidThreadScope androidEnv;
        #endif
 
@@ -949,22 +961,22 @@ void JUCE_CALLTYPE Thread::setCurrentThreadAffinityMask (const uint32 affinityMa
         if ((affinityMask & (1 << i)) != 0)
             CPU_SET (i, &affinity);
 
-    /*
-       N.B. If this line causes a compile error, then you've probably not got the latest
-       version of glibc installed.
-
-       If you don't want to update your copy of glibc and don't care about cpu affinities,
-       then you can just disable all this stuff by setting the SUPPORT_AFFINITIES macro to 0.
-    */
+   #if (! JUCE_ANDROID) && ((! JUCE_LINUX) || ((__GLIBC__ * 1000 + __GLIBC_MINOR__) >= 2004))
+    pthread_setaffinity_np (pthread_self(), sizeof (cpu_set_t), &affinity);
+   #else
+    // NB: this call isn't really correct because it sets the affinity of the process,
+    // not the thread. But it's included here as a fallback for people who are using
+    // ridiculously old versions of glibc
     sched_setaffinity (getpid(), sizeof (cpu_set_t), &affinity);
+   #endif
+
     sched_yield();
 
    #else
-    /* affinities aren't supported because either the appropriate header files weren't found,
-       or the SUPPORT_AFFINITIES macro was turned off
-    */
+    // affinities aren't supported because either the appropriate header files weren't found,
+    // or the SUPPORT_AFFINITIES macro was turned off
     jassertfalse;
-    (void) affinityMask;
+    ignoreUnused (affinityMask);
    #endif
 }
 
@@ -1150,16 +1162,25 @@ struct HighResolutionTimer::Pimpl
 
     void start (int newPeriod)
     {
-        periodMs = newPeriod;
-
-        if (thread == 0)
+        if (periodMs != newPeriod)
         {
-            shouldStop = false;
+            if (thread != pthread_self())
+            {
+                stop();
 
-            if (pthread_create (&thread, nullptr, timerThread, this) == 0)
-                setThreadToRealtime (thread, (uint64) newPeriod);
+                periodMs = newPeriod;
+                shouldStop = false;
+
+                if (pthread_create (&thread, nullptr, timerThread, this) == 0)
+                    setThreadToRealtime (thread, (uint64) newPeriod);
+                else
+                    jassertfalse;
+            }
             else
-                jassertfalse;
+            {
+                periodMs = newPeriod;
+                shouldStop = false;
+            }
         }
     }
 
@@ -1183,7 +1204,9 @@ private:
 
     static void* timerThread (void* param)
     {
-       #if ! JUCE_ANDROID
+       #if JUCE_ANDROID
+        const AndroidThreadScope androidEnv;
+       #else
         int dummy;
         pthread_setcancelstate (PTHREAD_CANCEL_ENABLE, &dummy);
        #endif
@@ -1194,12 +1217,19 @@ private:
 
     void timerThread()
     {
-        Clock clock (periodMs);
+        int lastPeriod = periodMs;
+        Clock clock (lastPeriod);
 
         while (! shouldStop)
         {
             clock.wait();
             owner.hiResTimerCallback();
+
+            if (lastPeriod != periodMs)
+            {
+                lastPeriod = periodMs;
+                clock = Clock (lastPeriod);
+            }
         }
 
         periodMs = 0;
@@ -1244,7 +1274,7 @@ private:
         {
             struct timespec t;
             clock_gettime (CLOCK_MONOTONIC, &t);
-            time = 1000000000 * (int64) t.tv_sec + t.tv_nsec;
+            time = (uint64) (1000000000 * (int64) t.tv_sec + (int64) t.tv_nsec);
         }
 
         void wait() noexcept

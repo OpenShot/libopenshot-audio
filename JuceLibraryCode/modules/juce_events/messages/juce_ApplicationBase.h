@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -50,24 +50,24 @@
             MyJUCEApp()  {}
             ~MyJUCEApp() {}
 
-            void initialise (const String& commandLine)
+            void initialise (const String& commandLine) override
             {
                 myMainWindow = new MyApplicationWindow();
                 myMainWindow->setBounds (100, 100, 400, 500);
                 myMainWindow->setVisible (true);
             }
 
-            void shutdown()
+            void shutdown() override
             {
                 myMainWindow = nullptr;
             }
 
-            const String getApplicationName()
+            const String getApplicationName() override
             {
                 return "Super JUCE-o-matic";
             }
 
-            const String getApplicationVersion()
+            const String getApplicationVersion() override
             {
                 return "1.0";
             }
@@ -259,6 +259,7 @@ public:
     static CreateInstanceFunction createInstance;
 
     virtual bool initialiseApp();
+    int shutdownApp();
     static void JUCE_CALLTYPE sendUnhandledException (const std::exception*, const char* sourceFile, int lineNumber);
     bool sendCommandLineToPreexistingInstance();
    #endif
@@ -273,8 +274,6 @@ private:
     friend struct MultipleInstanceHandler;
     friend struct ContainerDeletePolicy<MultipleInstanceHandler>;
     ScopedPointer<MultipleInstanceHandler> multipleInstanceHandler;
-
-    int shutdownApp();
 
     JUCE_DECLARE_NON_COPYABLE (JUCEApplicationBase)
 };

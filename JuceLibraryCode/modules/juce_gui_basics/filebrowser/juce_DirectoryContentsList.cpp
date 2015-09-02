@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2013 - Raw Material Software Ltd.
+   Copyright (c) 2015 - ROLI Ltd.
 
    Permission is granted to use this software under the terms of either:
    a) the GPL v2 (or any later version)
@@ -115,8 +115,7 @@ void DirectoryContentsList::setFileFilter (const FileFilter* newFileFilter)
 }
 
 //==============================================================================
-bool DirectoryContentsList::getFileInfo (const int index,
-                                         FileInfo& result) const
+bool DirectoryContentsList::getFileInfo (const int index, FileInfo& result) const
 {
     const ScopedLock sl (fileListLock);
 
@@ -222,7 +221,7 @@ struct FileInfoComparator
             return first->isDirectory ? -1 : 1;
        #endif
 
-        return first->filename.compareIgnoreCase (second->filename);
+        return first->filename.compareNatural (second->filename);
     }
 };
 
