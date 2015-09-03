@@ -35,8 +35,8 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 
 #if JUCE_MINGW
-	#define sleep(a) Sleep(a * 1000)
-	#include <windows.h>
+#define sleep(a) Sleep(a * 1000)
+#include <windows.h>
 #endif
 
 using namespace std;
@@ -46,23 +46,46 @@ int main()
 {
 
 	// Initialize audio devices
+	cout << "Begin init" << endl;
 	AudioDeviceManager deviceManager;
 	deviceManager.initialise (	0, /* number of input channels */
 								2, /* number of output channels */
 								0, /* no XML settings.. */
 								true  /* select default device on failure */);
 
-	// Play test sound
-	deviceManager.playTestSound();
+	// Set default device
+	//deviceManager.setCurrentAudioDeviceType("Speakers (Realtek High Definition Audio)", true);
 
-	// Sleep for 2 seconds
-	cout << "Playing test sound now..." << endl;
-	sleep(2);
+	// Play test sound
+	cout << "Playing sound now" << endl;
+	deviceManager.playTestSound();
+	for (int x = 1; x <= 5; x++) {
+		cout << "... " << x << endl;
+		sleep(1);
+	}
+
+	int id = 1;
+	cout << "before device loop" << endl;
+	for (int i = 0; i < deviceManager.getAvailableDeviceTypes().size(); ++i)
+	{
+		const AudioIODeviceType* t = deviceManager.getAvailableDeviceTypes()[i];
+		const StringArray deviceNames = t->getDeviceNames ();
+
+		for (int j = 0; j < deviceNames.size (); ++j )
+		{
+			const String deviceName = deviceNames[j];
+			String menuName;
+
+			menuName << deviceName << " (" << t->getTypeName() << ")";
+			cout << menuName << endl;
+		}
+	}
+	cout << "after device loop" << endl;
 
 	// Stop audio devices
-    deviceManager.closeAudioDevice();
-    deviceManager.removeAllChangeListeners();
-    deviceManager.dispatchPendingMessages();
+	deviceManager.closeAudioDevice();
+	deviceManager.removeAllChangeListeners();
+	deviceManager.dispatchPendingMessages();
 
-    return 0;
+	return 0;
 }
