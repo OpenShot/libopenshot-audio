@@ -311,11 +311,13 @@ inline int numElementsInArray (Type (&array)[N])
 template <typename Type>
 inline Type juce_hypot (Type a, Type b) noexcept
 {
+#ifndef IGNORE_JUCE_HYPOT
    #if JUCE_MSVC
     return static_cast<Type> (_hypot (a, b));
    #else
     return static_cast<Type> (hypot (a, b));
    #endif
+#endif
 }
 
 #ifndef DOXYGEN

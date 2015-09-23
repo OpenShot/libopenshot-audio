@@ -53,9 +53,6 @@ int main()
 								0, /* no XML settings.. */
 								true  /* select default device on failure */);
 
-	// Set default device
-	//deviceManager.setCurrentAudioDeviceType("Speakers (Realtek High Definition Audio)", true);
-
 	// Play test sound
 	cout << "Playing sound now" << endl;
 	deviceManager.playTestSound();
