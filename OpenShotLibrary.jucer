@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="iIUu5J" name="libopenshot-audio" projectType="dll" version="0.0.1"
-              bundleIdentifier="org.openshot.library" jucerVersion="3.1.0"
+              bundleIdentifier="org.openshot.library" jucerVersion="3.2.0"
               companyName="OpenShot Studios, LLC" includeBinaryInAppConfig="1"
               companyWebsite="http://www.openshotstudios.com" companyEmail="sales@openshot.org">
   <EXPORTFORMATS>

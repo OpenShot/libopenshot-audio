@@ -31,11 +31,13 @@
  using namespace juce;
 #endif
 
+#if ! JUCE_DONT_DECLARE_PROJECTINFO
 namespace ProjectInfo
 {
     const char* const  projectName    = "libopenshot-audio";
     const char* const  versionString  = "0.0.1";
     const int          versionNumber  = 0x1;
 }
+#endif
 
 #endif   // __APPHEADERFILE_IIUU5J__
