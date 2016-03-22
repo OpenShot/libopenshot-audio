@@ -4,7 +4,7 @@
 #
 # @section LICENSE
 #
-# Copyright (c) 2008-2014 OpenShot Studios, LLC
+# Copyright (c) 2008-2016 OpenShot Studios, LLC
 # <http://www.openshotstudios.com/>. This file is part of
 # OpenShot Audio Library (libopenshot-audio), an open-source project dedicated 
 # to delivering high quality audio editing and playback solutions to the 
