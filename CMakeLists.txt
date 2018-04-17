@@ -24,7 +24,7 @@
 # along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.4)
 
 ################ ADD CMAKE MODULES ##################
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
@@ -61,6 +61,10 @@ project(openshot-audio
 MESSAGE("--------------------------------------------------------------")
 MESSAGE("---- Generating build files for ${PROJECT_NAME} (${PROJECT_VERSION})")
 MESSAGE("--------------------------------------------------------------")
+
+if (NOT CMAKE_BUILD_TYPE)
+	SET(CMAKE_BUILD_TYPE "Release")
+endif()
 
 ADD_LIBRARY(openshot-audio SHARED)
 
@@ -116,7 +120,7 @@ ELSE (WIN32)
 	IF   (UNIX)
 		IF   (APPLE)
             SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
-            target_compile_definitions(openshot-audio INTERFACE NDEBUG)
+            target_compile_definitions(openshot-audio PRIVATE NDEBUG)
             SET(EXTENSION "mm")
 
             SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
@@ -128,8 +132,8 @@ ELSE (WIN32)
             SET(EXTENSION "cpp")
 
 			FIND_PACKAGE(X11 REQUIRED)
-			target_include_directories(openshot_audio INTERFACE ${X11_INCLUDE_DIR})
-			target_include_directories(openshot_audio INTERFACE /usr/include/freetype2)
+			target_include_directories(openshot_audio PUBLIC ${X11_INCLUDE_DIR})
+			target_include_directories(openshot_audio PUBLIC /usr/include/freetype2)
 			target_compile_options(openshot-audio PRIVATE -flax-vector-conversions)
 			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES ${X11_LIBRARIES} asound freetype Xinerama)
 		ENDIF(APPLE)
@@ -180,8 +184,34 @@ add_subdirectory(src)
 set(LIB_INSTALL_DIR lib${LIB_SUFFIX})
 
 # Install Files
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
-INSTALL(TARGETS openshot-audio DESTINATION ${LIB_INSTALL_DIR} INCLUDES DESTINATION include/libopenshot)
+# 👇 Exists a placemarker for FindOpenshot
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
+install(TARGETS openshot-audio EXPORT Openshot_Audio_Targets
+	LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+	ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+	RUNTIME DESTINATION ${LIB_INSTALL_DIR}
+	INCLUDES DESTINATION include/libopenshot-audio
+)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/libopenshot-audio/libopenshot-audioConfigVersion.cmake"
+  VERSION ${Upstream_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+
+export(EXPORT Openshot_Audio_Targets
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/libopenshot-audio/libopenshot-audioTargets.cmake"
+  NAMESPACE Openshot::
+)
+
+install (EXPORT Openshot_Audio_Targets
+	FILE libopenshot-audioTargets.cmake
+	NAMESPACE Openshot::
+	DESTINATION lib/cmake/libopenshot-audio
+)
+
 
 ################### DOCUMENTATION ###################
 # Find Doxygen (used for documentation)
