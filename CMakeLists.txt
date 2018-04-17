@@ -206,12 +206,24 @@ export(EXPORT Openshot_Audio_Targets
   NAMESPACE Openshot::
 )
 
+configure_file(cmake/libopenshot-audioConfig.cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/libopenshot-audio/libopenshot-audioConfig.cmake"
+  COPYONLY
+)
+
+set(ConfigPackageLocation lib/cmake/libopenshot-audio)
 install (EXPORT Openshot_Audio_Targets
 	FILE libopenshot-audioTargets.cmake
 	NAMESPACE Openshot::
-	DESTINATION lib/cmake/libopenshot-audio
+	DESTINATION ${ConfigPackageLocation}
 )
 
+install(
+	FILES
+		cmake/libopenshot-audioConfig.cmake
+		"${CMAKE_CURRENT_BINARY_DIR}/libopenshot-audio/libopenshot-audioConfigVersion.cmake"
+	DESTINATION ${ConfigPackageLocation}
+)
 
 ################### DOCUMENTATION ###################
 # Find Doxygen (used for documentation)
