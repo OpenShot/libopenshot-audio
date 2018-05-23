@@ -5,7 +5,7 @@ stages:
 linux-builder:
   stage: build-libopenshot-audio
   artifacts:
-    expire_in: 4 weeks
+    expire_in: 6 months
     paths:
     - build/install-x64/*
   script:
@@ -13,6 +13,7 @@ linux-builder:
     - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
     - make
     - make install
+    - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
   when: always
   tags:
     - linux
@@ -20,7 +21,7 @@ linux-builder:
 mac-builder:
   stage: build-libopenshot-audio
   artifacts:
-    expire_in: 4 weeks
+    expire_in: 6 months
     paths:
     - build/install-x64/*
   script:
@@ -28,6 +29,7 @@ mac-builder:
     - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk" -D"CMAKE_OSX_DEPLOYMENT_TARGET=10.9" ../
     - make
     - make install
+    - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
   when: always
   tags:
     - mac
@@ -35,7 +37,7 @@ mac-builder:
 windows-builder-x86:
   stage: build-libopenshot-audio
   artifacts:
-    expire_in: 4 weeks
+    expire_in: 6 months
     paths:
     - build\install-x86\*
   script:
@@ -48,6 +50,7 @@ windows-builder-x86:
     - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x86" -G "MinGW Makefiles" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
     - mingw32-make
     - mingw32-make install
+    - New-Item -path "install-x86/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
   when: always
   tags:
     - windows
@@ -55,7 +58,7 @@ windows-builder-x86:
 windows-builder-x64:
   stage: build-libopenshot-audio
   artifacts:
-    expire_in: 4 weeks
+    expire_in: 6 months
     paths:
     - build\install-x64\*
   script:
@@ -68,6 +71,7 @@ windows-builder-x64:
     - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -G "MinGW Makefiles" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
     - mingw32-make
     - mingw32-make install
+    - New-Item -path "install-x64/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
   when: always
   tags:
     - windows
