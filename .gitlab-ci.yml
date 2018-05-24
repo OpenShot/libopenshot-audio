@@ -76,9 +76,3 @@ trigger-pipeline:
     - linux
   only:
     - master@OpenShot/libopenshot
-
-
-
-
-
-
