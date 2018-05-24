@@ -2,44 +2,40 @@ stages:
   - build-libopenshot-audio
   - trigger-libopenshot
 
-linux-builder:
+builder-template: &builder-template
   stage: build-libopenshot-audio
   artifacts:
     expire_in: 6 months
     paths:
     - build/install-x64/*
+  when: always
+  only:
+    - master@OpenShot/libopenshot
+
+linux-builder:
+  <<: *builder-template
   script:
     - mkdir -p build; cd build;
     - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
     - make
     - make install
     - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
-  when: always
   tags:
     - linux
 
 mac-builder:
-  stage: build-libopenshot-audio
-  artifacts:
-    expire_in: 6 months
-    paths:
-    - build/install-x64/*
+  <<: *builder-template
   script:
     - mkdir -p build; cd build;
     - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk" -D"CMAKE_OSX_DEPLOYMENT_TARGET=10.9" ../
     - make
     - make install
     - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
-  when: always
   tags:
     - mac
 
 windows-builder-x86:
-  stage: build-libopenshot-audio
-  artifacts:
-    expire_in: 6 months
-    paths:
-    - build\install-x86\*
+  <<: *builder-template
   script:
     - $env:LIBOPENSHOT_AUDIO_DIR = "C:\msys32\usr"
     - $env:UNITTEST_DIR = "C:\msys32\usr"
@@ -51,16 +47,11 @@ windows-builder-x86:
     - mingw32-make
     - mingw32-make install
     - New-Item -path "install-x86/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
-  when: always
   tags:
     - windows
 
 windows-builder-x64:
-  stage: build-libopenshot-audio
-  artifacts:
-    expire_in: 6 months
-    paths:
-    - build\install-x64\*
+  <<: *builder-template
   script:
     - $env:LIBOPENSHOT_AUDIO_DIR = "C:\msys64\usr"
     - $env:UNITTEST_DIR = "C:\msys64\usr"
@@ -72,7 +63,6 @@ windows-builder-x64:
     - mingw32-make
     - mingw32-make install
     - New-Item -path "install-x64/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
-  when: always
   tags:
     - windows
 
@@ -84,6 +74,8 @@ trigger-pipeline:
   dependencies: []
   tags:
     - linux
+  only:
+    - master@OpenShot/libopenshot
 
 
 
