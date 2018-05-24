@@ -8,9 +8,11 @@ builder-template: &builder-template
     expire_in: 6 months
     paths:
     - build/install-x64/*
+  script:
+    - echo "Template"
   when: always
   only:
-    - master@OpenShot/libopenshot
+    - master
 
 linux-builder:
   <<: *builder-template
@@ -75,4 +77,4 @@ trigger-pipeline:
   tags:
     - linux
   only:
-    - master@OpenShot/libopenshot
+    - master
