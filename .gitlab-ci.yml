@@ -19,6 +19,7 @@ linux-builder:
     - linux
   only:
     - master
+    - release
 
 mac-builder:
   stage: build-libopenshot-audio
@@ -37,6 +38,7 @@ mac-builder:
     - mac
   only:
     - master
+    - release
 
 windows-builder-x86:
   stage: build-libopenshot-audio
@@ -60,6 +62,7 @@ windows-builder-x86:
     - windows
   only:
     - master
+    - release
 
 windows-builder-x64:
   stage: build-libopenshot-audio
@@ -83,14 +86,16 @@ windows-builder-x64:
     - windows
   only:
     - master
+    - release
 
 trigger-pipeline:
   stage: trigger-libopenshot
   script:
-    - "curl -X POST -F token=$LIBOPENSHOT_PIPELINE_TOKEN -F ref=master http://gitlab.openshot.org/api/v4/projects/1/trigger/pipeline"
+    - "curl -X POST -F token=$LIBOPENSHOT_PIPELINE_TOKEN -F ref=$CI_COMMIT_REF_NAME http://gitlab.openshot.org/api/v4/projects/1/trigger/pipeline"
   when: always
   dependencies: []
   tags:
     - linux
   only:
     - master
+    - release
