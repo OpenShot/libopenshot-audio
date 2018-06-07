@@ -17,8 +17,6 @@ linux-builder:
   when: always
   tags:
     - linux
-  except:
-    - master
 
 mac-builder:
   stage: build-libopenshot-audio
@@ -35,8 +33,6 @@ mac-builder:
   when: always
   tags:
     - mac
-  except:
-    - master
 
 windows-builder-x86:
   stage: build-libopenshot-audio
@@ -58,8 +54,6 @@ windows-builder-x86:
   when: always
   tags:
     - windows
-  except:
-    - master
 
 windows-builder-x64:
   stage: build-libopenshot-audio
@@ -81,8 +75,6 @@ windows-builder-x64:
   when: always
   tags:
     - windows
-  except:
-    - master
 
 trigger-pipeline:
   stage: trigger-libopenshot
@@ -92,5 +84,3 @@ trigger-pipeline:
   dependencies: []
   tags:
     - linux
-  except:
-    - master
