@@ -17,7 +17,7 @@ linux-builder:
   when: always
   tags:
     - linux
-  only:
+  except:
     - master
 
 mac-builder:
@@ -35,7 +35,7 @@ mac-builder:
   when: always
   tags:
     - mac
-  only:
+  except:
     - master
 
 windows-builder-x86:
@@ -58,7 +58,7 @@ windows-builder-x86:
   when: always
   tags:
     - windows
-  only:
+  except:
     - master
 
 windows-builder-x64:
@@ -81,16 +81,16 @@ windows-builder-x64:
   when: always
   tags:
     - windows
-  only:
+  except:
     - master
 
 trigger-pipeline:
   stage: trigger-libopenshot
   script:
-    - "curl -X POST -F token=$LIBOPENSHOT_PIPELINE_TOKEN -F ref=master http://gitlab.openshot.org/api/v4/projects/1/trigger/pipeline"
+    - "curl -X POST -F token=$LIBOPENSHOT_PIPELINE_TOKEN -F ref=$CI_COMMIT_REF_NAME http://gitlab.openshot.org/api/v4/projects/1/trigger/pipeline"
   when: always
   dependencies: []
   tags:
     - linux
-  only:
+  except:
     - master
