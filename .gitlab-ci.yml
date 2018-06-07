@@ -17,10 +17,6 @@ linux-builder:
   when: always
   tags:
     - linux
-  only:
-    - develop
-    - release
-    - tags
 
 mac-builder:
   stage: build-libopenshot-audio
@@ -37,10 +33,6 @@ mac-builder:
   when: always
   tags:
     - mac
-  only:
-    - develop
-    - release
-    - tags
 
 windows-builder-x86:
   stage: build-libopenshot-audio
@@ -62,10 +54,6 @@ windows-builder-x86:
   when: always
   tags:
     - windows
-  only:
-    - develop
-    - release
-    - tags
 
 windows-builder-x64:
   stage: build-libopenshot-audio
@@ -87,10 +75,6 @@ windows-builder-x64:
   when: always
   tags:
     - windows
-  only:
-    - develop
-    - release
-    - tags
 
 trigger-pipeline:
   stage: trigger-libopenshot
@@ -100,7 +84,3 @@ trigger-pipeline:
   dependencies: []
   tags:
     - linux
-  only:
-    - develop
-    - release
-    - tags
