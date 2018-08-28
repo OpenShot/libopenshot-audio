@@ -6,28 +6,29 @@
 #
 # Copyright (c) 2008-2016 OpenShot Studios, LLC
 # <http://www.openshotstudios.com/>. This file is part of
-# OpenShot Audio Library (libopenshot-audio), an open-source project dedicated 
-# to delivering high quality audio editing and playback solutions to the 
+# OpenShot Audio Library (libopenshot-audio), an open-source project dedicated
+# to delivering high quality audio editing and playback solutions to the
 # world. For more information visit <http://www.openshot.org/>.
 #
-# OpenShot Audio Library (libopenshot-audio) is free software: you can 
-# redistribute it and/or modify it under the terms of the GNU General Public 
+# OpenShot Audio Library (libopenshot-audio) is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
 # License as published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version.
 #
 # OpenShot Audio Library (libopenshot-audio) is distributed in the hope that it
-# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty 
-# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General 
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
 # Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.5)
 
 ################ ADD CMAKE MODULES ##################
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
+include(GNUInstallDirs)
 
 ################ GET VERSION INFORMATION FROM VERSION.H ##################
 MESSAGE("--------------------------------------------------------------")
@@ -89,7 +90,7 @@ IF (WIN32)
 		MESSAGE("AISO_SDK_DIR NOT FOUND")
 		ADD_DEFINITIONS(-DJUCE_ASIO=0)
 	ENDIF (AISO_SDK_DIR)
-    
+
 	ADD_DEFINITIONS(-DDONT_AUTOLINK_TO_JUCE_LIBRARY)
 	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++0x")
 
@@ -118,16 +119,16 @@ ELSE (WIN32)
             SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
             ADD_DEFINITIONS(-DNDEBUG)
             SET(EXTENSION "mm")
-            
+
             SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
             SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
-		
+
             SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++0x")
-		
+
         ELSE (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
             SET(EXTENSION "cpp")
-            
+
 			FIND_PACKAGE(X11 REQUIRED)
 			INCLUDE_DIRECTORIES(${X11_INCLUDE_DIR})
 			INCLUDE_DIRECTORIES(/usr/include/freetype2)
@@ -166,7 +167,7 @@ set_target_properties(openshot-audio
 			PROPERTIES
 			VERSION ${PROJECT_VERSION}
 			SOVERSION ${SO_VERSION}
-			INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+			INSTALL_NAME_DIR ${CMAKE_INSTALL_LIBDIR})
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
@@ -179,13 +180,10 @@ TARGET_LINK_LIBRARIES(openshot-audio
 # PROCESS SUB-DIRECTORIES
 add_subdirectory(src)
 
-# Determine correct lib folder
-set(LIB_INSTALL_DIR lib${LIB_SUFFIX}) 
-
 # Install Files
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
-INSTALL(TARGETS openshot-audio DESTINATION ${LIB_INSTALL_DIR})
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio)
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio FILES_MATCHING PATTERN "*.h")
+INSTALL(TARGETS openshot-audio DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 ################### DOCUMENTATION ###################
 # Find Doxygen (used for documentation)
@@ -193,7 +191,7 @@ include(cmake/Modules/UseDoxygen.cmake)
 
 # Install Doxygen html documentation
 file(GLOB_RECURSE doc_files ${CMAKE_CURRENT_BINARY_DIR}/doc/html/*.*)
-INSTALL(FILES ${doc_files} DESTINATION share/doc/libopenshot-audio)
+INSTALL(FILES ${doc_files} DESTINATION ${CMAKE_INSTALL_DOCDIR}/libopenshot-audio)
 
 # Install manpage
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1 DESTINATION share/man/man1)
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
