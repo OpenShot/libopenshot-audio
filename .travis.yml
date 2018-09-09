@@ -12,7 +12,6 @@ script:
   - mkdir -p build; cd build;
   - cmake -D"CMAKE_BUILD_TYPE:STRING=Debug" ../
   - make VERBOSE=1
-  - make test
 
 notifications:
   email: true
