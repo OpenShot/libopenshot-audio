@@ -1,0 +1,22 @@
+language: cpp
+dist: trusty
+
+before_install:
+  - sudo add-apt-repository ppa:openshot.developers/libopenshot-daily -y
+  - sudo apt-get update -qq
+  - sudo apt-get install gcc-4.8 cmake libopenshot-audio-dev libunittest++-dev swig libasound2-dev libfreetype6-dev libxcursor-dev libxinerama-dev libxrandr-dev -y
+  - sudo apt autoremove -y
+  - pwd
+
+script:
+  - mkdir -p build; cd build;
+  - cmake -D"CMAKE_BUILD_TYPE:STRING=Debug" ../
+  - make VERBOSE=1
+
+notifications:
+  email: true
+
+env:
+  global:
+  - TRAVIS_LIBOPENSHOT=TEST
+  - LANG="en_US.UTF-8"
