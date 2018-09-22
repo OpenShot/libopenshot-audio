@@ -15,6 +15,8 @@ linux-builder:
     - make install
     - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
   when: always
+  except:
+  - tags
   tags:
     - linux
 
@@ -31,6 +33,8 @@ mac-builder:
     - make install
     - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
   when: always
+  except:
+  - tags
   tags:
     - mac
 
@@ -52,6 +56,8 @@ windows-builder-x86:
     - mingw32-make install
     - New-Item -path "install-x86/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
   when: always
+  except:
+  - tags
   tags:
     - windows
 
@@ -73,6 +79,8 @@ windows-builder-x64:
     - mingw32-make install
     - New-Item -path "install-x64/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
   when: always
+  except:
+  - tags
   tags:
     - windows
 
@@ -82,5 +90,7 @@ trigger-pipeline:
     - "curl -X POST -F token=$LIBOPENSHOT_PIPELINE_TOKEN -F ref=$CI_COMMIT_REF_NAME http://gitlab.openshot.org/api/v4/projects/1/trigger/pipeline"
   when: always
   dependencies: []
+  except:
+  - tags
   tags:
     - linux
