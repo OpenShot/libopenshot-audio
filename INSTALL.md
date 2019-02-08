@@ -31,19 +31,19 @@ list below to help distinguish between them.
 
 * ### CMake (cmake)
   * http://www.cmake.org/ `(Executable)`
-  * This executable is used to automate the generation of Makefiles, check for dependencies, and is the backbone of libopenshot’s cross-platform build process.
+  * This executable is used to automate the generation of Makefiles, check for dependencies, and is the backbone of libopenshot-audio’s cross-platform build process.
 
 * ### Doxygen (doxygen)
   * http://www.stack.nl/~dimitri/doxygen/ `(Executable)`
-  * This executable is used to auto-generate the documentation used by libopenshot.
+  * This executable is used to auto-generate the documentation used by libopenshot-audio.
 
 * ### OpenMP (-fopenmp)
   * http://openmp.org/wp/ `(Compiler Flag)`
-  * If your compiler supports this flag (GCC, Clang, and most other compilers), it provides libopenshot with easy methods of using parallel programming techniques to improve performance and take advantage of multi-core processors.
+  * If your compiler supports this flag (GCC, Clang, and most other compilers), it provides libopenshot-audio with easy methods of using parallel programming techniques to improve performance and take advantage of multi-core processors.
 
 ## Obtaining Source Code
 
-The first step in installing libopenshot is to obtain the most recent source code. The source code is available on [GitHub](https://github.com/OpenShot/libopenshot). Use the following command to obtain the latest libopenshot source code.
+The first step in installing libopenshot-audio is to obtain the most recent source code. The source code is available on [GitHub](https://github.com/OpenShot/libopenshot-audio). Use the following command to obtain the latest libopenshot-audio source code.
 
 ```
 git clone https://github.com/OpenShot/libopenshot-audio.git
