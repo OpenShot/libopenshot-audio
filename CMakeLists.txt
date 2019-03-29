@@ -68,14 +68,14 @@ MESSAGE("--------------------------------------------------------------")
 # Failing to do so will cause your program to be terminated when a png
 # or a jpeg exception is thrown on linux or macosx.
 IF (CMAKE_COMPILER_IS_GNUCC)
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
+	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 
 IF (WIN32)
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_WINDOWS "JUCE_WINDOWS")
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_MINGW "JUCE_MINGW")
-    SET(EXTENSION "cpp")
+	SET(EXTENSION "cpp")
 
 	# Find the base directory of the AISO SDK (if any)
 	find_path(AISO_SDK_DIR iasiodrv.h
@@ -89,105 +89,105 @@ IF (WIN32)
 		MESSAGE("AISO_SDK_DIR NOT FOUND")
 		ADD_DEFINITIONS(-DJUCE_ASIO=0)
 	ENDIF (AISO_SDK_DIR)
-    
+
 	ADD_DEFINITIONS(-DDONT_AUTOLINK_TO_JUCE_LIBRARY)
-	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++0x")
+	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++11")
 
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
-		advapi32.lib
-		comdlg32.lib
-		gdi32.lib
-		GlU32.lib
-		Imm32.dll
-		kernel32.lib
-		ole32.lib
-		OpenGL32.lib
-		rpcrt4.lib
-		shell32.lib
-		Shlwapi.dll
-		user32.lib
-		vfw32.lib
-		version.lib
-		winmm.lib
-		wininet.lib
-		ws2_32.lib
-	)
+			advapi32.lib
+			comdlg32.lib
+			gdi32.lib
+			GlU32.lib
+			Imm32.dll
+			kernel32.lib
+			ole32.lib
+			OpenGL32.lib
+			rpcrt4.lib
+			shell32.lib
+			Shlwapi.dll
+			user32.lib
+			vfw32.lib
+			version.lib
+			winmm.lib
+			wininet.lib
+			ws2_32.lib
+			)
 ELSE (WIN32)
-    IF   (UNIX)
-	IF   (APPLE)
-            SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
-            ADD_DEFINITIONS(-DNDEBUG)
-            SET(EXTENSION "mm")
-            
-            SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
-            SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
-		
-            SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++0x")
-		
-        ELSE (APPLE)
-		SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
-		SET(EXTENSION "cpp")
-            
-		find_package(X11 REQUIRED)
-		find_package(Freetype REQUIRED)
-		find_package(ZLIB REQUIRED)
-		find_package(ALSA REQUIRED)
-		include_directories(${X11_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR} ${ALSA_INCLUDE_DIR})
-		ADD_DEFINITIONS(-DLINUX)
-		SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES ${X11_LIBRARIES} ${FREETYPE_LIBRARIES} ${ZLIB_LIBRARIES} ${ALSA_LIBRARIES})
-	ENDIF(APPLE)
-    ENDIF(UNIX)
+	IF   (UNIX)
+		IF   (APPLE)
+			SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
+			ADD_DEFINITIONS(-DNDEBUG)
+
+			SET(EXTENSION "mm")
+			SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
+			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
+			SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++11")
+
+		ELSE (APPLE)
+			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
+			SET(EXTENSION "cpp")
+
+			find_package(X11 REQUIRED)
+			find_package(Freetype REQUIRED)
+			find_package(ZLIB REQUIRED)
+			find_package(ALSA REQUIRED)
+			include_directories(${X11_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR} ${ALSA_INCLUDE_DIR})
+			ADD_DEFINITIONS(-DLINUX)
+			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES ${X11_LIBRARIES} ${FREETYPE_LIBRARIES} ${ZLIB_LIBRARIES} ${ALSA_LIBRARIES})
+			SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++11")
+		ENDIF(APPLE)
+	ENDIF(UNIX)
 ENDIF(WIN32)
 
 # List of modules to build (Extension based on OS)
 FILE(GLOB JUCE_SOURCES
-	JuceLibraryCode/include_juce_*.${EXTENSION})
+		JuceLibraryCode/include_juce_*.${EXTENSION})
 
 # Disable RPATH
 SET(CMAKE_MACOSX_RPATH 0)
 
 ADD_LIBRARY(openshot-audio SHARED
-	${JUCE_SOURCES}
-)
+		${JUCE_SOURCES}
+		)
 
 # Include header directories
 target_include_directories(openshot-audio PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode>
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
-        $<INSTALL_INTERFACE:include/libopenshot-audio>
-	)
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
+		$<INSTALL_INTERFACE:include/libopenshot-audio>
+		)
 
 # Set SONAME and other library properties
 set_target_properties(openshot-audio
-			PROPERTIES
-			VERSION ${PROJECT_VERSION}
-			SOVERSION ${SO_VERSION}
-			CXX_STANDARD 11
-			CXX_STANDARD_REQUIRED YES
-			INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+		PROPERTIES
+		VERSION ${PROJECT_VERSION}
+		SOVERSION ${SO_VERSION}
+		CXX_STANDARD 11
+		CXX_STANDARD_REQUIRED YES
+		INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
 TARGET_LINK_LIBRARIES(openshot-audio
-	${CMAKE_DL_LIBS}
-	${CMAKE_THREAD_LIBS_INIT}
-	${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
-)
+		${CMAKE_DL_LIBS}
+		${CMAKE_THREAD_LIBS_INIT}
+		${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
+		)
 
 # PROCESS SUB-DIRECTORIES
 add_subdirectory(src)
 
 # Determine correct lib folder
-set(LIB_INSTALL_DIR lib${LIB_SUFFIX}) 
+set(LIB_INSTALL_DIR lib${LIB_SUFFIX})
 
 # Install Files
 INSTALL(FILES
-	${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h
-	${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/AppConfig.h
-	DESTINATION include/libopenshot-audio)
+		${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h
+		${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/AppConfig.h
+		DESTINATION include/libopenshot-audio)
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
-	DESTINATION include/libopenshot-audio
-	FILES_MATCHING PATTERN "*.h")
+		DESTINATION include/libopenshot-audio
+		FILES_MATCHING PATTERN "*.h")
 INSTALL(TARGETS openshot-audio DESTINATION ${LIB_INSTALL_DIR})
 
 ################### DOCUMENTATION ###################
