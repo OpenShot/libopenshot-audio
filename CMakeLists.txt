@@ -35,7 +35,7 @@ MESSAGE("Determining Version Number (from Version.h file)")
 
 #### Get the lines related to libopenshot version from the Version.h header
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/include/Version.h OPENSHOT_AUDIO_VERSION_LINES
-  REGEX "#define[ ]+OPENSHOT_AUDIO_VERSION_.*[0-9]+;.*")
+		REGEX "#define[ ]+OPENSHOT_AUDIO_VERSION_.*[0-9]+;.*")
 
 #### Set each line into it's own variable
 list (GET OPENSHOT_AUDIO_VERSION_LINES 0 LINE_MAJOR)
@@ -76,6 +76,8 @@ IF (WIN32)
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_WINDOWS "JUCE_WINDOWS")
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_MINGW "JUCE_MINGW")
 	SET(EXTENSION "cpp")
+	find_package(ZLIB REQUIRED)
+	include_directories(${ZLIB_INCLUDE_DIR})
 
 	# Find the base directory of the AISO SDK (if any)
 	find_path(AISO_SDK_DIR iasiodrv.h
@@ -94,6 +96,7 @@ IF (WIN32)
 	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++11")
 
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
+			${ZLIB_LIBRARIES}
 			advapi32.lib
 			comdlg32.lib
 			gdi32.lib
@@ -117,10 +120,12 @@ ELSE (WIN32)
 		IF   (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
 			ADD_DEFINITIONS(-DNDEBUG)
+			find_package(ZLIB REQUIRED)
+			include_directories(${ZLIB_INCLUDE_DIR})
 
 			SET(EXTENSION "mm")
 			SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
-			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
+			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -lz -framework Accelerate")
 			SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++11")
 
 		ELSE (APPLE)
