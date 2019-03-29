@@ -138,20 +138,16 @@ ELSE (WIN32)
 ENDIF(WIN32)
 
 # Include header directories
-include_directories("JuceLibraryCode")
+include_directories("JuceLibraryCode" "JuceLibraryCode/modules")
 
 # List of modules to build (Extension based on OS)
 FILE(GLOB JUCE_SOURCES
 	JuceLibraryCode/modules/juce_core/juce_core.${EXTENSION}
 	JuceLibraryCode/modules/juce_data_structures/juce_data_structures.${EXTENSION}
 	JuceLibraryCode/modules/juce_events/juce_events.${EXTENSION}
-	JuceLibraryCode/modules/juce_graphics/juce_graphics.${EXTENSION}
-	JuceLibraryCode/modules/juce_gui_basics/juce_gui_basics.${EXTENSION}
-	JuceLibraryCode/modules/juce_gui_extra/juce_gui_extra.${EXTENSION}
 	JuceLibraryCode/modules/juce_audio_basics/juce_audio_basics.${EXTENSION}
 	JuceLibraryCode/modules/juce_audio_devices/juce_audio_devices.${EXTENSION}
 	JuceLibraryCode/modules/juce_audio_formats/juce_audio_formats.${EXTENSION}
-	JuceLibraryCode/modules/juce_audio_processors/juce_audio_processors.${EXTENSION}
 )
 
 # Disable RPATH
@@ -175,6 +171,9 @@ TARGET_LINK_LIBRARIES(openshot-audio
 	${CMAKE_THREAD_LIBS_INIT}
 	${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
 )
+
+target_compile_definitions(openshot-audio PUBLIC
+	JUCE_APP_CONFIG_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/AppConfig.h")
 
 # PROCESS SUB-DIRECTORIES
 add_subdirectory(src)
