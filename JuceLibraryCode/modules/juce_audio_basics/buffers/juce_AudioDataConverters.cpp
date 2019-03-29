@@ -2,36 +2,37 @@
   ==============================================================================
 
    This file is part of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission is granted to use this software under the terms of either:
-   a) the GPL v2 (or any later version)
-   b) the Affero GPL v3
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   Details of these licenses can be found at: www.gnu.org/licenses
+   The code included in this file is provided under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
+   To use, copy, modify, and/or distribute this software for any purpose with or
+   without fee is hereby granted provided that the above copyright notice and
+   this permission notice appear in all copies.
 
-   JUCE is distributed in the hope that it will be useful, but WITHOUT ANY
-   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-   A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-
-   ------------------------------------------------------------------------------
-
-   To release a closed-source product which uses JUCE, commercial licenses are
-   available: visit www.juce.com for more information.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
-void AudioDataConverters::convertFloatToInt16LE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+namespace juce
 {
-    const double maxVal = (double) 0x7fff;
-    char* intData = static_cast<char*> (dest);
+
+void AudioDataConverters::convertFloatToInt16LE (const float* source, void* dest, int numSamples, int destBytesPerSample)
+{
+    auto maxVal = (double) 0x7fff;
+    auto intData = static_cast<char*> (dest);
 
     if (dest != (void*) source || destBytesPerSample <= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            *(uint16*) intData = ByteOrder::swapIfBigEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint16*> (intData) = ByteOrder::swapIfBigEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
             intData += destBytesPerSample;
         }
     }
@@ -42,21 +43,21 @@ void AudioDataConverters::convertFloatToInt16LE (const float* source, void* dest
         for (int i = numSamples; --i >= 0;)
         {
             intData -= destBytesPerSample;
-            *(uint16*) intData = ByteOrder::swapIfBigEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint16*> (intData) = ByteOrder::swapIfBigEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
         }
     }
 }
 
-void AudioDataConverters::convertFloatToInt16BE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+void AudioDataConverters::convertFloatToInt16BE (const float* source, void* dest, int numSamples, int destBytesPerSample)
 {
-    const double maxVal = (double) 0x7fff;
-    char* intData = static_cast<char*> (dest);
+    auto maxVal = (double) 0x7fff;
+    auto intData = static_cast<char*> (dest);
 
     if (dest != (void*) source || destBytesPerSample <= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            *(uint16*) intData = ByteOrder::swapIfLittleEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint16*> (intData) = ByteOrder::swapIfLittleEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
             intData += destBytesPerSample;
         }
     }
@@ -67,15 +68,15 @@ void AudioDataConverters::convertFloatToInt16BE (const float* source, void* dest
         for (int i = numSamples; --i >= 0;)
         {
             intData -= destBytesPerSample;
-            *(uint16*) intData = ByteOrder::swapIfLittleEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint16*> (intData) = ByteOrder::swapIfLittleEndian ((uint16) (short) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
         }
     }
 }
 
-void AudioDataConverters::convertFloatToInt24LE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+void AudioDataConverters::convertFloatToInt24LE (const float* source, void* dest, int numSamples, int destBytesPerSample)
 {
-    const double maxVal = (double) 0x7fffff;
-    char* intData = static_cast<char*> (dest);
+    auto maxVal = (double) 0x7fffff;
+    auto intData = static_cast<char*> (dest);
 
     if (dest != (void*) source || destBytesPerSample <= 4)
     {
@@ -97,10 +98,10 @@ void AudioDataConverters::convertFloatToInt24LE (const float* source, void* dest
     }
 }
 
-void AudioDataConverters::convertFloatToInt24BE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+void AudioDataConverters::convertFloatToInt24BE (const float* source, void* dest, int numSamples, int destBytesPerSample)
 {
-    const double maxVal = (double) 0x7fffff;
-    char* intData = static_cast<char*> (dest);
+    auto maxVal = (double) 0x7fffff;
+    auto intData = static_cast<char*> (dest);
 
     if (dest != (void*) source || destBytesPerSample <= 4)
     {
@@ -122,16 +123,16 @@ void AudioDataConverters::convertFloatToInt24BE (const float* source, void* dest
     }
 }
 
-void AudioDataConverters::convertFloatToInt32LE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+void AudioDataConverters::convertFloatToInt32LE (const float* source, void* dest, int numSamples, int destBytesPerSample)
 {
-    const double maxVal = (double) 0x7fffffff;
-    char* intData = static_cast<char*> (dest);
+    auto maxVal = (double) 0x7fffffff;
+    auto intData = static_cast<char*> (dest);
 
     if (dest != (void*) source || destBytesPerSample <= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            *(uint32*)intData = ByteOrder::swapIfBigEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint32*> (intData) = ByteOrder::swapIfBigEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
             intData += destBytesPerSample;
         }
     }
@@ -142,21 +143,21 @@ void AudioDataConverters::convertFloatToInt32LE (const float* source, void* dest
         for (int i = numSamples; --i >= 0;)
         {
             intData -= destBytesPerSample;
-            *(uint32*)intData = ByteOrder::swapIfBigEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint32*> (intData) = ByteOrder::swapIfBigEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
         }
     }
 }
 
-void AudioDataConverters::convertFloatToInt32BE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+void AudioDataConverters::convertFloatToInt32BE (const float* source, void* dest, int numSamples, int destBytesPerSample)
 {
-    const double maxVal = (double) 0x7fffffff;
-    char* intData = static_cast<char*> (dest);
+    auto maxVal = (double) 0x7fffffff;
+    auto intData = static_cast<char*> (dest);
 
     if (dest != (void*) source || destBytesPerSample <= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            *(uint32*)intData = ByteOrder::swapIfLittleEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint32*> (intData) = ByteOrder::swapIfLittleEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
             intData += destBytesPerSample;
         }
     }
@@ -167,12 +168,12 @@ void AudioDataConverters::convertFloatToInt32BE (const float* source, void* dest
         for (int i = numSamples; --i >= 0;)
         {
             intData -= destBytesPerSample;
-            *(uint32*)intData = ByteOrder::swapIfLittleEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
+            *reinterpret_cast<uint32*> (intData) = ByteOrder::swapIfLittleEndian ((uint32) roundToInt (jlimit (-maxVal, maxVal, maxVal * source[i])));
         }
     }
 }
 
-void AudioDataConverters::convertFloatToFloat32LE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+void AudioDataConverters::convertFloatToFloat32LE (const float* source, void* dest, int numSamples, int destBytesPerSample)
 {
     jassert (dest != (void*) source || destBytesPerSample <= 4); // This op can't be performed on in-place data!
 
@@ -180,28 +181,28 @@ void AudioDataConverters::convertFloatToFloat32LE (const float* source, void* de
 
     for (int i = 0; i < numSamples; ++i)
     {
-        *(float*) d = source[i];
+        *reinterpret_cast<float*> (d) = source[i];
 
        #if JUCE_BIG_ENDIAN
-        *(uint32*) d = ByteOrder::swap (*(uint32*) d);
+        *reinterpret_cast<uint32*> (d) = ByteOrder::swap (*reinterpret_cast<uint32*> (d));
        #endif
 
         d += destBytesPerSample;
     }
 }
 
-void AudioDataConverters::convertFloatToFloat32BE (const float* source, void* dest, int numSamples, const int destBytesPerSample)
+void AudioDataConverters::convertFloatToFloat32BE (const float* source, void* dest, int numSamples, int destBytesPerSample)
 {
     jassert (dest != (void*) source || destBytesPerSample <= 4); // This op can't be performed on in-place data!
 
-    char* d = static_cast<char*> (dest);
+    auto d = static_cast<char*> (dest);
 
     for (int i = 0; i < numSamples; ++i)
     {
-        *(float*) d = source[i];
+        *reinterpret_cast<float*> (d) = source[i];
 
        #if JUCE_LITTLE_ENDIAN
-        *(uint32*) d = ByteOrder::swap (*(uint32*) d);
+        *reinterpret_cast<uint32*> (d) = ByteOrder::swap (*reinterpret_cast<uint32*> (d));
        #endif
 
         d += destBytesPerSample;
@@ -209,16 +210,16 @@ void AudioDataConverters::convertFloatToFloat32BE (const float* source, void* de
 }
 
 //==============================================================================
-void AudioDataConverters::convertInt16LEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertInt16LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
     const float scale = 1.0f / 0x7fff;
-    const char* intData = static_cast<const char*> (source);
+    auto intData = static_cast<const char*> (source);
 
     if (source != (void*) dest || srcBytesPerSample >= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            dest[i] = scale * (short) ByteOrder::swapIfBigEndian (*(uint16*)intData);
+            dest[i] = scale * (short) ByteOrder::swapIfBigEndian (*reinterpret_cast<const uint16*> (intData));
             intData += srcBytesPerSample;
         }
     }
@@ -229,21 +230,21 @@ void AudioDataConverters::convertInt16LEToFloat (const void* const source, float
         for (int i = numSamples; --i >= 0;)
         {
             intData -= srcBytesPerSample;
-            dest[i] = scale * (short) ByteOrder::swapIfBigEndian (*(uint16*)intData);
+            dest[i] = scale * (short) ByteOrder::swapIfBigEndian (*reinterpret_cast<const uint16*> (intData));
         }
     }
 }
 
-void AudioDataConverters::convertInt16BEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertInt16BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
     const float scale = 1.0f / 0x7fff;
-    const char* intData = static_cast<const char*> (source);
+    auto intData = static_cast<const char*> (source);
 
     if (source != (void*) dest || srcBytesPerSample >= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            dest[i] = scale * (short) ByteOrder::swapIfLittleEndian (*(uint16*)intData);
+            dest[i] = scale * (short) ByteOrder::swapIfLittleEndian (*reinterpret_cast<const uint16*> (intData));
             intData += srcBytesPerSample;
         }
     }
@@ -254,15 +255,15 @@ void AudioDataConverters::convertInt16BEToFloat (const void* const source, float
         for (int i = numSamples; --i >= 0;)
         {
             intData -= srcBytesPerSample;
-            dest[i] = scale * (short) ByteOrder::swapIfLittleEndian (*(uint16*)intData);
+            dest[i] = scale * (short) ByteOrder::swapIfLittleEndian (*reinterpret_cast<const uint16*> (intData));
         }
     }
 }
 
-void AudioDataConverters::convertInt24LEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertInt24LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
     const float scale = 1.0f / 0x7fffff;
-    const char* intData = static_cast<const char*> (source);
+    auto intData = static_cast<const char*> (source);
 
     if (source != (void*) dest || srcBytesPerSample >= 4)
     {
@@ -284,10 +285,10 @@ void AudioDataConverters::convertInt24LEToFloat (const void* const source, float
     }
 }
 
-void AudioDataConverters::convertInt24BEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertInt24BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
     const float scale = 1.0f / 0x7fffff;
-    const char* intData = static_cast<const char*> (source);
+    auto intData = static_cast<const char*> (source);
 
     if (source != (void*) dest || srcBytesPerSample >= 4)
     {
@@ -309,16 +310,16 @@ void AudioDataConverters::convertInt24BEToFloat (const void* const source, float
     }
 }
 
-void AudioDataConverters::convertInt32LEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertInt32LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
-    const float scale = 1.0f / 0x7fffffff;
-    const char* intData = static_cast<const char*> (source);
+    const float scale = 1.0f / (float) 0x7fffffff;
+    auto intData = static_cast<const char*> (source);
 
     if (source != (void*) dest || srcBytesPerSample >= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            dest[i] = scale * (int) ByteOrder::swapIfBigEndian (*(uint32*) intData);
+            dest[i] = scale * (int) ByteOrder::swapIfBigEndian (*reinterpret_cast<const uint32*> (intData));
             intData += srcBytesPerSample;
         }
     }
@@ -329,21 +330,21 @@ void AudioDataConverters::convertInt32LEToFloat (const void* const source, float
         for (int i = numSamples; --i >= 0;)
         {
             intData -= srcBytesPerSample;
-            dest[i] = scale * (int) ByteOrder::swapIfBigEndian (*(uint32*) intData);
+            dest[i] = scale * (int) ByteOrder::swapIfBigEndian (*reinterpret_cast<const uint32*> (intData));
         }
     }
 }
 
-void AudioDataConverters::convertInt32BEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertInt32BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
-    const float scale = 1.0f / 0x7fffffff;
-    const char* intData = static_cast<const char*> (source);
+    const float scale = 1.0f / (float) 0x7fffffff;
+    auto intData = static_cast<const char*> (source);
 
     if (source != (void*) dest || srcBytesPerSample >= 4)
     {
         for (int i = 0; i < numSamples; ++i)
         {
-            dest[i] = scale * (int) ByteOrder::swapIfLittleEndian (*(uint32*) intData);
+            dest[i] = scale * (int) ByteOrder::swapIfLittleEndian (*reinterpret_cast<const uint32*> (intData));
             intData += srcBytesPerSample;
         }
     }
@@ -354,21 +355,21 @@ void AudioDataConverters::convertInt32BEToFloat (const void* const source, float
         for (int i = numSamples; --i >= 0;)
         {
             intData -= srcBytesPerSample;
-            dest[i] = scale * (int) ByteOrder::swapIfLittleEndian (*(uint32*) intData);
+            dest[i] = scale * (int) ByteOrder::swapIfLittleEndian (*reinterpret_cast<const uint32*> (intData));
         }
     }
 }
 
-void AudioDataConverters::convertFloat32LEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertFloat32LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
-    const char* s = static_cast<const char*> (source);
+    auto s = static_cast<const char*> (source);
 
     for (int i = 0; i < numSamples; ++i)
     {
-        dest[i] = *(float*)s;
+        dest[i] = *reinterpret_cast<const float*> (s);
 
        #if JUCE_BIG_ENDIAN
-        uint32* const d = (uint32*) (dest + i);
+        auto d = reinterpret_cast<uint32*> (dest + i);
         *d = ByteOrder::swap (*d);
        #endif
 
@@ -376,16 +377,16 @@ void AudioDataConverters::convertFloat32LEToFloat (const void* const source, flo
     }
 }
 
-void AudioDataConverters::convertFloat32BEToFloat (const void* const source, float* const dest, int numSamples, const int srcBytesPerSample)
+void AudioDataConverters::convertFloat32BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample)
 {
-    const char* s = static_cast<const char*> (source);
+    auto s = static_cast<const char*> (source);
 
     for (int i = 0; i < numSamples; ++i)
     {
-        dest[i] = *(float*)s;
+        dest[i] = *reinterpret_cast<const float*> (s);
 
        #if JUCE_LITTLE_ENDIAN
-        uint32* const d = (uint32*) (dest + i);
+        auto d = reinterpret_cast<uint32*> (dest + i);
         *d = ByteOrder::swap (*d);
        #endif
 
@@ -395,10 +396,7 @@ void AudioDataConverters::convertFloat32BEToFloat (const void* const source, flo
 
 
 //==============================================================================
-void AudioDataConverters::convertFloatToFormat (const DataFormat destFormat,
-                                                const float* const source,
-                                                void* const dest,
-                                                const int numSamples)
+void AudioDataConverters::convertFloatToFormat (DataFormat destFormat, const float* source, void* dest, int numSamples)
 {
     switch (destFormat)
     {
@@ -414,10 +412,7 @@ void AudioDataConverters::convertFloatToFormat (const DataFormat destFormat,
     }
 }
 
-void AudioDataConverters::convertFormatToFloat (const DataFormat sourceFormat,
-                                                const void* const source,
-                                                float* const dest,
-                                                const int numSamples)
+void AudioDataConverters::convertFormatToFloat (DataFormat sourceFormat, const void* source, float* dest, int numSamples)
 {
     switch (sourceFormat)
     {
@@ -434,15 +429,12 @@ void AudioDataConverters::convertFormatToFloat (const DataFormat sourceFormat,
 }
 
 //==============================================================================
-void AudioDataConverters::interleaveSamples (const float** const source,
-                                             float* const dest,
-                                             const int numSamples,
-                                             const int numChannels)
+void AudioDataConverters::interleaveSamples (const float** source, float* dest, int numSamples, int numChannels)
 {
     for (int chan = 0; chan < numChannels; ++chan)
     {
-        int i = chan;
-        const float* src = source [chan];
+        auto i = chan;
+        auto src = source [chan];
 
         for (int j = 0; j < numSamples; ++j)
         {
@@ -452,15 +444,12 @@ void AudioDataConverters::interleaveSamples (const float** const source,
     }
 }
 
-void AudioDataConverters::deinterleaveSamples (const float* const source,
-                                               float** const dest,
-                                               const int numSamples,
-                                               const int numChannels)
+void AudioDataConverters::deinterleaveSamples (const float* source, float** dest, int numSamples, int numChannels)
 {
     for (int chan = 0; chan < numChannels; ++chan)
     {
-        int i = chan;
-        float* dst = dest [chan];
+        auto i = chan;
+        auto dst = dest [chan];
 
         for (int j = 0; j < numSamples; ++j)
         {
@@ -477,7 +466,7 @@ void AudioDataConverters::deinterleaveSamples (const float* const source,
 class AudioConversionTests  : public UnitTest
 {
 public:
-    AudioConversionTests() : UnitTest ("Audio data conversion") {}
+    AudioConversionTests() : UnitTest ("Audio data conversion", "Audio") {}
 
     template <class F1, class E1, class F2, class E2>
     struct Test5
@@ -491,7 +480,7 @@ public:
         static void test (UnitTest& unitTest, bool inPlace, Random& r)
         {
             const int numSamples = 2048;
-            int32 original [numSamples], converted [numSamples], reversed [numSamples];
+            int32 original[numSamples], converted[numSamples], reversed[numSamples];
 
             {
                 AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::NonConst> d (original);
@@ -513,13 +502,13 @@ public:
             }
 
             // convert data from the source to dest format..
-            ScopedPointer<AudioData::Converter> conv (new AudioData::ConverterInstance <AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::Const>,
-                                                                                        AudioData::Pointer<F2, E2, AudioData::NonInterleaved, AudioData::NonConst> >());
+            std::unique_ptr<AudioData::Converter> conv (new AudioData::ConverterInstance<AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::Const>,
+                                                                                         AudioData::Pointer<F2, E2, AudioData::NonInterleaved, AudioData::NonConst>>());
             conv->convertSamples (inPlace ? reversed : converted, original, numSamples);
 
             // ..and back again..
-            conv = new AudioData::ConverterInstance <AudioData::Pointer<F2, E2, AudioData::NonInterleaved, AudioData::Const>,
-                                                     AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::NonConst> >();
+            conv.reset (new AudioData::ConverterInstance<AudioData::Pointer<F2, E2, AudioData::NonInterleaved, AudioData::Const>,
+                                                         AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::NonConst>>());
             if (! inPlace)
                 zeromem (reversed, sizeof (reversed));
 
@@ -531,7 +520,7 @@ public:
                 AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::Const> d2 (reversed);
 
                 const int errorMargin = 2 * AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::Const>::get32BitResolution()
-                                            + AudioData::Pointer<F2, E2, AudioData::NonInterleaved, AudioData::Const>::get32BitResolution();
+                                          + AudioData::Pointer<F2, E2, AudioData::NonInterleaved, AudioData::Const>::get32BitResolution();
 
                 for (int i = 0; i < numSamples; ++i)
                 {
@@ -579,9 +568,9 @@ public:
         }
     };
 
-    void runTest()
+    void runTest() override
     {
-        Random r = getRandom();
+        auto r = getRandom();
         beginTest ("Round-trip conversion: Int8");
         Test1 <AudioData::Int8>::test (*this, r);
         beginTest ("Round-trip conversion: Int16");
@@ -598,3 +587,5 @@ public:
 static AudioConversionTests audioConversionUnitTests;
 
 #endif
+
+} // namespace juce

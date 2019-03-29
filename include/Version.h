@@ -42,7 +42,6 @@
 #define OPENSHOT_AUDIO_VERSION_ALL STRINGIZE(OPENSHOT_AUDIO_VERSION_MAJOR) "." STRINGIZE(OPENSHOT_AUDIO_VERSION_MINOR) "." STRINGIZE(OPENSHOT_AUDIO_VERSION_BUILD); /// A string of the entire version "Major.Minor.Build"
 
 #include <sstream>
-using namespace std;
 
 /// This struct holds version number information. Use the GetVersion() method to access the current version of libopenshot.
 struct OpenShotAudioVersion
