@@ -139,9 +139,6 @@ ELSE (WIN32)
     ENDIF(UNIX)
 ENDIF(WIN32)
 
-# Include header directories
-include_directories("JuceLibraryCode" "JuceLibraryCode/modules")
-
 # List of modules to build (Extension based on OS)
 FILE(GLOB JUCE_SOURCES
 	JuceLibraryCode/include_juce_*.${EXTENSION})
@@ -152,6 +149,13 @@ SET(CMAKE_MACOSX_RPATH 0)
 ADD_LIBRARY(openshot-audio SHARED
 	${JUCE_SOURCES}
 )
+
+# Include header directories
+target_include_directories(openshot-audio PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
+        $<INSTALL_INTERFACE:include/libopenshot-audio>
+	)
 
 # Set SONAME and other library properties
 set_target_properties(openshot-audio
@@ -176,7 +180,7 @@ set(LIB_INSTALL_DIR lib${LIB_SUFFIX})
 
 # Install Files
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/ DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
 INSTALL(TARGETS openshot-audio DESTINATION ${LIB_INSTALL_DIR})
 
 ################### DOCUMENTATION ###################
