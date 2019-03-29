@@ -179,8 +179,13 @@ add_subdirectory(src)
 set(LIB_INSTALL_DIR lib${LIB_SUFFIX}) 
 
 # Install Files
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/ DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
+INSTALL(FILES
+	${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h
+	${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/AppConfig.h
+	DESTINATION include/libopenshot-audio)
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
+	DESTINATION include/libopenshot-audio
+	FILES_MATCHING PATTERN "*.h")
 INSTALL(TARGETS openshot-audio DESTINATION ${LIB_INSTALL_DIR})
 
 ################### DOCUMENTATION ###################
