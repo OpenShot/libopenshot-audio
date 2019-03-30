@@ -1572,6 +1572,9 @@ private:
                StringArray& outDeviceIds,
                StringArray& inDeviceIds)
     {
+        // Init COM on thread (WASAPI won't work with libopenshot-audio without this line)
+        CoInitialize(0);
+
         if (enumerator == nullptr)
         {
             if (! check (enumerator.CoCreateInstance (__uuidof (MMDeviceEnumerator))))
