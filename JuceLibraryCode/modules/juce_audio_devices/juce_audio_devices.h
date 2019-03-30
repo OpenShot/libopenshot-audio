@@ -99,7 +99,7 @@
     Enables WASAPI audio devices in exclusive mode (Windows Vista and above).
 */
 #ifndef JUCE_WASAPI_EXCLUSIVE
- #define JUCE_WASAPI_EXCLUSIVE 0
+ #define JUCE_WASAPI_EXCLUSIVE 1
 #endif
 
 
