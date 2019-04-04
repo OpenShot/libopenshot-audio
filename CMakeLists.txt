@@ -35,7 +35,7 @@ MESSAGE("Determining Version Number (from Version.h file)")
 
 #### Get the lines related to libopenshot version from the Version.h header
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/include/Version.h OPENSHOT_AUDIO_VERSION_LINES
-  REGEX "#define[ ]+OPENSHOT_AUDIO_VERSION_.*[0-9]+;.*")
+		REGEX "#define[ ]+OPENSHOT_AUDIO_VERSION_.*[0-9]+;.*")
 
 #### Set each line into it's own variable
 list (GET OPENSHOT_AUDIO_VERSION_LINES 0 LINE_MAJOR)
@@ -68,14 +68,16 @@ MESSAGE("--------------------------------------------------------------")
 # Failing to do so will cause your program to be terminated when a png
 # or a jpeg exception is thrown on linux or macosx.
 IF (CMAKE_COMPILER_IS_GNUCC)
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
+	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 
 IF (WIN32)
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_WINDOWS "JUCE_WINDOWS")
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_MINGW "JUCE_MINGW")
-    SET(EXTENSION "cpp")
+	SET(EXTENSION "cpp")
+	find_package(ZLIB REQUIRED)
+	include_directories(${ZLIB_INCLUDE_DIR})
 
 	# Find the base directory of the AISO SDK (if any)
 	find_path(AISO_SDK_DIR iasiodrv.h
@@ -89,102 +91,108 @@ IF (WIN32)
 		MESSAGE("AISO_SDK_DIR NOT FOUND")
 		ADD_DEFINITIONS(-DJUCE_ASIO=0)
 	ENDIF (AISO_SDK_DIR)
-    
+
 	ADD_DEFINITIONS(-DDONT_AUTOLINK_TO_JUCE_LIBRARY)
-	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++0x")
+	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++11")
 
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
-		advapi32.lib
-		comdlg32.lib
-		gdi32.lib
-		GlU32.lib
-		Imm32.dll
-		kernel32.lib
-		ole32.lib
-		OpenGL32.lib
-		rpcrt4.lib
-		shell32.lib
-		Shlwapi.dll
-		user32.lib
-		vfw32.lib
-		version.lib
-		winmm.lib
-		wininet.lib
-		ws2_32.lib
-	)
+			${ZLIB_LIBRARIES}
+			advapi32.lib
+			comdlg32.lib
+			gdi32.lib
+			GlU32.lib
+			Imm32.dll
+			kernel32.lib
+			ole32.lib
+			OpenGL32.lib
+			rpcrt4.lib
+			shell32.lib
+			Shlwapi.dll
+			user32.lib
+			vfw32.lib
+			version.lib
+			winmm.lib
+			wininet.lib
+			ws2_32.lib
+			)
 ELSE (WIN32)
 	IF   (UNIX)
 		IF   (APPLE)
-            SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
-            ADD_DEFINITIONS(-DNDEBUG)
-            SET(EXTENSION "mm")
-            
-            SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
-            SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
-		
-            SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++0x")
-		
-        ELSE (APPLE)
+			SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
+			ADD_DEFINITIONS(-DNDEBUG)
+			find_package(ZLIB REQUIRED)
+			include_directories(${ZLIB_INCLUDE_DIR})
+
+			SET(EXTENSION "mm")
+			SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
+			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -lz -framework Accelerate")
+			SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++11")
+
+		ELSE (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
-            SET(EXTENSION "cpp")
-            
-			FIND_PACKAGE(X11 REQUIRED)
-			INCLUDE_DIRECTORIES(${X11_INCLUDE_DIR})
-			INCLUDE_DIRECTORIES(/usr/include/freetype2)
+			SET(EXTENSION "cpp")
+
+			find_package(X11 REQUIRED)
+			find_package(Freetype REQUIRED)
+			find_package(ZLIB REQUIRED)
+			find_package(ALSA REQUIRED)
+			include_directories(${X11_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR} ${ALSA_INCLUDE_DIR})
 			ADD_DEFINITIONS(-DLINUX)
-			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES ${X11_LIBRARIES} asound freetype Xinerama)
+			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES ${X11_LIBRARIES} ${FREETYPE_LIBRARIES} ${ZLIB_LIBRARIES} ${ALSA_LIBRARIES})
+			SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++11")
 		ENDIF(APPLE)
 	ENDIF(UNIX)
 ENDIF(WIN32)
 
-# Include header directories
-include_directories("JuceLibraryCode")
-
 # List of modules to build (Extension based on OS)
 FILE(GLOB JUCE_SOURCES
-	JuceLibraryCode/modules/juce_core/juce_core.${EXTENSION}
-	JuceLibraryCode/modules/juce_data_structures/juce_data_structures.${EXTENSION}
-	JuceLibraryCode/modules/juce_events/juce_events.${EXTENSION}
-	JuceLibraryCode/modules/juce_graphics/juce_graphics.${EXTENSION}
-	JuceLibraryCode/modules/juce_gui_basics/juce_gui_basics.${EXTENSION}
-	JuceLibraryCode/modules/juce_gui_extra/juce_gui_extra.${EXTENSION}
-	JuceLibraryCode/modules/juce_audio_basics/juce_audio_basics.${EXTENSION}
-	JuceLibraryCode/modules/juce_audio_devices/juce_audio_devices.${EXTENSION}
-	JuceLibraryCode/modules/juce_audio_formats/juce_audio_formats.${EXTENSION}
-	JuceLibraryCode/modules/juce_audio_processors/juce_audio_processors.${EXTENSION}
-)
+		JuceLibraryCode/include_juce_*.${EXTENSION})
 
 # Disable RPATH
 SET(CMAKE_MACOSX_RPATH 0)
 
 ADD_LIBRARY(openshot-audio SHARED
-	${JUCE_SOURCES}
-)
+		${JUCE_SOURCES}
+		)
+
+# Include header directories
+target_include_directories(openshot-audio PUBLIC
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
+		$<INSTALL_INTERFACE:include/libopenshot-audio>
+		)
 
 # Set SONAME and other library properties
 set_target_properties(openshot-audio
-			PROPERTIES
-			VERSION ${PROJECT_VERSION}
-			SOVERSION ${SO_VERSION}
-			INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+		PROPERTIES
+		VERSION ${PROJECT_VERSION}
+		SOVERSION ${SO_VERSION}
+		CXX_STANDARD 11
+		CXX_STANDARD_REQUIRED YES
+		INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
 TARGET_LINK_LIBRARIES(openshot-audio
-	${CMAKE_DL_LIBS}
-	${CMAKE_THREAD_LIBS_INIT}
-	${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
-)
+		${CMAKE_DL_LIBS}
+		${CMAKE_THREAD_LIBS_INIT}
+		${JUCE_PLATFORM_SPECIFIC_LIBRARIES}
+		)
 
 # PROCESS SUB-DIRECTORIES
 add_subdirectory(src)
 
 # Determine correct lib folder
-set(LIB_INSTALL_DIR lib${LIB_SUFFIX}) 
+set(LIB_INSTALL_DIR lib${LIB_SUFFIX})
 
 # Install Files
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h DESTINATION include/libopenshot-audio)
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode DESTINATION include/libopenshot-audio FILES_MATCHING PATTERN "*.h")
+INSTALL(FILES
+		${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h
+		${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/AppConfig.h
+		DESTINATION include/libopenshot-audio)
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
+		DESTINATION include/libopenshot-audio
+		FILES_MATCHING PATTERN "*.h")
 INSTALL(TARGETS openshot-audio DESTINATION ${LIB_INSTALL_DIR})
 
 ################### DOCUMENTATION ###################
