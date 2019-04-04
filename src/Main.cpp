@@ -48,10 +48,15 @@ int main()
 	// Initialize audio devices
 	cout << "Begin init" << endl;
 	AudioDeviceManager deviceManager;
-	deviceManager.initialise (	0, /* number of input channels */
+	String error = deviceManager.initialise (	0, /* number of input channels */
 								2, /* number of output channels */
 								0, /* no XML settings.. */
 								true  /* select default device on failure */);
+
+	// Output error (if any)
+	if (error.isNotEmpty()) {
+		cout << "Error on initialise(): " << error.toStdString() << endl;
+	}
 
 	// Play test sound
 	cout << "Playing sound now" << endl;
