@@ -4,7 +4,7 @@
 #
 # @section LICENSE
 #
-# Copyright (c) 2008-2016 OpenShot Studios, LLC
+# Copyright (c) 2008-2019 OpenShot Studios, LLC
 # <http://www.openshotstudios.com/>. This file is part of
 # OpenShot Audio Library (libopenshot-audio), an open-source project dedicated 
 # to delivering high quality audio editing and playback solutions to the 
@@ -24,18 +24,28 @@
 # along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1...3.14 FATAL_ERROR)
+
+message("\
+-----------------------------------------------------------------
+          Welcome to the OpenShot Build System!
+
+CMake will now check libopenshot's build dependencies and inform
+you of any missing files or other issues.
+
+For more information, please visit <http://www.openshot.org/>.
+-----------------------------------------------------------------")
 
 ################ ADD CMAKE MODULES ##################
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 ################ GET VERSION INFORMATION FROM VERSION.H ##################
-MESSAGE("--------------------------------------------------------------")
-MESSAGE("Determining Version Number (from Version.h file)")
+message(STATUS "Determining Version Number (from Version.h file)")
 
 #### Get the lines related to libopenshot version from the Version.h header
-file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/include/Version.h OPENSHOT_AUDIO_VERSION_LINES
-		REGEX "#define[ ]+OPENSHOT_AUDIO_VERSION_.*[0-9]+;.*")
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/include/Version.h
+     OPENSHOT_AUDIO_VERSION_LINES
+     REGEX "#define[ ]+OPENSHOT_AUDIO_VERSION_.*[0-9]+;.*")
 
 #### Set each line into it's own variable
 list (GET OPENSHOT_AUDIO_VERSION_LINES 0 LINE_MAJOR)
@@ -48,21 +58,27 @@ STRING(REGEX REPLACE "#define[ ]+OPENSHOT_AUDIO_VERSION_MAJOR.*([0-9])+;(.*)" "\
 STRING(REGEX REPLACE "#define[ ]+OPENSHOT_AUDIO_VERSION_MINOR.*([0-9])+;(.*)" "\\1" MINOR_VERSION "${LINE_MINOR}")
 STRING(REGEX REPLACE "#define[ ]+OPENSHOT_AUDIO_VERSION_BUILD.*([0-9])+;(.*)" "\\1" BUILD_VERSION "${LINE_BUILD}")
 STRING(REGEX REPLACE "#define[ ]+OPENSHOT_AUDIO_VERSION_SO.*([0-9])+;(.*)" "\\1" SO_VERSION "${LINE_SO}")
-set(PROJECT_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${BUILD_VERSION}")
 
-MESSAGE("--> MAJOR Version: ${MAJOR_VERSION}")
-MESSAGE("--> MINOR Version: ${MINOR_VERSION}")
-MESSAGE("--> BUILD Version: ${BUILD_VERSION}")
-MESSAGE("--> SO/API/ABI Version: ${SO_VERSION}")
-MESSAGE("--> VERSION: ${PROJECT_VERSION}")
-MESSAGE("")
+message(STATUS "MAJOR Version: ${MAJOR_VERSION}")
+message(STATUS "MINOR Version: ${MINOR_VERSION}")
+message(STATUS "BUILD Version: ${BUILD_VERSION}")
+message(STATUS "SO/API/ABI Version: ${SO_VERSION}")
+message(STATUS "Determining Version Number - done")
 
 ################### SETUP PROJECT ###################
-project(openshot-audio)
-MESSAGE("--------------------------------------------------------------")
-MESSAGE("---- Generating build files for ${PROJECT_NAME} (${PROJECT_VERSION})")
-MESSAGE("--------------------------------------------------------------")
+project(libopenshot-audio LANGUAGES CXX
+        VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${BUILD_VERSION})
 
+message("
+Generating build files for OpenShot
+  Building ${PROJECT_NAME} (version ${PROJECT_VERSION})
+  SO/API/ABI Version: ${SO_VERSION}
+")
+
+#### Enable C++11 (for JUCE)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Enable stack-unwinding support in c objects on gcc-based platforms.
 # Failing to do so will cause your program to be terminated when a png
@@ -93,7 +109,6 @@ IF (WIN32)
 	ENDIF (AISO_SDK_DIR)
 
 	ADD_DEFINITIONS(-DDONT_AUTOLINK_TO_JUCE_LIBRARY)
-	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++11")
 
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
 			${ZLIB_LIBRARIES}
@@ -118,6 +133,7 @@ IF (WIN32)
 ELSE (WIN32)
 	IF   (UNIX)
 		IF   (APPLE)
+<<<<<<< HEAD
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
 			ADD_DEFINITIONS(-DNDEBUG)
 			find_package(ZLIB REQUIRED)
@@ -126,7 +142,7 @@ ELSE (WIN32)
 			SET(EXTENSION "mm")
 			SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
 			SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -lz -framework Accelerate")
-			SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions -std=c++11")
+			SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions")
 
 		ELSE (APPLE)
 			SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
