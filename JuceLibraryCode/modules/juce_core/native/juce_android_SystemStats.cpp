@@ -1,193 +1,67 @@
 /*
   ==============================================================================
 
-   This file is part of the juce_core module of the JUCE library.
-   Copyright (c) 2015 - ROLI Ltd.
+   This file is part of the JUCE library.
+   Copyright (c) 2017 - ROLI Ltd.
 
-   Permission to use, copy, modify, and/or distribute this software for any purpose with
-   or without fee is hereby granted, provided that the above copyright notice and this
-   permission notice appear in all copies.
+   JUCE is an open source library subject to commercial or open-source
+   licensing.
 
-   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
-   TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN
-   NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
-   DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
-   IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-   CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+   The code included in this file is provided under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
+   To use, copy, modify, and/or distribute this software for any purpose with or
+   without fee is hereby granted provided that the above copyright notice and
+   this permission notice appear in all copies.
 
-   ------------------------------------------------------------------------------
-
-   NOTE! This permissive ISC license applies ONLY to files within the juce_core module!
-   All other JUCE modules are covered by a dual GPL/commercial license, so if you are
-   using any other modules, be sure to check that you also comply with their license.
-
-   For more details, visit www.juce.com
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
 
-JNIClassBase::JNIClassBase (const char* cp)   : classPath (cp), classRef (0)
+namespace juce
 {
-    getClasses().add (this);
-}
-
-JNIClassBase::~JNIClassBase()
-{
-    getClasses().removeFirstMatchingValue (this);
-}
-
-Array<JNIClassBase*>& JNIClassBase::getClasses()
-{
-    static Array<JNIClassBase*> classes;
-    return classes;
-}
-
-void JNIClassBase::initialise (JNIEnv* env)
-{
-    classRef = (jclass) env->NewGlobalRef (env->FindClass (classPath));
-    jassert (classRef != 0);
-
-    initialiseFields (env);
-}
-
-void JNIClassBase::release (JNIEnv* env)
-{
-    env->DeleteGlobalRef (classRef);
-}
-
-void JNIClassBase::initialiseAllClasses (JNIEnv* env)
-{
-    const Array<JNIClassBase*>& classes = getClasses();
-    for (int i = classes.size(); --i >= 0;)
-        classes.getUnchecked(i)->initialise (env);
-}
-
-void JNIClassBase::releaseAllClasses (JNIEnv* env)
-{
-    const Array<JNIClassBase*>& classes = getClasses();
-    for (int i = classes.size(); --i >= 0;)
-        classes.getUnchecked(i)->release (env);
-}
-
-jmethodID JNIClassBase::resolveMethod (JNIEnv* env, const char* methodName, const char* params)
-{
-    jmethodID m = env->GetMethodID (classRef, methodName, params);
-    jassert (m != 0);
-    return m;
-}
-
-jmethodID JNIClassBase::resolveStaticMethod (JNIEnv* env, const char* methodName, const char* params)
-{
-    jmethodID m = env->GetStaticMethodID (classRef, methodName, params);
-    jassert (m != 0);
-    return m;
-}
-
-jfieldID JNIClassBase::resolveField (JNIEnv* env, const char* fieldName, const char* signature)
-{
-    jfieldID f = env->GetFieldID (classRef, fieldName, signature);
-    jassert (f != 0);
-    return f;
-}
-
-jfieldID JNIClassBase::resolveStaticField (JNIEnv* env, const char* fieldName, const char* signature)
-{
-    jfieldID f = env->GetStaticFieldID (classRef, fieldName, signature);
-    jassert (f != 0);
-    return f;
-}
-
-//==============================================================================
-ThreadLocalJNIEnvHolder threadLocalJNIEnvHolder;
-
-#if JUCE_DEBUG
-static bool systemInitialised = false;
-#endif
-
-JNIEnv* getEnv() noexcept
-{
-   #if JUCE_DEBUG
-    if (! systemInitialised)
-    {
-        DBG ("*** Call to getEnv() when system not initialised");
-        jassertfalse;
-        std::exit (EXIT_FAILURE);
-    }
-   #endif
-
-    return threadLocalJNIEnvHolder.getOrAttach();
-}
-
-extern "C" jint JNI_OnLoad (JavaVM*, void*)
-{
-    return JNI_VERSION_1_2;
-}
-
-//==============================================================================
-AndroidSystem::AndroidSystem() : screenWidth (0), screenHeight (0), dpi (160)
-{
-}
-
-void AndroidSystem::initialise (JNIEnv* env, jobject act, jstring file, jstring dataDir)
-{
-    screenWidth = screenHeight = 0;
-    dpi = 160;
-    JNIClassBase::initialiseAllClasses (env);
-
-    threadLocalJNIEnvHolder.initialise (env);
-   #if JUCE_DEBUG
-    systemInitialised = true;
-   #endif
-
-    activity = GlobalRef (act);
-    appFile = juceString (env, file);
-    appDataDir = juceString (env, dataDir);
-}
-
-void AndroidSystem::shutdown (JNIEnv* env)
-{
-    activity.clear();
-
-   #if JUCE_DEBUG
-    systemInitialised = false;
-   #endif
-
-    JNIClassBase::releaseAllClasses (env);
-}
-
-AndroidSystem android;
 
 //==============================================================================
 namespace AndroidStatsHelpers
 {
-    #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD) \
+    #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD, CALLBACK) \
      STATICMETHOD (getProperty, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;")
 
-    DECLARE_JNI_CLASS (SystemClass, "java/lang/System");
+    DECLARE_JNI_CLASS (SystemClass, "java/lang/System")
     #undef JNI_CLASS_MEMBERS
 
-    String getSystemProperty (const String& name)
+    #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD, CALLBACK) \
+     STATICMETHOD (getDefault, "getDefault", "()Ljava/util/Locale;") \
+     METHOD (getCountry, "getCountry", "()Ljava/lang/String;") \
+     METHOD (getLanguage, "getLanguage", "()Ljava/lang/String;")
+
+    DECLARE_JNI_CLASS (JavaLocale, "java/util/Locale")
+    #undef JNI_CLASS_MEMBERS
+
+    static inline String getSystemProperty (const String& name)
     {
         return juceString (LocalRef<jstring> ((jstring) getEnv()->CallStaticObjectMethod (SystemClass,
                                                                                           SystemClass.getProperty,
                                                                                           javaString (name).get())));
     }
 
-    String getLocaleValue (bool isRegion)
+    static inline String getLocaleValue (bool isRegion)
     {
-        return juceString (LocalRef<jstring> ((jstring) getEnv()->CallStaticObjectMethod (JuceAppActivity,
-                                                                                          JuceAppActivity.getLocaleValue,
-                                                                                          isRegion)));
+        auto* env = getEnv();
+        LocalRef<jobject> locale (env->CallStaticObjectMethod (JavaLocale, JavaLocale.getDefault));
+
+        auto stringResult = isRegion ? env->CallObjectMethod (locale.get(), JavaLocale.getCountry)
+                                     : env->CallObjectMethod (locale.get(), JavaLocale.getLanguage);
+
+        return juceString (LocalRef<jstring> ((jstring) stringResult));
     }
 
-    #define JNI_CLASS_MEMBERS(METHOD, STATICMETHOD, FIELD, STATICFIELD)
-    DECLARE_JNI_CLASS (BuildClass, "android/os/Build");
-    #undef JNI_CLASS_MEMBERS
-
-    String getAndroidOsBuildValue (const char* fieldName)
+    static inline String getAndroidOsBuildValue (const char* fieldName)
     {
         return juceString (LocalRef<jstring> ((jstring) getEnv()->GetStaticObjectField (
-                            BuildClass, getEnv()->GetStaticFieldID (BuildClass, fieldName, "Ljava/lang/String;"))));
+                            AndroidBuild, getEnv()->GetStaticFieldID (AndroidBuild, fieldName, "Ljava/lang/String;"))));
     }
 }
 
@@ -208,6 +82,11 @@ String SystemStats::getDeviceDescription()
             + "-" + AndroidStatsHelpers::getAndroidOsBuildValue ("SERIAL");
 }
 
+String SystemStats::getDeviceManufacturer()
+{
+    return AndroidStatsHelpers::getAndroidOsBuildValue ("MANUFACTURER");
+}
+
 bool SystemStats::isOperatingSystem64Bit()
 {
    #if JUCE_64BIT
@@ -222,9 +101,25 @@ String SystemStats::getCpuVendor()
     return AndroidStatsHelpers::getSystemProperty ("os.arch");
 }
 
-int SystemStats::getCpuSpeedInMegaherz()
+String SystemStats::getCpuModel()
 {
-    return 0; // TODO
+    return readPosixConfigFileValue ("/proc/cpuinfo", "Hardware");
+}
+
+int SystemStats::getCpuSpeedInMegahertz()
+{
+    int maxFreqKHz = 0;
+
+    for (int i = 0; i < getNumCpus(); ++i)
+    {
+        int freqKHz = File ("/sys/devices/system/cpu/cpu" + String(i) + "/cpufreq/cpuinfo_max_freq")
+                        .loadFileAsString()
+                        .getIntValue();
+
+        maxFreqKHz = jmax (freqKHz, maxFreqKHz);
+    }
+
+    return maxFreqKHz / 1000;
 }
 
 int SystemStats::getMemorySizeInMegabytes()
@@ -233,7 +128,7 @@ int SystemStats::getMemorySizeInMegabytes()
     struct sysinfo sysi;
 
     if (sysinfo (&sysi) == 0)
-        return (sysi.totalram * sysi.mem_unit / (1024 * 1024));
+        return static_cast<int> ((sysi.totalram * sysi.mem_unit) / (1024 * 1024));
    #endif
 
     return 0;
@@ -241,7 +136,7 @@ int SystemStats::getMemorySizeInMegabytes()
 
 int SystemStats::getPageSize()
 {
-    return sysconf (_SC_PAGESIZE);
+    return static_cast<int> (sysconf (_SC_PAGESIZE));
 }
 
 //==============================================================================
@@ -253,7 +148,7 @@ String SystemStats::getLogonName()
     if (struct passwd* const pw = getpwuid (getuid()))
         return CharPointer_UTF8 (pw->pw_name);
 
-    return String::empty;
+    return {};
 }
 
 String SystemStats::getFullUserName()
@@ -267,7 +162,7 @@ String SystemStats::getComputerName()
     if (gethostname (name, sizeof (name) - 1) == 0)
         return name;
 
-    return String::empty;
+    return {};
 }
 
 
@@ -278,7 +173,36 @@ String SystemStats::getDisplayLanguage() { return getUserLanguage() + "-" + getU
 //==============================================================================
 void CPUInformation::initialise() noexcept
 {
-    numCpus = jmax ((int) 1, (int) sysconf (_SC_NPROCESSORS_ONLN));
+    numPhysicalCPUs = numLogicalCPUs = jmax ((int) 1, (int) android_getCpuCount());
+
+    auto cpuFamily   = android_getCpuFamily();
+    auto cpuFeatures = android_getCpuFeatures();
+
+    if (cpuFamily == ANDROID_CPU_FAMILY_X86 || cpuFamily == ANDROID_CPU_FAMILY_X86_64)
+    {
+        hasMMX = hasSSE = hasSSE2 = (cpuFamily == ANDROID_CPU_FAMILY_X86_64);
+
+        hasSSSE3 = ((cpuFeatures & ANDROID_CPU_X86_FEATURE_SSSE3)  != 0);
+        hasSSE41 = ((cpuFeatures & ANDROID_CPU_X86_FEATURE_SSE4_1) != 0);
+        hasSSE42 = ((cpuFeatures & ANDROID_CPU_X86_FEATURE_SSE4_2) != 0);
+        hasAVX   = ((cpuFeatures & ANDROID_CPU_X86_FEATURE_AVX)    != 0);
+        hasAVX2  = ((cpuFeatures & ANDROID_CPU_X86_FEATURE_AVX2)   != 0);
+
+        // Google does not distinguish between MMX, SSE, SSE2, SSE3 and SSSE3. So
+        // I assume (and quick Google searches seem to confirm this) that there are
+        // only devices out there that either support all of this or none of this.
+        if (hasSSSE3)
+            hasMMX = hasSSE = hasSSE2 = hasSSE3 = true;
+    }
+    else if (cpuFamily == ANDROID_CPU_FAMILY_ARM)
+    {
+        hasNeon = ((cpuFeatures & ANDROID_CPU_ARM_FEATURE_NEON) != 0);
+    }
+    else if (cpuFamily == ANDROID_CPU_FAMILY_ARM64)
+    {
+        // all arm 64-bit cpus have neon
+        hasNeon = true;
+    }
 }
 
 //==============================================================================
@@ -287,7 +211,7 @@ uint32 juce_millisecondsSinceStartup() noexcept
     timespec t;
     clock_gettime (CLOCK_MONOTONIC, &t);
 
-    return t.tv_sec * 1000 + t.tv_nsec / 1000000;
+    return static_cast<uint32> (t.tv_sec) * 1000U + static_cast<uint32> (t.tv_nsec) / 1000000U;
 }
 
 int64 Time::getHighResolutionTicks() noexcept
@@ -313,3 +237,5 @@ bool Time::setSystemTimeToThisTime() const
     jassertfalse;
     return false;
 }
+
+} // namespace juce
