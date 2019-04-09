@@ -24,6 +24,7 @@
 # along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
 ################################################################################
 
+include(GNUInstallDirs)
 
 ############### TEST EXECUTABLES ################
 add_executable(openshot-audio-test-sound Main.cpp)
@@ -32,4 +33,4 @@ set_target_properties(openshot-audio-test-sound PROPERTIES
                       CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES)
 
 # Install Test Executable
-INSTALL(TARGETS openshot-audio-test-sound DESTINATION bin)
+INSTALL(TARGETS openshot-audio-test-sound DESTINATION ${CMAKE_INSTALL_BINDIR})
