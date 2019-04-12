@@ -168,7 +168,7 @@ if(UNIX AND NOT APPLE)
 	target_link_libraries(openshot-audio ALSA::ALSA)
 endif()
 
-# XXX What is this for / what will it contain?
+# Link with the library that provides dlopen()/dlclose()
 target_link_libraries(openshot-audio ${CMAKE_DL_LIBS})
 
 # PROCESS SUB-DIRECTORIES
