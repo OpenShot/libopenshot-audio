@@ -114,7 +114,7 @@ target_include_directories(openshot-audio PUBLIC
 # Failing to do so will cause your program to be terminated when a png
 # or a jpeg exception is thrown on linux or macosx.
 IF (CMAKE_COMPILER_IS_GNUCC)
-	target_compile_options(openshot-audio PUBLIC "-fexceptions")
+	target_compile_options(openshot-audio PRIVATE "-fexceptions")
 ENDIF(CMAKE_COMPILER_IS_GNUCC)
 
 # Find common libraries
@@ -134,11 +134,11 @@ if(WIN32)
 
 	if(ASIO_SDK_DIR)
 		MESSAGE(STATUS "FOUND ASIO_SDK_DIR: ${ASIO_SDK_DIR}")
-		target_compile_definitions(openshot-audio PUBLIC JUCE_ASIO=1)
-		target_include_directories(openshot-audio PUBLIC ${ASIO_SDK_DIR})
+		target_compile_definitions(openshot-audio PRIVATE JUCE_ASIO=1)
+		target_include_directories(openshot-audio PRIVATE ${ASIO_SDK_DIR})
 	else()
 		MESSAGE(STATUS "ASIO_SDK_DIR NOT FOUND")
-		target_compile_definitions(openshot-audio PUBLIC JUCE_ASIO=0)
+		target_compile_definitions(openshot-audio PRIVATE JUCE_ASIO=0)
 	endif()
 
 	target_compile_definitions(openshot-audio PUBLIC DONT_AUTOLINK_TO_JUCE_LIBRARY)
@@ -152,17 +152,17 @@ endif()
 
 if(UNIX AND APPLE)
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
-	target_compile_definitions(openshot-audio PUBLIC NDEBUG)
+	target_compile_definitions(openshot-audio PRIVATE NDEBUG)
 
 	SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
 	target_link_libraries(openshot-audio "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -lz -framework Accelerate")
-	target_compile_options(openshot-audio PUBLIC "-flax-vector-conversions")
+	target_compile_options(openshot-audio PRIVATE "-flax-vector-conversions")
  
 endif()
 
 if(UNIX AND NOT APPLE)
 	SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
-	target_compile_definitions(openshot-audio PUBLIC LINUX)
+	target_compile_definitions(openshot-audio PRIVATE LINUX)
 
 	find_package(ALSA REQUIRED)
 	target_link_libraries(openshot-audio ALSA::ALSA)
