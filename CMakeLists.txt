@@ -81,118 +81,19 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Determine file extension for source files
-if(UNIX AND APPLE)
-	set(EXTENSION "mm")
-else()
-	set(EXTENSION "cpp")
-endif()
-
-# List of modules to build (Extension based on OS)
-file(GLOB JUCE_SOURCES JuceLibraryCode/include_juce_*.${EXTENSION})
-
-# Create our target for building the library
-add_library(openshot-audio SHARED ${JUCE_SOURCES})
-
-# Set SONAME and other library properties
-set_target_properties(openshot-audio PROPERTIES
-		VERSION ${PROJECT_VERSION}
-		SOVERSION ${SO_VERSION}
-		CXX_STANDARD 11
-		CXX_STANDARD_REQUIRED YES
-		MACOSX_RPATH 0
-		INSTALL_NAME_DIR ${CMAKE_INSTALL_LIBDIR})
-
-# Include header directories
-target_include_directories(openshot-audio PUBLIC
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode>
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
-		$<INSTALL_INTERFACE:include/libopenshot-audio>
-		)
-
-# Enable stack-unwinding support in c objects on gcc-based platforms.
-# Failing to do so will cause your program to be terminated when a png
-# or a jpeg exception is thrown on linux or macosx.
-IF (CMAKE_COMPILER_IS_GNUCC)
-	target_compile_options(openshot-audio PRIVATE "-fexceptions")
-ENDIF(CMAKE_COMPILER_IS_GNUCC)
-
-# Find common libraries
-set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-find_package(Threads REQUIRED)
-find_package(ZLIB REQUIRED)
-target_link_libraries(openshot-audio ZLIB::ZLIB Threads::Threads)
-
-
-if(WIN32)
-	SET_PROPERTY(GLOBAL PROPERTY JUCE_WINDOWS "JUCE_WINDOWS")
-	SET_PROPERTY(GLOBAL PROPERTY JUCE_MINGW "JUCE_MINGW")
-
-	# Find the base directory of the AISO SDK (if any)
-	find_path(ASIO_SDK_DIR iasiodrv.h
-	          PATHS $ENV{ASIO_SDK_DIR} )
-
-	if(ASIO_SDK_DIR)
-		MESSAGE(STATUS "FOUND ASIO_SDK_DIR: ${ASIO_SDK_DIR}")
-		target_compile_definitions(openshot-audio PRIVATE JUCE_ASIO=1)
-		target_include_directories(openshot-audio PRIVATE ${ASIO_SDK_DIR})
-	else()
-		MESSAGE(STATUS "ASIO_SDK_DIR NOT FOUND")
-		target_compile_definitions(openshot-audio PRIVATE JUCE_ASIO=0)
-	endif()
-
-	target_compile_definitions(openshot-audio PUBLIC DONT_AUTOLINK_TO_JUCE_LIBRARY)
-
-	target_link_libraries(openshot-audio 
-		advapi32.lib comdlg32.lib gdi32.lib GlU32.lib Imm32.dll
-		kernel32.lib ole32.lib OpenGL32.lib rpcrt4.lib shell32.lib
-		Shlwapi.dll user32.lib vfw32.lib version.lib winmm.lib
-		wininet.lib ws2_32.lib)
-endif()
-
-if(UNIX AND APPLE)
-	SET_PROPERTY(GLOBAL PROPERTY JUCE_MAC "JUCE_MAC")
-	target_compile_definitions(openshot-audio PRIVATE NDEBUG)
-
-	SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
-	target_link_libraries(openshot-audio "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -lz -framework Accelerate")
-	target_compile_options(openshot-audio PRIVATE "-flax-vector-conversions")
- 
-endif()
-
-if(UNIX AND NOT APPLE)
-	SET_PROPERTY(GLOBAL PROPERTY JUCE_LINUX "JUCE_LINUX")
-	target_compile_definitions(openshot-audio PRIVATE LINUX)
-
-	find_package(ALSA REQUIRED)
-	target_link_libraries(openshot-audio ALSA::ALSA)
-endif()
-
-# Link with the library that provides dlopen()/dlclose()
-target_link_libraries(openshot-audio ${CMAKE_DL_LIBS})
-
-# PROCESS SUB-DIRECTORIES
-add_subdirectory(src)
-
-# Install Files
-INSTALL(FILES
-		${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h
-		${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/AppConfig.h
-		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio)
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
-		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
-		FILES_MATCHING PATTERN "*.h")
-INSTALL(TARGETS openshot-audio DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
-################### DOCUMENTATION ###################
 # Find Doxygen (used for documentation)
 include(cmake/Modules/UseDoxygen.cmake)
 
-# Install Doxygen html documentation
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/
+
+# PROCESS SUB-DIRECTORIES
+add_subdirectory(JuceLibraryCode)
+add_subdirectory(src)
+
+# Doxygen html documentation
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/libopenshot-audio OPTIONAL)
 
-# Install manpage
+# manpage
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
         DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 

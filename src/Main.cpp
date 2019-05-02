@@ -32,7 +32,7 @@
 
 #include <iostream>
 #include <unistd.h>
-#include "../JuceLibraryCode/JuceHeader.h"
+#include "JuceHeader.h"
 
 #if JUCE_MINGW
 #define sleep(a) Sleep(a * 1000)

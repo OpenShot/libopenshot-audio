@@ -28,6 +28,12 @@ include(GNUInstallDirs)
 
 ############### TEST EXECUTABLES ################
 add_executable(openshot-audio-test-sound Main.cpp)
+target_include_directories(openshot-audio-test-sound PUBLIC
+                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../JuceLibraryCode>
+                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../JuceLibraryCode/modules>
+                $<INSTALL_INTERFACE:include/libopenshot-audio>
+		)
+
 target_link_libraries(openshot-audio-test-sound openshot-audio)
 set_target_properties(openshot-audio-test-sound PROPERTIES
                       CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES)
