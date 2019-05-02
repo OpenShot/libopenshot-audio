@@ -97,3 +97,9 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
         DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
 
+# Export targets for later import by consumers
+export(TARGETS OpenShotAudio NAMESPACE OpenShotAudio::
+       APPEND FILE OpenShotAudio.cmake)
+
+install(EXPORT OpenShotAudio NAMESPACE OpenShotAudio::
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake)
