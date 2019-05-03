@@ -79,13 +79,8 @@ Generating build files for OpenShot
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#### Optional C++ restirctions
-option(USE_CXX_GNU_EXTENSIONS "Allow GNU C++ extensions" OFF)
-if(USE_CXX_GNU_EXTENSIONS)
-	set(CMAKE_CXX_EXTENSIONS ON)
-else()
-	set(CMAKE_CXX_EXTENSIONS OFF)
-endif()
+#### Optional C++ restrictions
+set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Allow compiler C++ language extensions")
 
 #### Enable C Language
 ENABLE_LANGUAGE(C)
