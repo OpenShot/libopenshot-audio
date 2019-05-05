@@ -79,7 +79,7 @@ Generating build files for OpenShot
 #### Enable C++11 (for JUCE)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Allow C++ language extensions")
 
 # Find Doxygen (used for documentation)
 include(cmake/Modules/UseDoxygen.cmake)
