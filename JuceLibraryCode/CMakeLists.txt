@@ -36,6 +36,9 @@ endif()
 # List of modules to build (Extension based on OS)
 file(GLOB JUCE_SOURCES include_juce_*.${EXTENSION})
 
+# Our local header files
+set(JUCE_HEADERS JuceHeader.h AppConfig.h)
+
 # Create our target for building the library
 add_library(OpenShotAudio SHARED ${JUCE_SOURCES})
 
@@ -46,8 +49,7 @@ set_target_properties(OpenShotAudio PROPERTIES
     CXX_STANDARD 11
     CXX_STANDARD_REQUIRED YES
     MACOSX_RPATH 0
-    PUBLIC_HEADER JuceHeader.h
-    PUBLIC_HEADER AppConfig.h
+    PUBLIC_HEADER "${JUCE_HEADERS}"
     INSTALL_NAME_DIR ${CMAKE_INSTALL_LIBDIR}
 )
 
@@ -122,7 +124,7 @@ target_link_libraries(OpenShotAudio ${CMAKE_DL_LIBS})
 
 install(TARGETS OpenShotAudio EXPORT OpenShotAudio
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-Audio
+	PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio/
         COMPONENT Devel
 )
 
