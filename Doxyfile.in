@@ -160,7 +160,7 @@ FULL_PATH_NAMES        = NO
 # will be relative from the directory where doxygen is started.
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
-STRIP_FROM_PATH        =
+STRIP_FROM_PATH        =  "@CMAKE_CURRENT_BINARY_DIR@/docs"
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -430,7 +430,7 @@ INLINE_GROUPED_CLASSES = NO
 # Man pages) or section (for LaTeX and RTF).
 # The default value is: NO.
 
-INLINE_SIMPLE_STRUCTS  = NO
+INLINE_SIMPLE_STRUCTS  = YES
 
 # When TYPEDEF_HIDES_STRUCT tag is enabled, a typedef of a struct, union, or
 # enum is documented as struct, union, or enum with the name of the typedef. So
@@ -468,7 +468,7 @@ LOOKUP_CACHE_SIZE      = 0
 # normally produced when WARNINGS is set to YES.
 # The default value is: NO.
 
-EXTRACT_ALL            = YES
+EXTRACT_ALL            = NO
 
 # If the EXTRACT_PRIVATE tag is set to YES, all private members of a class will
 # be included in the documentation.
@@ -713,7 +713,7 @@ SHOW_FILES             = YES
 # Folder Tree View (if specified).
 # The default value is: YES.
 
-SHOW_NAMESPACES        = YES
+SHOW_NAMESPACES        = NO
 
 # The FILE_VERSION_FILTER tag can be used to specify a program or script that
 # doxygen should invoke to get the current version for each file (typically from
@@ -1088,7 +1088,7 @@ ALPHABETICAL_INDEX     = YES
 # Minimum value: 1, maximum value: 20, default value: 5.
 # This tag requires that the tag ALPHABETICAL_INDEX is set to YES.
 
-COLS_IN_ALPHA_INDEX    = 5
+COLS_IN_ALPHA_INDEX    = 2
 
 # In case all classes in a project start with a common prefix, all classes will
 # be put under the same header in the alphabetical index. The IGNORE_PREFIX tag
@@ -1243,7 +1243,7 @@ HTML_DYNAMIC_MENUS     = YES
 # The default value is: NO.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_DYNAMIC_SECTIONS  = NO
+HTML_DYNAMIC_SECTIONS  = YES
 
 # With HTML_INDEX_NUM_ENTRIES one can control the preferred number of entries
 # shown in the various tree structured indices initially; the user can expand
@@ -1472,7 +1472,7 @@ DISABLE_INDEX          = NO
 # The default value is: NO.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-GENERATE_TREEVIEW      = NO
+GENERATE_TREEVIEW      = YES
 
 # The ENUM_VALUES_PER_LINE tag can be used to set the number of enum values that
 # doxygen will group on one line in the generated HTML documentation.
@@ -2081,7 +2081,7 @@ ENABLE_PREPROCESSING   = YES
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-MACRO_EXPANSION        = NO
+MACRO_EXPANSION        = YES
 
 # If the EXPAND_ONLY_PREDEF and MACRO_EXPANSION tags are both set to YES then
 # the macro expansion is limited to the macros specified with the PREDEFINED and
@@ -2121,21 +2121,23 @@ INCLUDE_FILE_PATTERNS  =
 # recursively expanded use the := operator instead of the = operator.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-PREDEFINED             = WIN32=1 \
-                         JUCE_WIN32=1 \
-                         JUCE_MAC=1 \
-                         JUCE_IOS=1 \
-                         JUCE_ANDROID=1 \
-                         JUCE_LINUX=1 \
-                         DOXYGEN=1 \
-                         JUCE_COMPILER_SUPPORTS_NOEXCEPT=1 \
-                         JUCE_COMPILER_SUPPORTS_NULLPTR=1 \
-                         JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS=1 \
-                         JUCE_COMPILER_SUPPORTS_INITIALIZER_LISTS=1 \
-                         JUCE_COMPILER_SUPPORTS_VARIADIC_TEMPLATES=1 \
-                         JUCE_COMPILER_SUPPORTS_OVERRIDE_AND_FINAL=1 \
-                         JUCE_COMPILER_SUPPORTS_LAMBDAS=1 \
-                         JUCE_MODAL_LOOPS_PERMITTED=1
+PREDEFINED             = WIN32 \
+                         JUCE_WIN32 \
+                         JUCE_MAC \
+                         JUCE_IOS \
+                         JUCE_ANDROID \
+                         JUCE_LINUX \
+                         DOXYGEN \
+			 __cplusplus \
+			 HAVE_CONFIG_H \
+                         JUCE_COMPILER_SUPPORTS_NOEXCEPT \
+                         JUCE_COMPILER_SUPPORTS_NULLPTR \
+                         JUCE_COMPILER_SUPPORTS_MOVE_SEMANTICS \
+                         JUCE_COMPILER_SUPPORTS_INITIALIZER_LISTS \
+                         JUCE_COMPILER_SUPPORTS_VARIADIC_TEMPLATES \
+                         JUCE_COMPILER_SUPPORTS_OVERRIDE_AND_FINAL \
+                         JUCE_COMPILER_SUPPORTS_LAMBDAS \
+                         JUCE_MODAL_LOOPS_PERMITTED
 
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
