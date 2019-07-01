@@ -218,25 +218,11 @@ INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
 	DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 ########### DOCUMENTATION ##########
-# Get a list of source files to be processed
-#file(GLOB_RECURSE JUCE_SOURCES
-#	RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/"
-#	"${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/*/juce_*.h"
-#	"${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/*/juce_*.cpp"
-#	"${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/*/juce_*.dox" )
-
-#foreach(j_file IN LISTS JUCE_SOURCES)
-#	list(APPEND PROCESSED_SOURCES "docs/${j_file}")
-#endforeach()
-
 # Pre-process the sources to fix documentation formatting
 add_custom_target(process-source-files
 	COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules "docs"
 	COMMENT "Processing source code for documentation"
 	VERBATIM )
-
-#set_property(SOURCE ${PROCESSED_SOURCES}
-#	PROPERTY GENERATED )
 
 # Processed docs are removed on "make clean"
 set_property(DIRECTORY APPEND
@@ -247,5 +233,9 @@ set_property(DIRECTORY APPEND
 include(cmake/Modules/UseDoxygen.cmake)
 
 # Make sure process-source comes before both other targets
-add_dependencies(doc process-source-files)
-add_dependencies(doxygen process-source-files)
+if(TARGET doc)
+	add_dependencies(doc process-source-files)
+endif()
+if(TARGET doxygen)
+	add_dependencies(doxygen process-source-files)
+endif()
