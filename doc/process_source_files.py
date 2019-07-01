@@ -24,31 +24,11 @@ def get_curly_brace_scope_end(string, start_pos):
     return -1
 
 
-def remove_juce_namespaces(source):
-    """Return a string of source code with any juce namespaces removed.
-    """
-    namespace_regex = re.compile(r"\s+namespace\s+juce\s*{")
-
-    match = namespace_regex.search(source)
-    while (match is not None):
-        source = source[:match.start()] + source[match.end():]
-        end = get_curly_brace_scope_end(source, match.start() - 1)
-        if end != -1:
-            source = source[:end] + source[end + 1:]
-            match = namespace_regex.search(source)
-            continue
-        else:
-            raise ValueError("failed to find the end of the "
-                             + match.group(1) + " namespace")
-    return source
-
-
 def add_doxygen_group(path, group_name):
     """Add a Doxygen group to the file at 'path'.
 
        The addition of juce namespacing code to all of the source files breaks
-       backwards compatibility by changing the doc URLs, so we need to remove
-       the namespaces.
+       backwards compatibility by changing the doc URLs
     """
 
     filename = os.path.basename(path)
@@ -57,7 +37,7 @@ def add_doxygen_group(path, group_name):
             content = f.read()
         with open(path, "w") as f:
             f.write("\r\n/** @weakgroup " + group_name + "\r\n *  @{\r\n */\r\n")
-            f.write(remove_juce_namespaces(content))
+            f.write(content)
             f.write("\r\n/** @}*/\r\n")
 
 
