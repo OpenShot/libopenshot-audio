@@ -213,10 +213,29 @@ INSTALL(TARGETS openshot-audio
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
-################### DOCUMENTATION ###################
-# Find Doxygen (used for documentation)
-include(cmake/Modules/UseDoxygen.cmake)
-
 # Install manpage
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
 	DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
+
+########### DOCUMENTATION ##########
+# Pre-process the sources to fix documentation formatting
+add_custom_target(process-source-files
+	COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules "docs"
+	COMMENT "Processing source code for documentation"
+	VERBATIM )
+
+# Processed docs are removed on "make clean"
+set_property(DIRECTORY APPEND
+	PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+       	"docs" )
+
+# Find Doxygen (used for documentation)
+include(cmake/Modules/UseDoxygen.cmake)
+
+# Make sure process-source comes before both other targets
+if(TARGET doc)
+	add_dependencies(doc process-source-files)
+endif()
+if(TARGET doxygen)
+	add_dependencies(doxygen process-source-files)
+endif()
