@@ -55,11 +55,16 @@ STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
 # PROJECT_VERSION_PATCH, libopenshot-audio_VERSION_PATCH
 PROJECT(libopenshot-audio LANGUAGES C CXX VERSION ${VERSION_NUM})
 
-message("
-Generating build files for OpenShot
-  Building ${PROJECT_NAME} (version ${PROJECT_VERSION})
-  SO/API/ABI Version: ${PROJECT_SO_VERSION}
-")
+# JuceHeader.h needs a hexadecimal version number for the project
+math(EXPR PROJECT_VERSION_HEX 
+	"(${PROJECT_VERSION_MAJOR} << 16) + \
+	(${PROJECT_VERSION_MINOR} << 8) + \
+	(${PROJECT_VERSION_PATCH})" OUTPUT_FORMAT HEXADECIMAL)
+
+message("\
+Generating build files for ${PROJECT_NAME} \
+version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})" )
+message("SO/API/ABI Version: ${PROJECT_SO_VERSION}" )
 
 
 # Define install paths according to system conventions
@@ -67,6 +72,12 @@ Generating build files for OpenShot
 #      in order to properly configure CMAKE_INSTALL_LIBDIR path
 include(GNUInstallDirs)
 
+########## Configure headers ##############
+configure_file(include/JuceHeader.h.in include/JuceHeader.h @ONLY)
+configure_file(include/AppConfig.h.in include/AppConfig.h @ONLY)
+# We'll want those installed later
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio )
 
 # Juce requires either DEBUG or NDEBUG to be defined on MacOS.
 # -DNDEBUG is set by cmake for all release configs, so add
@@ -161,10 +172,9 @@ ADD_LIBRARY(openshot-audio SHARED ${JUCE_SOURCES} )
 
 # Include header directories
 target_include_directories(openshot-audio PUBLIC
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode>
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
-		$<INSTALL_INTERFACE:include/libopenshot-audio>
-		)
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
+	$<INSTALL_INTERFACE:include/libopenshot-audio> )
 
 # Set SONAME and other library properties
 set_target_properties(openshot-audio
@@ -198,14 +208,9 @@ add_subdirectory(src)
 #################### INSTALLATION #####################
 
 # Install Header Files
-INSTALL(FILES
-	${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/JuceHeader.h
-	${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/AppConfig.h
-	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio )
-
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
-		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
-		FILES_MATCHING PATTERN "*.h" )
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
+	FILES_MATCHING PATTERN "*.h" )
 
 # Install library
 INSTALL(TARGETS openshot-audio
