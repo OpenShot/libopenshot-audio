@@ -56,10 +56,14 @@ STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
 PROJECT(libopenshot-audio LANGUAGES C CXX VERSION ${VERSION_NUM})
 
 # JuceHeader.h needs a hexadecimal version number for the project
-math(EXPR PROJECT_VERSION_HEX 
-	"(${PROJECT_VERSION_MAJOR} << 16) + \
-	(${PROJECT_VERSION_MINOR} << 8) + \
-	(${PROJECT_VERSION_PATCH})" OUTPUT_FORMAT HEXADECIMAL)
+if(CMAKE_VERSION VERSION_LESS 3.13)
+	set(PROJECT_VERSION_HEX "0x108") # Ugly hardcoding
+else()
+	math(EXPR PROJECT_VERSION_HEX 
+		"(${PROJECT_VERSION_MAJOR} << 16) + \
+		(${PROJECT_VERSION_MINOR} << 8) + \
+		(${PROJECT_VERSION_PATCH})" OUTPUT_FORMAT HEXADECIMAL )
+endif()
 
 message("\
 Generating build files for ${PROJECT_NAME} \
