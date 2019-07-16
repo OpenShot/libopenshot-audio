@@ -23,6 +23,8 @@
 namespace juce
 {
 
+/** needed for std::isfinite() */
+#include <math.h>
 //==============================================================================
 /*
     This file sets up some handy mathematical typdefs and functions.
