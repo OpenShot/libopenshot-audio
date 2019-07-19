@@ -16,19 +16,18 @@ addons:
       - doxygen
       - graphviz
 
-before_install:
-  - pwd
-  - |
-    if [ "$TRAVIS_OS_NAME" = "osx" ]; then
-      brew update
-      brew install swig unittest-cpp doxygen
-    fi
+  homebrew:
+    update: true
+    packages:
+      - gcc
+      - unittest-cpp
+      - swig
 
 script:
   - mkdir -p build; cd build;
   - cmake -DCMAKE_INSTALL_PREFIX:PATH="$TRAVIS_OS_NAME-x64" -DCMAKE_BUILD_TYPE:STRING="Debug" ../
   - make VERBOSE=1
-  - make doc
+  - if [ $TRAVIS_OS_NAME = linux ]; then make doc; fi
   - make install
 
 notifications:
