@@ -10,7 +10,7 @@ linux-builder:
     - build/install-x64/*
   script:
     - mkdir -p build; cd build;
-    - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
+    - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
     - make
     - make install
     - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
@@ -29,7 +29,7 @@ mac-builder:
     - build/install-x64/*
   script:
     - mkdir -p build; cd build;
-    - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk" -D"CMAKE_OSX_DEPLOYMENT_TARGET=10.9" ../
+    - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_OSX_SYSROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk" -D"CMAKE_OSX_DEPLOYMENT_TARGET=10.9" ../
     - make
     - make install
     - echo -e "CI_PROJECT_NAME:$CI_PROJECT_NAME\nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME\nCI_COMMIT_SHA:$CI_COMMIT_SHA\nCI_JOB_ID:$CI_JOB_ID" > "install-x64/share/$CI_PROJECT_NAME"
@@ -53,7 +53,7 @@ windows-builder-x64:
     - $env:Path = "C:\msys64\mingw64\bin;C:\msys64\mingw64\lib;C:\msys64\usr\lib\cmake\UnitTest++;C:\msys64\home\jonathan\depot_tools;C:\msys64\usr;C:\msys64\usr\lib;" + $env:Path;
     - New-Item -ItemType Directory -Force -Path build
     - cd build
-    - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -G "MSYS Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make -D"CMAKE_BUILD_TYPE:STRING=Release" ../
+    - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -G "MSYS Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make -D"CMAKE_BUILD_TYPE:STRING=Release" ../
     - mingw32-make
     - mingw32-make install
     - New-Item -path "install-x64/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
@@ -78,7 +78,7 @@ windows-builder-x86:
     - $env:Path = "C:\msys32\mingw32\bin;C:\msys32\mingw32\lib;C:\msys32\usr\lib\cmake\UnitTest++;C:\msys32\home\jonathan\depot_tools;C:\msys32\usr;C:\msys32\usr\lib;" + $env:Path;
     - New-Item -ItemType Directory -Force -Path build
     - cd build
-    - cmake -D"CMAKE_INSTALL_PREFIX:PATH=install-x86" -G "MSYS Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make -D"CMAKE_BUILD_TYPE:STRING=Release" ../
+    - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=install-x86" -G "MSYS Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_CXX_FLAGS=-m32" -D"CMAKE_C_FLAGS=-m32"  ../
     - mingw32-make
     - mingw32-make install
     - New-Item -path "install-x86/share/" -Name "$CI_PROJECT_NAME" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID" -ItemType file -force
