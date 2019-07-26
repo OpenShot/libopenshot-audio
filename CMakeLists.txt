@@ -104,23 +104,25 @@ IF (WIN32)
 	# winmm.lib must come before kernel (or older version of 32-bit windows
 	# will have linking issues for certain entry points)
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
+                winmm.lib
+                ws2_32.lib
+                wininet.lib
+                version.lib
+                Shlwapi.dll
+		)
+	SET(JUCE_APPARENTLY_NOT_NEEDED_LIBRARIES
 		advapi32.lib
 		comdlg32.lib
 		gdi32.lib
 		GlU32.lib
 		Imm32.dll
-		winmm.lib
 		kernel32.lib
 		ole32.lib
 		OpenGL32.lib
 		rpcrt4.lib
 		shell32.lib
-		Shlwapi.dll
 		user32.lib
 		vfw32.lib
-		version.lib
-		wininet.lib
-		ws2_32.lib
 		)
 endif()
 
