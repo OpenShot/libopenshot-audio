@@ -101,12 +101,15 @@ IF (WIN32)
 
 	ADD_DEFINITIONS(-DJUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES)
 
+	# winmm.lib must come before kernel (or older version of 32-bit windows
+	# will have linking issues for certain entry points)
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
 		advapi32.lib
 		comdlg32.lib
 		gdi32.lib
 		GlU32.lib
 		Imm32.dll
+		winmm.lib
 		kernel32.lib
 		ole32.lib
 		OpenGL32.lib
@@ -116,7 +119,6 @@ IF (WIN32)
 		user32.lib
 		vfw32.lib
 		version.lib
-		winmm.lib
 		wininet.lib
 		ws2_32.lib
 		)
