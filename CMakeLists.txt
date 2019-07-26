@@ -99,30 +99,19 @@ IF (WIN32)
 		ADD_DEFINITIONS(-DJUCE_ASIO=0)
 	ENDIF (ASIO_SDK_DIR)
 
+	# Tell Visual Studio not to automatically link system DLLs
 	ADD_DEFINITIONS(-DJUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES)
 
-	# winmm.lib must come before kernel (or older version of 32-bit windows
-	# will have linking issues for certain entry points)
+	# Order here can be important!
+	# For example, winmm.lib must come before kernel32.lib (if linked)
+	# or older 32-bit windows versions will have linking issues for
+	# certain entry points
 	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
                 winmm.lib
                 ws2_32.lib
                 wininet.lib
                 version.lib
                 Shlwapi.dll
-		)
-	SET(JUCE_APPARENTLY_NOT_NEEDED_LIBRARIES
-		advapi32.lib
-		comdlg32.lib
-		gdi32.lib
-		GlU32.lib
-		Imm32.dll
-		kernel32.lib
-		ole32.lib
-		OpenGL32.lib
-		rpcrt4.lib
-		shell32.lib
-		user32.lib
-		vfw32.lib
 		)
 endif()
 
