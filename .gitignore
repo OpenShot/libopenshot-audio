@@ -1,5 +1,4 @@
-build/
-build/*
+/build*
 .DS_Store
 .settings
 .idea/*
