@@ -242,7 +242,7 @@ if(PYTHONINTERP_FOUND)
 	install(CODE "MESSAGE(\"(Compile with 'make doc' command, requires Python3 and Doxygen)\")")
 	
 	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/
-		DESTINATION ${CMAKE_INSTALL_DOCDIR}
+		DESTINATION ${CMAKE_INSTALL_DOCDIR}/API
 		MESSAGE_NEVER # Don't spew about file copies
 		OPTIONAL )    # No error if the docs aren't found
 		
