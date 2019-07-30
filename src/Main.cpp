@@ -66,7 +66,6 @@ int main()
 		sleep(1);
 	}
 
-	int id = 1;
 	cout << "before device loop" << endl;
 	for (int i = 0; i < deviceManager.getAvailableDeviceTypes().size(); ++i)
 	{
