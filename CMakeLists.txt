@@ -225,35 +225,41 @@ INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
 find_package(PythonInterp 3)
 
 if(PYTHONINTERP_FOUND)
-	# Pre-process the sources to fix documentation formatting
-	add_custom_target(process-source-files
-		COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules "docs"
-		COMMENT "Formatting source code for documentation"
-		VERBATIM )
+    # Pre-process the sources to fix documentation formatting
+    add_custom_target(process-source-files
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules "docs"
+        COMMENT "Formatting source code for documentation"
+        VERBATIM )
 
-	# Processed docs are removed on "make clean"
-	set_property(DIRECTORY APPEND PROPERTY
-		ADDITIONAL_MAKE_CLEAN_FILES "docs" )
+    # Processed docs are removed on "make clean"
+    set_property(DIRECTORY
+        APPEND PROPERTY
+        ADDITIONAL_MAKE_CLEAN_FILES "docs" )
 
-	# Find Doxygen (used for documentation)
-	include(cmake/Modules/UseDoxygen.cmake)
+    # Find Doxygen (used for documentation)
+    include(cmake/Modules/UseDoxygen.cmake)
 
-	# Make sure process-source comes before Doxygen targets,
-	# assuming UseDoxygen found the tools and created them
-	if(TARGET doc)
-		add_dependencies(doc process-source-files)
-	endif()
-	if(TARGET doxygen)
-		add_dependencies(doxygen process-source-files)
-	endif()
-	
-	# Install docs, if the user builds them with `make doc`
-	install(CODE "MESSAGE(\"Checking for documentation files to install...\")")
-	install(CODE "MESSAGE(\"(Compile with 'make doc' command, requires Python3 and Doxygen)\")")
-	
-	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/
-		DESTINATION ${CMAKE_INSTALL_DOCDIR}/API
-		MESSAGE_NEVER # Don't spew about file copies
-		OPTIONAL )    # No error if the docs aren't found
-		
+    # Make sure process-source comes before Doxygen targets,
+    # assuming UseDoxygen found the tools and created them
+    if(TARGET doc)
+        add_dependencies(doc process-source-files)
+    endif()
+    if(TARGET doxygen)
+        add_dependencies(doxygen process-source-files)
+    endif()
+endif()
+
+# Doxygen was found
+if (TARGET doc)
+    message(STATUS "Doxygen found, documentation target enabled")
+    message("\nTo compile documentation in doc/html, run: 'make doc'")
+
+    # Install docs, if the user builds them with `make doc`
+    install(CODE "MESSAGE(\"Checking for documentation files to install...\")")
+    install(CODE "MESSAGE(\"(Compile with 'make doc' command, requires Python3 and Doxygen)\")")
+
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/API
+        MESSAGE_NEVER # Don't spew about file copies
+        OPTIONAL )    # No error if the docs aren't found
 endif()
