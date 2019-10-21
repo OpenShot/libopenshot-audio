@@ -4,7 +4,12 @@ matrix:
   include:
     - os: linux
       dist: xenial
+      name: "Ubuntu 16.04 Xenial"
+    - os: linux
+      dist: bionic
+      name: "Ubuntu 18.04 Bionic"
     - os: osx
+      name: "Apple macOS"
 
 addons:
   apt:
