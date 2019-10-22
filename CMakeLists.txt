@@ -185,10 +185,11 @@ set_target_properties(openshot-audio
 		MACOSX_RPATH OFF
 		INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 
-# Find threading library
+# Threading library -- uses IMPORTED target Threads::Threads (since CMake 3.1)
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
-target_link_libraries(openshot-audio PUBLIC ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(openshot-audio PUBLIC Threads::Threads)
 
 # ZLIB
 find_package(ZLIB REQUIRED)
