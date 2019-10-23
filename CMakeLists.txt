@@ -133,7 +133,7 @@ endif()
 
 if(UNIX AND APPLE)
 	SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
-	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -lz -framework Accelerate")
+	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
 	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions")
 endif()
 
@@ -177,11 +177,11 @@ set_target_properties(openshot-audio
 		MACOSX_RPATH OFF
 		INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 
-# Find threading library
+# Threading library -- uses IMPORTED target Threads::Threads (since CMake 3.1)
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
-target_link_libraries(openshot-audio PUBLIC ${CMAKE_THREAD_LIBS_INIT})
-
+target_link_libraries(openshot-audio PUBLIC Threads::Threads)
 
 # ALSA (Linux only)
 if(UNIX AND NOT APPLE)
@@ -196,10 +196,9 @@ if(UNIX AND NOT APPLE)
   target_link_libraries(openshot-audio PUBLIC ALSA::ALSA)
 endif()
 
-# ZLIB
+# ZLIB -- uses IMPORTED target ZLIB::ZLIB which has existed since CMake 3.1
 find_package(ZLIB REQUIRED)
-include_directories(${ZLIB_INCLUDE_DIR})
-target_link_libraries(openshot-audio PUBLIC ${ZLIB_LIBRARIES})
+target_link_libraries(openshot-audio PUBLIC ZLIB::ZLIB)
 
 target_link_libraries(openshot-audio PUBLIC
 		${CMAKE_DL_LIBS}
@@ -231,35 +230,41 @@ INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
 find_package(PythonInterp 3)
 
 if(PYTHONINTERP_FOUND)
-	# Pre-process the sources to fix documentation formatting
-	add_custom_target(process-source-files
-		COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules "docs"
-		COMMENT "Formatting source code for documentation"
-		VERBATIM )
+    # Pre-process the sources to fix documentation formatting
+    add_custom_target(process-source-files
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules "docs"
+        COMMENT "Formatting source code for documentation"
+        VERBATIM )
 
-	# Processed docs are removed on "make clean"
-	set_property(DIRECTORY APPEND PROPERTY
-		ADDITIONAL_MAKE_CLEAN_FILES "docs" )
+    # Processed docs are removed on "make clean"
+    set_property(DIRECTORY
+        APPEND PROPERTY
+        ADDITIONAL_MAKE_CLEAN_FILES "docs" )
 
-	# Find Doxygen (used for documentation)
-	include(cmake/Modules/UseDoxygen.cmake)
+    # Find Doxygen (used for documentation)
+    include(cmake/Modules/UseDoxygen.cmake)
 
-	# Make sure process-source comes before Doxygen targets,
-	# assuming UseDoxygen found the tools and created them
-	if(TARGET doc)
-		add_dependencies(doc process-source-files)
-	endif()
-	if(TARGET doxygen)
-		add_dependencies(doxygen process-source-files)
-	endif()
+    # Make sure process-source comes before Doxygen targets,
+    # assuming UseDoxygen found the tools and created them
+    if(TARGET doc)
+        add_dependencies(doc process-source-files)
+    endif()
+    if(TARGET doxygen)
+        add_dependencies(doxygen process-source-files)
+    endif()
+endif()
 
-	# Install docs, if the user builds them with `make doc`
-	install(CODE "MESSAGE(\"Checking for documentation files to install...\")")
-	install(CODE "MESSAGE(\"(Compile with 'make doc' command, requires Python3 and Doxygen)\")")
+# Doxygen was found
+if (TARGET doc)
+    message(STATUS "Doxygen found, documentation target enabled")
+    message("\nTo compile documentation in doc/html, run: 'make doc'")
 
-	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/
-		DESTINATION ${CMAKE_INSTALL_DOCDIR}/API
-		MESSAGE_NEVER # Don't spew about file copies
-		OPTIONAL )    # No error if the docs aren't found
+    # Install docs, if the user builds them with `make doc`
+    install(CODE "MESSAGE(\"Checking for documentation files to install...\")")
+    install(CODE "MESSAGE(\"(Compile with 'make doc' command, requires Python3 and Doxygen)\")")
 
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/
+        DESTINATION ${CMAKE_INSTALL_DOCDIR}/API
+        MESSAGE_NEVER # Don't spew about file copies
+        OPTIONAL )    # No error if the docs aren't found
 endif()
