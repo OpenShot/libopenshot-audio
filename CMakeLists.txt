@@ -137,20 +137,12 @@ if(UNIX AND APPLE)
 	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions")
 endif()
 
-if(UNIX AND NOT APPLE) #Linux
-	find_package(ALSA REQUIRED)
-	include_directories(${ALSA_INCLUDE_DIR})
-	ADD_DEFINITIONS(-DLINUX)
-	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES ${ALSA_LIBRARIES})
-endif()
-
 # Default extension for source files
 if(UNIX AND APPLE)
-	SET(SOURCE_EXTENSION "mm")
+  SET(SOURCE_EXTENSION "mm")
 else ()
-    SET(SOURCE_EXTENSION "cpp")
+  SET(SOURCE_EXTENSION "cpp")
 endif()
-
 
 # List of modules to build
 set(JUCE_MODULES
@@ -166,7 +158,7 @@ foreach(j_module IN LISTS JUCE_MODULES)
 		JuceLibraryCode/include_juce_${j_module}.${SOURCE_EXTENSION} )
 endforeach()
 
-ADD_LIBRARY(openshot-audio SHARED ${JUCE_SOURCES} )
+add_library(openshot-audio SHARED ${JUCE_SOURCES} )
 
 # Include header directories
 target_include_directories(openshot-audio PUBLIC
@@ -190,6 +182,19 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 target_link_libraries(openshot-audio PUBLIC Threads::Threads)
+
+# ALSA (Linux only)
+if(UNIX AND NOT APPLE)
+  find_package(ALSA REQUIRED)
+  if (ALSA_FOUND AND NOT TARGET ALSA::ALSA) # CMake < 3.12
+    add_library(ALSA::ALSA INTERFACE IMPORTED)
+    set_target_properties(ALSA::ALSA PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES ${ALSA_INCLUDE_DIR}
+      INTERFACE_LINK_LIBRARIES ${ALSA_LIBRARIES})
+  endif()
+  target_compile_definitions(openshot-audio PUBLIC LINUX)
+  target_link_libraries(openshot-audio PUBLIC ALSA::ALSA)
+endif()
 
 # ZLIB -- uses IMPORTED target ZLIB::ZLIB which has existed since CMake 3.1
 find_package(ZLIB REQUIRED)
