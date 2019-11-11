@@ -115,9 +115,6 @@ IF (WIN32)
 		ADD_DEFINITIONS(-DJUCE_ASIO=0)
 	ENDIF (ASIO_SDK_DIR)
 
-	# Tell Visual Studio not to automatically link system DLLs
-	ADD_DEFINITIONS(-DJUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES)
-
 	# Order here can be important!
 	# For example, winmm.lib must come before kernel32.lib (if linked)
 	# or older 32-bit windows versions will have linking issues for
