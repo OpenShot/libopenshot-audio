@@ -1,0 +1,4 @@
+# Install Header Files
+INSTALL(DIRECTORY modules/
+	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
+	FILES_MATCHING PATTERN "*.h" )

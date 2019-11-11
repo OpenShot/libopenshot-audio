@@ -454,6 +454,10 @@ public:
         if (client != nullptr)
             client->Stop();
 
+        // N.B. this is needed to prevent a double-deletion of the IAudioSessionEvents object
+        // on older versions of Windows
+        Thread::sleep (5);
+
         deleteSessionEventCallback();
         client = nullptr;
         ResetEvent (clientEvent);
@@ -1016,7 +1020,9 @@ public:
                 sampleRates = d->rates;
             }
 
+            bufferSizes.clear();
             bufferSizes.addUsingDefaultSort (defaultBufferSize);
+
             if (minBufferSize != defaultBufferSize)
                 bufferSizes.addUsingDefaultSort (minBufferSize);
 
@@ -1572,9 +1578,6 @@ private:
                StringArray& outDeviceIds,
                StringArray& inDeviceIds)
     {
-        // Init COM on thread (WASAPI won't work with libopenshot-audio without this line)
-        CoInitialize(0);
-
         if (enumerator == nullptr)
         {
             if (! check (enumerator.CoCreateInstance (__uuidof (MMDeviceEnumerator))))
