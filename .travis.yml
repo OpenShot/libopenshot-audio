@@ -15,9 +15,7 @@ addons:
   apt:
     packages:
       - cmake
-      - swig
       - libasound2-dev
-      - libunittest++-dev
       - doxygen
       - graphviz
 
@@ -25,8 +23,6 @@ addons:
     update: true
     packages:
       - gcc
-      - unittest-cpp
-      - swig
 
 script:
   - mkdir -p build; cd build;
