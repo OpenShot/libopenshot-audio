@@ -1,10 +1,10 @@
-## Detailed Install Instructions
+# The OpenShot Audio Library 
 
-Operating system specific install instructions are located in:
-
-* doc/INSTALL-LINUX.md
-* doc/INSTALL-MAC.md
-* doc/INSTALL-WINDOWS.md
+## Detailed instructions for your Operating System
+Build instructions are available for all three major Operating Systems:
+* [Building libopenshot for Windows](doc/INSTALL-WINDOWS.md)
+* [Building libopenshot for MacOS](doc/INSTALL-MAC.md)
+* [Building libopenshot for Linux](doc/INSTALL-LINUX.md)
 
 ## Getting Started
 
@@ -20,7 +20,7 @@ CMake is the backbone of our build system.  It is a cross-platform build system,
 locates header files and libraries, generates makefiles, and supports the cross-platform compiling of 
 libopenshot and libopenshot-audio.  CMake uses an out-of-source build concept, where all temporary build 
 files, such as makefiles, object files, and even the final binaries, are created outside of the source 
-code folder, inside a /build/ sub-folder.  This prevents the build process from cluttering up the source 
+code folder, inside a `/build/` sub-folder.  This prevents the build process from cluttering up the source 
 code.  These instructions have only been tested with the GNU compiler (including MSYS2/MinGW for Windows).
 
 ## Dependencies
@@ -29,15 +29,15 @@ The following libraries are required to build libopenshot-audio.  Instructions o
 dependencies vary for each operating system.  Libraries and Executables have been labeled in the 
 list below to help distinguish between them.
 
-* ### CMake (cmake)
+### CMake (cmake)
   * http://www.cmake.org/ `(Executable)`
   * This executable is used to automate the generation of Makefiles, check for dependencies, and is the backbone of libopenshot-audio’s cross-platform build process.
 
-* ### Doxygen (doxygen)
+### Doxygen (doxygen)
   * http://www.stack.nl/~dimitri/doxygen/ `(Executable)`
   * This executable is used to auto-generate the documentation used by libopenshot-audio.
 
-* ### OpenMP (-fopenmp)
+### OpenMP (-fopenmp)
   * http://openmp.org/wp/ `(Compiler Flag)`
   * If your compiler supports this flag (GCC, Clang, and most other compilers), it provides libopenshot-audio with easy methods of using parallel programming techniques to improve performance and take advantage of multi-core processors.
 
@@ -62,8 +62,3 @@ make install
 ./src/openshot-audio-test-sound  (This should play a test sound)
 ```
 
-For more detailed instructions, please see:
-
-* doc/INSTALL-LINUX.md
-* doc/INSTALL-MAC.md
-* doc/INSTALL-WINDOWS.md
