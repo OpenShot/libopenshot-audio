@@ -40,7 +40,7 @@ For more information, please visit <http://www.openshot.org/>.
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
-set(PROJECT_VERSION_FULL "0.1.9-dev1")
+set(PROJECT_VERSION_FULL "0.2.0")
 set(PROJECT_SO_VERSION 7)
 set(HEX_VERSION_OVERRIDE "0x109") # For CMake < 3.13
 
@@ -56,15 +56,11 @@ STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
 # PROJECT_VERSION_PATCH, libopenshot-audio_VERSION_PATCH
 PROJECT(libopenshot-audio LANGUAGES C CXX VERSION ${VERSION_NUM})
 
+MESSAGE("${PROJECT_VERSION_MAJOR} ${PROJECT_VERSION_MINOR} ${PROJECT_VERSION_PATCH} ${PROJECT_VERSION_PATCH}")
+
 # JuceHeader.h needs a hexadecimal version number for the project
-if(CMAKE_VERSION VERSION_LESS 3.13)
-	set(PROJECT_VERSION_HEX ${HEX_VERSION_OVERRIDE}) # Ugly hardcoding
-else()
-	math(EXPR PROJECT_VERSION_HEX 
-		"(${PROJECT_VERSION_MAJOR} << 16) + \
-		(${PROJECT_VERSION_MINOR} << 8) + \
-		(${PROJECT_VERSION_PATCH})" OUTPUT_FORMAT HEXADECIMAL )
-endif()
+math(EXPR PROJECT_VERSION_HEX "(${PROJECT_VERSION_MAJOR} << 16) + (${PROJECT_VERSION_MINOR} << 8) + (${PROJECT_VERSION_PATCH})" HEXADECIMAL)
+
 
 message("\
 Generating build files for ${PROJECT_NAME} \
