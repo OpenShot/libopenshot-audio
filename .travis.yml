@@ -1,6 +1,6 @@
 language: cpp
 
-matrix:
+jobs:
   include:
     - os: linux
       dist: xenial
@@ -18,11 +18,6 @@ addons:
       - libasound2-dev
       - doxygen
       - graphviz
-
-  homebrew:
-    update: true
-    packages:
-      - gcc
 
 script:
   - mkdir -p build; cd build;
