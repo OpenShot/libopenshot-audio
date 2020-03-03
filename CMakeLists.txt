@@ -40,9 +40,8 @@ For more information, please visit <http://www.openshot.org/>.
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
-set(PROJECT_VERSION_FULL "0.1.9")
+set(PROJECT_VERSION_FULL "0.2.0")
 set(PROJECT_SO_VERSION 7)
-set(HEX_VERSION_OVERRIDE "0x109") # For CMake < 3.13
 
 # Remove the dash and anything following, to get the #.#.# version for project()
 STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
@@ -57,13 +56,31 @@ STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
 PROJECT(libopenshot-audio LANGUAGES C CXX VERSION ${VERSION_NUM})
 
 # JuceHeader.h needs a hexadecimal version number for the project
-if(CMAKE_VERSION VERSION_LESS 3.13)
-	set(PROJECT_VERSION_HEX ${HEX_VERSION_OVERRIDE}) # Ugly hardcoding
+if(CMAKE_VERSION VERSION_GREATER 3.13)
+  math(EXPR PROJECT_VERSION_HEX
+    "(${PROJECT_VERSION_MAJOR} << 16) + \
+     (${PROJECT_VERSION_MINOR} << 8) + \
+     (${PROJECT_VERSION_PATCH})" OUTPUT_FORMAT HEXADECIMAL )
 else()
-	math(EXPR PROJECT_VERSION_HEX 
-		"(${PROJECT_VERSION_MAJOR} << 16) + \
-		(${PROJECT_VERSION_MINOR} << 8) + \
-		(${PROJECT_VERSION_PATCH})" OUTPUT_FORMAT HEXADECIMAL )
+  # Compile and run a C++ program to generate the hex version
+  set(HEX_COMPILE_DEFINITIONS
+    -DVERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    -DVERSION_MINOR=${PROJECT_VERSION_MINOR}
+    -DVERSION_PATCH=${PROJECT_VERSION_PATCH}
+  )
+  try_run(HEX_VERSION_RUN HEX_VERSION_BUILD
+    ${CMAKE_CURRENT_BINARY_DIR}/hex_version
+    ${PROJECT_SOURCE_DIR}/src/hex_version.cpp
+    COMPILE_DEFINITIONS ${HEX_COMPILE_DEFINITIONS}
+    RUN_OUTPUT_VARIABLE HEX_VERSION_OUTPUT
+  )
+  if (NOT HEX_VERSION_BUILD)
+    message(ERROR "Failed to compile hex-version utility!")
+  elseif(HEX_VERSION_RUN STREQUAL FAILED_TO_RUN)
+    message(ERROR "Could not execute hex-version utility!")
+  else()
+    set(PROJECT_VERSION_HEX ${HEX_VERSION_OUTPUT})
+  endif()
 endif()
 
 message("\
