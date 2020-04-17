@@ -220,16 +220,16 @@ endif()
 
 # Windows specifics
 if (WIN32)
-	# Find the base directory of the ASIO SDK (if any)
-	find_path(ASIO_SDK_DIR iasiodrv.h PATHS $ENV{ASIO_SDK_DIR} )
+  # Find the base directory of the ASIO SDK (if any)
+  find_path(ASIO_SDK_DIR iasiodrv.h PATHS $ENV{ASIO_SDK_DIR} )
 
-	IF (ASIO_SDK_DIR)
-		MESSAGE("FOUND ASIO_SDK_DIR: ${ASIO_SDK_DIR}")
-		target_compile_definitions(openshot-audio PUBLIC JUCE_ASIO=1)
-		target_include_directories(openshot-audio ${ASIO_SDK_DIR})
-	ELSE(ASIO_SDK_DIR)
-		MESSAGE("ASIO_SDK_DIR NOT FOUND")
-	ENDIF (ASIO_SDK_DIR)
+  if(ASIO_SDK_DIR)
+    message(STATUS "FOUND ASIO_SDK_DIR: ${ASIO_SDK_DIR}")
+    target_compile_definitions(openshot-audio PUBLIC JUCE_ASIO=1)
+    target_include_directories(openshot-audio PUBLIC ${ASIO_SDK_DIR})
+  else()
+  message(STATUS "ASIO_SDK_DIR NOT FOUND")
+endif()
 
   # Order here can be important!
   # For example, winmm.lib must come before kernel32.lib (if linked)
