@@ -1,0 +1,43 @@
+pull_requests:
+  do_not_increment_build_number: true
+
+platform:
+  - x64
+  - x86
+
+image:
+  - Visual Studio 2017
+
+# No cache on the first link in the chain
+#cache: install-cache
+
+init:
+  - cmd: IF %PLATFORM% == x64 (set PLAT_BITS=64) ELSE (set PLAT_BITS=32)
+  - cmd: IF %PLATFORM% == x64 (set PLAT_ARCH=x86_64) ELSE (set PLAT_ARCH=i686)
+  - cmd: set PATH=C:\msys64\mingw%PLAT_BITS%\bin;c:\msys64\mingw%PLAT_BITS%\lib;%PATH%
+
+install:
+  - cmd: c:\msys64\usr\bin\bash -lc "pacman --needed --noconfirm -S mingw-w64-%PLAT_ARCH%-toolchain base-devel"
+
+build_script:
+  - cmd: set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
+  - cmd: mkdir build
+  - cmd: cd build
+  - cmd: cmake  -DCMAKE_INSTALL_PREFIX:PATH=install-%PLATFORM% -DCMAKE_BUILD_TYPE:STRING="Debug" -DCMAKE_CXX_FLAGS_DEBUG="-Wall -Wpedantic" -G "MinGW Makefiles"  ..
+  - cmd: cmake --build . -- VERBOSE=1
+  - cmd: cmake --build . --target install
+
+test: off
+
+# The rest is for packaging. I experimented with creating a NuGet
+# package for the lib (Microsoft's blessed form of centrally-managed,
+# catalog-backed repository for developer components), but in the end I
+# didn't see any real benefits, so it's on indefinite hold. -FeRDNYC
+on_success:
+  - cmd: rem nuget pack
+  - cmd: rem nuget push org.openshot.libopenshot-audio*.nupkg -ApiKey %SECURE_NUGET_API_KEY% -Source %ACCOUNT_NUGET_FEED_URL%
+  - cmd: rem appveyor PushArtifact org.openshot.libopenshot-audio.0.2.0-dev2.nupkg
+
+#artifacts:
+#  - path: 'build\*.nupkg'
+#    name: libopenshot-audio-nupkg

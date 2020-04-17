@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>org.openshot.@PROJECT_NAME@</id>
+    <version>@PROJECT_VERSION_FULL@</version>
+    <authors>@PROJECT_AUTHOR@</authors>
+    <owners>@PROJECT_AUTHOR_EMAIL@</owners>
+    <projectUrl>@PROJECT_URL@</projectUrl>
+    <iconUrl>https://cdn.openshot.org/static/img/logos/logo.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+      @PROJECT_DESCRIPTION@
+    </description>
+    <copyright>Copyright (c) 2013-2020 OpenShot Studios, LLC</copyright>
+    <license type="expression">GPLv3+</license>
+    <tags>native</tags>
+  </metadata>
+  <files>
+    <file src="install-x64\bin\*.dll" target="lib" />
+    <file src="install-x64\lib\*.*" target="lib" />
+    <file src="install-x64\include\**" target = "include" />
+  </files>
+</package>

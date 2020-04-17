@@ -1,5 +1,10 @@
 language: cpp
 
+env:
+  global:
+  - TRAVIS_LIBOPENSHOT=TEST
+  - LANG="en_US.UTF-8"
+
 jobs:
   include:
     - os: linux
@@ -21,6 +26,10 @@ addons:
       - libasound2-dev
       - doxygen
       - graphviz
+  homebrew:
+    update: true
+    packages:
+    - cmake
 
 script:
   - mkdir -p build; cd build;
@@ -32,7 +41,3 @@ script:
 notifications:
   email: true
 
-env:
-  global:
-  - TRAVIS_LIBOPENSHOT=TEST
-  - LANG="en_US.UTF-8"

@@ -24,7 +24,7 @@
 # along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.1...3.14 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.2...3.17 FATAL_ERROR)
 
 message("\
 -----------------------------------------------------------------
@@ -43,8 +43,22 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 set(PROJECT_VERSION_FULL "0.2.0-dev2")
 set(PROJECT_SO_VERSION 7)
 
+### METADATA
+set(PROJECT_AUTHOR "Jonathan Thomas and contributors")
+set(PROJECT_AUTHOR_EMAIL "jonathan@openshot.org")
+set(PROJECT_MAINTAINER "Jonathan Thomas")
+set(PROJECT_MAINTAINER_EMAIL "jonathan@openshot.org")
+set(PROJECT_URL "https://github.com/OpenShot/libopenshot/-audio")
+set(PROJECT_SUMMARY "OpenShot audio library, based on JUCE")
+set(PROJECT_DESCRIPTION [=[
+    OpenShot Audio Library (libopenshot-audio) is a free,
+    open-source project that enables high-quality editing
+    and playback of audio, and is based on the amazing JUCE
+    library.
+]=])
+
 # Remove the dash and anything following, to get the #.#.# version for project()
-STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
+string(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
 
 ################### SETUP PROJECT ###################
 # This will define the following variables
@@ -53,7 +67,7 @@ STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
 # PROJECT_VERSION_MAJOR, libopenshot-audio_VERSION_MAJOR
 # PROJECT_VERSION_MINOR, libopenshot-audio_VERSION_MINOR
 # PROJECT_VERSION_PATCH, libopenshot-audio_VERSION_PATCH
-PROJECT(libopenshot-audio LANGUAGES C CXX VERSION ${VERSION_NUM})
+project(libopenshot-audio LANGUAGES C CXX VERSION ${VERSION_NUM})
 
 # JuceHeader.h needs a hexadecimal version number for the project
 if(CMAKE_VERSION VERSION_GREATER 3.13)
@@ -83,16 +97,24 @@ else()
   endif()
 endif()
 
-message("\
-Generating build files for ${PROJECT_NAME} \
-version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})" )
-message("SO/API/ABI Version: ${PROJECT_SO_VERSION}" )
+message("
+Generating build files for OpenShot with CMake ${CMAKE_VERSION}
+  Building ${PROJECT_NAME} version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})
+  SO/API/ABI Version: ${PROJECT_SO_VERSION}
+")
 
 
 # Define install paths according to system conventions
 # XXX: This must be AFTER THE PROJECT() COMMAND w/ languages enabled,
 #      in order to properly configure CMAKE_INSTALL_LIBDIR path
 include(GNUInstallDirs)
+
+# Collect and display summary of options/dependencies
+include(FeatureSummary)
+
+################ OPTIONS ##################
+# Optional build settings for libopenshot-audio
+option(ENABLE_NUGET "Build a NuGet package for the library (Win32 only)" OFF)
 
 ########## Configure headers ##############
 configure_file(include/JuceHeader.h.in include/JuceHeader.h @ONLY)
@@ -115,43 +137,8 @@ endif()
 # Enable stack-unwinding support in c objects on gcc-based platforms.
 # Failing to do so will cause your program to be terminated when a png
 # or a jpeg exception is thrown on linux or macosx.
-IF (CMAKE_COMPILER_IS_GNUCC)
+if (CMAKE_COMPILER_IS_GNUCC)
 	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
-ENDIF(CMAKE_COMPILER_IS_GNUCC)
-
-IF (WIN32)
-	# Find the base directory of the ASIO SDK (if any)
-	find_path(ASIO_SDK_DIR iasiodrv.h PATHS $ENV{ASIO_SDK_DIR} )
-
-	IF (ASIO_SDK_DIR)
-		MESSAGE("FOUND ASIO_SDK_DIR: ${ASIO_SDK_DIR}")
-		ADD_DEFINITIONS(-DJUCE_ASIO=1)
-		INCLUDE_DIRECTORIES(${ASIO_SDK_DIR})
-	ELSE(ASIO_SDK_DIR)
-		MESSAGE("ASIO_SDK_DIR NOT FOUND")
-		ADD_DEFINITIONS(-DJUCE_ASIO=0)
-	ENDIF (ASIO_SDK_DIR)
-
-	# Tell Visual Studio not to automatically link system DLLs
-	ADD_DEFINITIONS(-DJUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES)
-
-	# Order here can be important!
-	# For example, winmm.lib must come before kernel32.lib (if linked)
-	# or older 32-bit windows versions will have linking issues for
-	# certain entry points
-	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES
-                winmm.lib
-                ws2_32.lib
-                wininet.lib
-                version.lib
-                Shlwapi.dll
-		)
-endif()
-
-if(UNIX AND APPLE)
-	SET(JUCE_PLATFORM_SPECIFIC_DIR build/macosx/platform_specific_code)
-	SET(JUCE_PLATFORM_SPECIFIC_LIBRARIES "-framework Carbon -framework Cocoa -framework CoreFoundation -framework CoreAudio -framework CoreMidi -framework IOKit -framework AGL -framework AudioToolbox -framework QuartzCore -lobjc -framework Accelerate")
-	SET(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -flax-vector-conversions")
 endif()
 
 # Default extension for source files
@@ -192,7 +179,8 @@ set_target_properties(openshot-audio
 		CXX_STANDARD_REQUIRED YES
 		CXX_EXTENSIONS OFF
 		MACOSX_RPATH OFF
-		INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+    INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib"
+)
 
 # Threading library -- uses IMPORTED target Threads::Threads (since CMake 3.1)
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
@@ -217,9 +205,51 @@ endif()
 find_package(ZLIB REQUIRED)
 target_link_libraries(openshot-audio PUBLIC ZLIB::ZLIB)
 
-target_link_libraries(openshot-audio PUBLIC
-		${CMAKE_DL_LIBS}
-		${JUCE_PLATFORM_SPECIFIC_LIBRARIES} )
+target_link_libraries(openshot-audio PUBLIC ${CMAKE_DL_LIBS})
+
+# macOS specifics
+if(UNIX AND APPLE)
+  foreach(_framework
+          Carbon Cocoa CoreFoundation CoreAudio CoreMidi
+          IOKit AGL AudioToolbox QuartzCore Accelerate)
+    target_link_libraries(openshot-audio PUBLIC "-framework ${_framework}")
+  endforeach()
+  target_link_libraries(openshot-audio PUBLIC objc)
+  target_compile_options(openshot-audio PRIVATE -flax-vector-conversions)
+endif()
+
+# Windows specifics
+if (WIN32)
+	# Find the base directory of the ASIO SDK (if any)
+	find_path(ASIO_SDK_DIR iasiodrv.h PATHS $ENV{ASIO_SDK_DIR} )
+
+	IF (ASIO_SDK_DIR)
+		MESSAGE("FOUND ASIO_SDK_DIR: ${ASIO_SDK_DIR}")
+		target_compile_definitions(openshot-audio PUBLIC JUCE_ASIO=1)
+		target_include_directories(openshot-audio ${ASIO_SDK_DIR})
+	ELSE(ASIO_SDK_DIR)
+		MESSAGE("ASIO_SDK_DIR NOT FOUND")
+	ENDIF (ASIO_SDK_DIR)
+
+  # Order here can be important!
+  # For example, winmm.lib must come before kernel32.lib (if linked)
+  # or older 32-bit windows versions will have linking issues for
+  # certain entry points
+  target_link_libraries(openshot-audio
+    PUBLIC
+      winmm.lib
+      ws2_32.lib
+      wininet.lib
+      version.lib
+      Shlwapi.dll
+  )
+
+  # Generate package definition file (if enabled)
+  if(ENABLE_NUGET)
+    configure_file(org.openshot.${PROJECT_NAME}.nuspec.in org.openshot.${PROJECT_NAME}.nuspec @ONLY)
+  endif()
+
+endif()
 
 # PROCESS SUB-DIRECTORIES
 add_subdirectory(src)
@@ -228,18 +258,18 @@ add_subdirectory(src)
 #################### INSTALLATION #####################
 
 # Install Header Files
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
 	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
 	FILES_MATCHING PATTERN "*.h" )
 
 # Install library
-INSTALL(TARGETS openshot-audio
+install(TARGETS openshot-audio
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
 # Install manpage
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-test-sound.1
 	DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 ########### DOCUMENTATION ##########
