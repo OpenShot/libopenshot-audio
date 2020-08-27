@@ -83,10 +83,11 @@ else()
   endif()
 endif()
 
-message("\
-Generating build files for ${PROJECT_NAME} \
-version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})" )
-message("SO/API/ABI Version: ${PROJECT_SO_VERSION}" )
+message("
+Generating build files for OpenShot with CMake ${CMAKE_VERSION}
+  Building ${PROJECT_NAME} (version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})
+  SO/API/ABI Version: ${PROJECT_SO_VERSION}
+")
 
 
 # Define install paths according to system conventions
