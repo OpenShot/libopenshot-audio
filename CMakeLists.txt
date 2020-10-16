@@ -40,7 +40,7 @@ For more information, please visit <http://www.openshot.org/>.
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
-set(PROJECT_VERSION_FULL "0.2.0-dev2")
+set(PROJECT_VERSION_FULL "0.2.0-dev3")
 set(PROJECT_SO_VERSION 7)
 
 # Remove the dash and anything following, to get the #.#.# version for project()
@@ -83,16 +83,25 @@ else()
   endif()
 endif()
 
-message("\
-Generating build files for ${PROJECT_NAME} \
-version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})" )
-message("SO/API/ABI Version: ${PROJECT_SO_VERSION}" )
+message("
+Generating build files for OpenShot with CMake ${CMAKE_VERSION}
+  Building ${PROJECT_NAME} (version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})
+  SO/API/ABI Version: ${PROJECT_SO_VERSION}
+")
 
 
 # Define install paths according to system conventions
 # XXX: This must be AFTER THE PROJECT() COMMAND w/ languages enabled,
 #      in order to properly configure CMAKE_INSTALL_LIBDIR path
 include(GNUInstallDirs)
+
+### Build configuration (options)
+
+# Specify alternative location for JUCE modules (debian has their own)
+set(JUCE_MODULES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules" CACHE PATH
+    "Location of the JUCE source code 'modules' directory")
+
+message(STATUS "Using JUCE module path: ${JUCE_MODULES_PATH}")
 
 ########## Configure headers ##############
 configure_file(include/JuceHeader.h.in include/JuceHeader.h @ONLY)
@@ -163,16 +172,16 @@ endif()
 
 # List of modules to build
 set(JUCE_MODULES
-	audio_basics
-	audio_devices
-	audio_formats
-	core
-	data_structures
-	events )
+	juce_audio_basics
+	juce_audio_devices
+	juce_audio_formats
+	juce_core
+	juce_data_structures
+	juce_events )
 # Convert to list of source files (extension based on OS)
 foreach(j_module IN LISTS JUCE_MODULES)
 	list(APPEND JUCE_SOURCES
-		JuceLibraryCode/include_juce_${j_module}.${SOURCE_EXTENSION} )
+		JuceLibraryCode/include_${j_module}.${SOURCE_EXTENSION} )
 endforeach()
 
 add_library(openshot-audio SHARED ${JUCE_SOURCES} )
@@ -180,7 +189,7 @@ add_library(openshot-audio SHARED ${JUCE_SOURCES} )
 # Include header directories
 target_include_directories(openshot-audio PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules>
+	$<BUILD_INTERFACE:${JUCE_MODULES_PATH}>
 	$<INSTALL_INTERFACE:include/libopenshot-audio> )
 
 # Set SONAME and other library properties
@@ -228,9 +237,11 @@ add_subdirectory(src)
 #################### INSTALLATION #####################
 
 # Install Header Files
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules/
-	DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
-	FILES_MATCHING PATTERN "*.h" )
+foreach(j_module IN LISTS JUCE_MODULES)
+  install(DIRECTORY ${JUCE_MODULES_PATH}/${j_module}/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio/${j_module}
+    FILES_MATCHING PATTERN "*.h" )
+endforeach()
 
 # Install library
 INSTALL(TARGETS openshot-audio
@@ -249,7 +260,7 @@ find_package(PythonInterp 3)
 if(PYTHONINTERP_FOUND)
     # Pre-process the sources to fix documentation formatting
     add_custom_target(process-source-files
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules "docs"
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py ${JUCE_MODULES_PATH} "docs"
         COMMENT "Formatting source code for documentation"
         VERBATIM )
 
