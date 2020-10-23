@@ -85,7 +85,7 @@ endif()
 
 message("
 Generating build files for OpenShot with CMake ${CMAKE_VERSION}
-  Building ${PROJECT_NAME} (version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})
+  Building ${PROJECT_NAME} version ${PROJECT_VERSION_FULL} (${PROJECT_VERSION_HEX})
   SO/API/ABI Version: ${PROJECT_SO_VERSION}
 ")
 
