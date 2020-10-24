@@ -3,16 +3,19 @@ language: cpp
 jobs:
   include:
     - os: linux
-      dist: xenial
-      name: "Ubuntu 16.04 Xenial"
+      dist: focal
+      name: "Ubuntu 20.04 Focal"
+    - os: osx
+      osx_image: xcode11.3
+      name: "Apple macOS (XCode 11.3)"
     - os: linux
       dist: bionic
       name: "Ubuntu 18.04 Bionic"
     - os: osx
       name: "Apple macOS"
-    - os: osx
-      osx_image: xcode11.3
-      name: "Apple macOS (XCode 11.3)"
+    - os: linux
+      dist: xenial
+      name: "Ubuntu 16.04 Xenial"
 
 addons:
   apt:
