@@ -215,7 +215,7 @@ make install
 
 This will copy the binary files to /usr/local/lib/, and the header files to /usr/local/include/openshot/... 
 This is where other projects will look for the libopenshot files when building. Python 3 bindings are 
-also installed at this point. let's verify the python bindings work:
+also installed at this point. Let's verify the python bindings work:
 
 ```
 python3
