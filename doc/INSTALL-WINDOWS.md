@@ -319,7 +319,7 @@ mingw32-make install
 This should copy the binary files to `C:\Program Files\openshot\lib\`, and the header 
 files to `C:\Program Files\openshot\include\...`  This is where other projects will 
 look for the libopenshot files when building.. Python 3 bindings are also installed 
-at this point. let's verify the python bindings work:
+at this point. Let's verify the python bindings work:
 
 ```
 python3
