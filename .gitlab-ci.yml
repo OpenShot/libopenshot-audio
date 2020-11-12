@@ -12,7 +12,7 @@ linux-builder:
     paths:
     - build/install-x64/*
   script:
-    - export COMMIT_DATE_UNIX=$(git log --date=unix --format="%cd" $CI_COMMIT_SHA)
+    - export COMMIT_DATE_UNIX=$(git log --date=unix --format="%cd" -1 $CI_COMMIT_SHA)
     - mkdir -p build; cd build;
     - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
     - make
