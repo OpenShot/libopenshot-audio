@@ -14,8 +14,11 @@ jobs:
       with:
         update: true
         install: >-
-          mingw-w64-x86_64-toolchain
-          base-devel
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-make
+          make
+          pkgconf
 
     - uses: haya14busa/action-cond@v1
       id: generator
