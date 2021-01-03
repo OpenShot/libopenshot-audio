@@ -97,6 +97,10 @@ include(GNUInstallDirs)
 # Collect and display summary of options/dependencies
 include(FeatureSummary)
 
+### Build configuration (options)
+option(ENABLE_AUDIO_DOCS "Attempt to build API docs for audio library" ON)
+option(AUTO_INSTALL_DOCS "Include documentation in the default install" ON)
+
 # Alternative location for JUCE modules (debian has their own)
 set(JUCE_MODULES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules" CACHE PATH
     "Location of the JUCE source code 'modules' directory")
@@ -356,59 +360,144 @@ install(FILES
 ###
 ### DOCUMENTATION
 ###
-# We need Python to process the source for Doxygen...
-find_package(PythonInterp 3)
 
-if(PYTHONINTERP_FOUND)
-  # Pre-process the sources to fix documentation formatting
-  add_custom_target(process-source-files
-    COMMAND
-      ${PYTHON_EXECUTABLE}
-      ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py
-      ${JUCE_MODULES_PATH}
-      "processed_source"
-    COMMENT "Formatting source code for documentation"
-    VERBATIM
-  )
-  add_feature_info("Docs preprocessing" TRUE "Format API docs (requires Python)")
-
-  # Processed docs are removed on "make clean"
-  set_property(DIRECTORY
-    APPEND PROPERTY
-      ADDITIONAL_MAKE_CLEAN_FILES "processed_source" )
-
+set(CAN_BUILD_AUDIO_DOCS FALSE)
+if(ENABLE_AUDIO_DOCS)
   # Find Doxygen (used for documentation)
-  include(cmake/Modules/UseDoxygen.cmake)
+  find_package(Doxygen)
 
-  # Make sure process-source comes before Doxygen targets,
-  # assuming UseDoxygen found the tools and created them
-  if(TARGET doc)
-    add_dependencies(doc process-source-files)
-  endif()
-  if(TARGET doxygen)
-    add_dependencies(doxygen process-source-files)
+  if(DOXYGEN_FOUND)
+    set(CAN_BUILD_AUDIO_DOCS TRUE)
   endif()
 endif()
 
-# Doxygen was found
-if(TARGET doc)
-  set(ENABLE_DOCS TRUE)
-  message(STATUS "Doxygen found. To generate doc/html in build dir, use the 'doc' target")
+if(CAN_BUILD_AUDIO_DOCS)
+  set(DOXYGEN_QUIET YES)
+  set(DOXYGEN_PROJECT_NAME "OpenShot Audio Library | ${PROJECT_NAME}")
+  set(DOXYGEN_PROJECT_NUMBER "${PROJECT_VERSION_FULL}")
+  set(DOXYGEN_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/doc")
+  set(DOXYGEN_STRIP_FROM_PATH "${PROJECT_BINARY_DIR}/processed_source")
+  set(DOXYGEN_USE_MDFILE_AS_MAINPAGE "${PROJECT_SOURCE_DIR}/INSTALL.md")
 
-  # Install docs, if the user builds them with `make doc`
-  install(CODE "MESSAGE(\"Checking for documentation files to install...\")")
+  set(DOXYGEN_FILE_PATTERNS
+    "juce_*.h"
+    "juce_*.cpp"
+    "*.md"
+  )
+
+  set(DOXYGEN_INLINE_SIMPLE_STRUCTS YES)
+  set(DOXYGEN_FULL_PATH_NAMES NO)
+  set(DOXYGEN_EXTRACT_ALL NO)
+  set(DOXYGEN_HIDE_UNDOC_CLASSES YES)
+  set(DOXYGEN_HIDE_FRIEND_COMPOUNDS YES)
+  set(DOXYGEN_HIDE_IN_BODY_DOCS YES)
+  set(DOXYGEN_SORT_BRIEF_DOCS NO)
+  set(DOXYGEN_INTERNAL_DOCS YES)
+  set(DOXYGEN_GENERATE_TODOLIST NO)
+  set(DOXYGEN_GENERATE_TESTLIST NO)
+  set(DOXYGEN_GENERATE_BUGLIST NO)
+
+  set(DOXYGEN_WARNINGS NO)
+  set(DOXYGEN_WARN_IF_UNDOCUMENTED NO)
+  set(DOXYGEN_RECURSIVE YES)
+  set(DOXYGEN_SOURCE_BROWSER YES)
+  set(DOXYGEN_REFERENCED_BY_RELATION YES)
+
+  set(DOXYGEN_GENERATE_HTML YES)
+  set(DOXYGEN_HTML_OUTPUT "html")
+  set(DOXYGEN_HTML_DYNAMIC_SECTIONS NO)
+  set(DOXYGEN_GENERATE_TREEVIEW YES)
+
+  set(DOXYGEN_DOT_IMAGE_FORMAT svg)
+  set(DOXYGEN_INTERACTIVE_SVG YES)
+  set(DOXYGEN_DOT_TRANSPARENT YES)
+  set(DOXYGEN_GRAPHICAL_HIERARCHY NO)
+
+  set(DOXYGEN_EXCLUDE
+    "${JUCE_MODULES_PATH}/juce_core/zip/zlib"
+    "${JUCE_MODULES_PATH}/juce_audio_formats/codecs/flac"
+    "${JUCE_MODULES_PATH}/juce_audio_formats/codecs/oggvorbis"
+    "${JUCE_MODULES_PATH}/juce_audio_devices/native"
+    "${JUCE_MODULES_PATH}/juce_core/native"
+    "${JUCE_MODULES_PATH}/juce_events/native"
+  )
+  set(DOXYGEN_EXCLUDE_PATTERNS
+    [["*/.*"]]
+    [["*/.*/*"]]
+    juce_CompilerSupport.h
+    juce_StdFunctionCompat.h
+    juce_FlacHeader.h
+  )
+
+  set(DOXYGEN_ALIASES
+    tags{1}=
+    [[topictag{1}=\1]]
+    [["box{1}=<dl class=\"section attention\"><dt>\1</dt><dd>"]]
+    endbox=</dd></dl>
+    c_void=@s_code{void}
+    c_bool=@s_code{bool}
+    c_char=@s_code{char}
+    c_float=@s_code{float}
+    c_double=@s_code{double}
+    c_int=@s_code{int}
+    c_nullptr=@s_code{nullptr}
+    [[c_for=@s_code{for()}]]
+    [[c_if=@s_code{if()}]]
+    c_ifelse=@s_code{if..else}
+    [[c_while=@s_code{while()}]]
+    c_true=@s_code{true}
+    c_false=@s_code{false}
+    c_enum=@s_code{enum}
+    c_switch=@s_code{switch..case}
+    c_static=@s_code{static}
+    c_new=@s_code{new}
+    c_typedef=@s_code{typedef}
+  )
+  set(DOXYGEN_VERBATIM_VARS
+    DOXYGEN_ALIASES
+    DOXYGEN_EXCLUDE_PATTERNS
+  )
+
+  doxygen_add_docs(${PROJECT_NAME}-doc
+    ${JUCE_MODULES_PATH}
+    ${PROJECT_BINARY_DIR}/include
+    ${PROJECT_SOURCE_DIR}/INSTALL.md
+    ${PROJECT_SOURCE_DIR}/doc
+    COMMENT "Generate ${PROJECT_NAME} documentation"
+  )
+endif()
+
+if(NOT TARGET doc)
+  if(CAN_BUILD_AUDIO_DOCS AND AUTO_INSTALL_DOCS)
+    add_custom_target(doc ALL)
+  else()
+    add_custom_target(doc)
+  endif()
+endif()
+if(TARGET doc AND TARGET ${PROJECT_NAME}-doc)
+  add_dependencies(doc ${PROJECT_NAME}-doc)
+endif()
+
+# Install docs, automatically if possible
+if (TARGET ${PROJECT_NAME}-doc)
+  if(NOT AUTO_INSTALL_DOCS)
+    set(DOCS_AUTO_INSTALL_ARG EXCLUDE_FROM_ALL)
+  endif()
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/html/
     DESTINATION ${CMAKE_INSTALL_DOCDIR}/API
-    MESSAGE_NEVER # Don't spew about file copies
-    OPTIONAL      # No error if the docs aren't found
+    MESSAGE_NEVER  # Don't spew about file copies
+    COMPONENT "Documentation"
+    ${DOCS_AUTO_INSTALL_ARG}
+    OPTIONAL  # No error if the docs aren't found
   )
 endif()
+add_feature_info("${PROJECT_NAME} docs" CAN_BUILD_AUDIO_DOCS "Build API documentation")
 
-add_feature_info("API Documentation" ENABLE_DOCS "Building 'doc' target generates doc/html in build dir")
-
-### Display feature summary
+###
+### PRINT FEATURE SUMMARY
+###
 feature_summary(WHAT ALL
   INCLUDE_QUIET_PACKAGES
   FATAL_ON_MISSING_REQUIRED_PACKAGES
-  DESCRIPTION "Displaying feature summary\n\nBuild configuration:"
+  DESCRIPTION "${PROJECT_NAME} build configuration:"
 )
