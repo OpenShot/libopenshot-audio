@@ -41,7 +41,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
 set(PROJECT_VERSION_FULL "0.2.1")
-set(PROJECT_SO_VERSION 7)
+set(PROJECT_SO_VERSION 8)
 
 # Remove the dash and anything following, to get the #.#.# version for project()
 STRING(REGEX REPLACE "\-.*$" "" VERSION_NUM "${PROJECT_VERSION_FULL}")
