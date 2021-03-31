@@ -1,6 +1,9 @@
 OpenShot Audio Library (libopenshot-openshot) is a free, open-source C++ library dedicated to
 delivering high quality audio editing and audio playback solutions to the world.
 
+## Build status
+[![CI Build](https://github.com/OpenShot/libopenshot-audio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenShot/libopenshot-audio/actions/workflows/ci.yml)
+
 ## Features
 
 * Cross-Platform (Linux, Mac, and Windows)
