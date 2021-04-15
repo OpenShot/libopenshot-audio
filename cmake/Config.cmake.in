@@ -27,6 +27,11 @@
 
 include(CMakeFindDependencyMacro)
 
+if(@NEED_ASIO@)
+  list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+  find_dependency(ASIO)
+endif()
+
 if(@NEED_ALSA@)
   find_dependency(ALSA)
   if (ALSA_FOUND AND NOT TARGET ALSA::ALSA)  # CMake < 3.12

@@ -212,6 +212,7 @@ if(WIN32)
   find_package(ASIO)
   if(TARGET ASIO::SDK)
     target_link_libraries(openshot-audio PRIVATE ASIO::SDK)
+    set(NEED_ASIO TRUE)
   endif()
   # Order here can be important!
   # For example, winmm.lib must come before kernel32.lib (if linked)
@@ -287,6 +288,9 @@ add_subdirectory(src)
 install(TARGETS openshot-audio openshot-audio-demo
   EXPORT OpenShotAudioTargets
 )
+configure_file(
+  "${PROJECT_SOURCE_DIR}/cmake/Modules/FindASIO.cmake"
+  FindASIO.cmake @ONLY)
 
 install(TARGETS openshot-audio openshot-audio-demo
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -295,21 +299,21 @@ install(TARGETS openshot-audio openshot-audio-demo
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
 )
 
+# Install all headers
 install(FILES
   ${_extra_headers}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
 )
-
 foreach(j_module IN LISTS JUCE_MODULES)
   install(CODE "message(STATUS \"Installing ${j_module} headers\")")
   install(DIRECTORY ${JUCE_MODULES_PATH}/${j_module}/
-    DESTINATION ${_header_destination}/${j_module}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio/${j_module}
     FILES_MATCHING PATTERN "*.h" )
 endforeach()
 
 # Install manpage
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshotaudio-demo.1
+  ${CMAKE_CURRENT_SOURCE_DIR}/doc/openshot-audio-demo.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
 )
 
@@ -353,6 +357,12 @@ install(FILES
   DESTINATION ${CMAKECONFIG_INSTALL_DIR}
 )
 
+# Include our FindASIO module, which will be needed on Windows
+install(FILES
+  "${PROJECT_SOURCE_DIR}/cmake/Modules/FindASIO.cmake"
+  DESTINATION ${CMAKECONFIG_INSTALL_DIR}
+)
+
 ###
 ### DOCUMENTATION
 ###
@@ -387,7 +397,7 @@ if(PYTHONINTERP_FOUND)
   endif()
   if(TARGET doxygen)
     add_dependencies(doxygen process-source-files)
-    add_feature_info("Doxygen" TRUE "Generate API docs from source code annotations")
+    # add_feature_info("Doxygen" TRUE "Generate API docs from source code annotations")
   endif()
 endif()
 
