@@ -55,7 +55,7 @@ windows-builder-x64:
     - build\install-x64\*
   script:
     - $env:Path = "C:\msys64\mingw64\bin;C:\msys64\usr\bin;" + $env:Path;
-    - $env:MSYSTEM = MINGW64
+    - $env:MSYSTEM = "MINGW64"
     - New-Item -ItemType Directory -Force -Path build
     - cmake -B build -S . -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=build/install-x64" -G "MinGW Makefiles" -D"CMAKE_BUILD_TYPE:STRING=Release"
     - cmake --build build
@@ -79,7 +79,7 @@ windows-builder-x86:
     - build\install-x86\*
   script:
     - $env:Path = "C:\msys64\mingw32\bin;C:\msys64\usr\bin;" + $env:Path;
-    - $env:MSYSTEM = MINGW32
+    - $env:MSYSTEM = "MINGW32"
     - New-Item -ItemType Directory -Force -Path build
     - cmake -B build -S . -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=build/install-x86" -G "MinGW Makefiles" -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_CXX_FLAGS=-m32" -D"CMAKE_C_FLAGS=-m32"
     - cmake --build build
