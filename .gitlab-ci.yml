@@ -85,7 +85,7 @@ windows-builder-x86:
     - $env:ZMQDIR = "C:\msys32\usr"
     - $env:Path = "C:\msys32\mingw32\bin;C:\msys32\mingw32\lib;C:\msys32\usr\lib\cmake\UnitTest++;C:\msys32\home\jonathan\depot_tools;C:\msys32\usr;C:\msys32\usr\lib;" + $env:Path;
     - New-Item -ItemType Directory -Force -Path build
-    - cmake -B build -s . -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=build/install-x86" -G "MSYS Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_CXX_FLAGS=-m32" -D"CMAKE_C_FLAGS=-m32"
+    - cmake -B build -S . -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=build/install-x86" -G "MSYS Makefiles" -DCMAKE_MAKE_PROGRAM=mingw32-make -D"CMAKE_BUILD_TYPE:STRING=Release" -D"CMAKE_CXX_FLAGS=-m32" -D"CMAKE_C_FLAGS=-m32"
     - cmake --build build
     - cmake --install build
     - $PROJECT_VERSION = (Select-String -Path "CMakeLists.txt" -Pattern '^set\(PROJECT_VERSION_FULL "(.*)\"' | %{$_.Matches.Groups[1].value})
