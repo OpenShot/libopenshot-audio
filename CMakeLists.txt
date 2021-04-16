@@ -245,7 +245,7 @@ if(APPLE)
     "-framework Accelerate"
     "-lobjc"
   )
-  target_compile_definitions(openshot-audio PRIVATE
+  target_compile_options(openshot-audio PRIVATE
     -flax-vector-conversions)
 endif()
 
@@ -285,14 +285,12 @@ add_subdirectory(src)
 ###
 ###
 
-install(TARGETS openshot-audio openshot-audio-demo
-  EXPORT OpenShotAudioTargets
-)
 configure_file(
   "${PROJECT_SOURCE_DIR}/cmake/Modules/FindASIO.cmake"
   FindASIO.cmake @ONLY)
 
-install(TARGETS openshot-audio openshot-audio-demo
+install(TARGETS openshot-audio
+  EXPORT OpenShotAudioTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -304,6 +302,7 @@ install(FILES
   ${_extra_headers}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
 )
+
 foreach(j_module IN LISTS JUCE_MODULES)
   install(CODE "message(STATUS \"Installing ${j_module} headers\")")
   install(DIRECTORY ${JUCE_MODULES_PATH}/${j_module}/
@@ -328,7 +327,8 @@ include(CMakePackageConfigHelpers)
 
 # (Borrowed from cppzmq/CMakeList.txt)
 # GNUInstallDirs "DATADIR" wrong here; CMake search path wants "share".
-set(CMAKECONFIG_INSTALL_DIR "share/cmake/${PROJECT_NAME}" CACHE STRING "install path for CMake configuration")
+set(CMAKECONFIG_INSTALL_DIR "share/cmake/${PROJECT_NAME}"
+  CACHE STRING "install path for CMake configuration")
 
 # Install EXPORTED configuration
 install(
@@ -397,7 +397,6 @@ if(PYTHONINTERP_FOUND)
   endif()
   if(TARGET doxygen)
     add_dependencies(doxygen process-source-files)
-    # add_feature_info("Doxygen" TRUE "Generate API docs from source code annotations")
   endif()
 endif()
 

@@ -26,3 +26,9 @@
 
 add_executable(openshot-audio-demo Main.cpp)
 target_link_libraries(openshot-audio-demo OpenShot::Audio)
+
+install(TARGETS openshot-audio-demo
+  EXPORT OpenShotAudioTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
