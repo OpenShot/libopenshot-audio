@@ -285,14 +285,12 @@ add_subdirectory(src)
 ###
 ###
 
-install(TARGETS openshot-audio openshot-audio-demo
-  EXPORT OpenShotAudioTargets
-)
 configure_file(
   "${PROJECT_SOURCE_DIR}/cmake/Modules/FindASIO.cmake"
   FindASIO.cmake @ONLY)
 
 install(TARGETS openshot-audio
+  EXPORT OpenShotAudioTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -328,7 +326,8 @@ include(CMakePackageConfigHelpers)
 
 # (Borrowed from cppzmq/CMakeList.txt)
 # GNUInstallDirs "DATADIR" wrong here; CMake search path wants "share".
-set(CMAKECONFIG_INSTALL_DIR "share/cmake/${PROJECT_NAME}" CACHE STRING "install path for CMake configuration")
+set(CMAKECONFIG_INSTALL_DIR "share/cmake/${PROJECT_NAME}"
+  CACHE STRING "install path for CMake configuration")
 
 # Install EXPORTED configuration
 install(
