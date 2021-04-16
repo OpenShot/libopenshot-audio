@@ -245,7 +245,7 @@ if(APPLE)
     "-framework Accelerate"
     "-lobjc"
   )
-  target_compile_definitions(openshot-audio PRIVATE
+  target_compile_options(openshot-audio PRIVATE
     -flax-vector-conversions)
 endif()
 
@@ -292,7 +292,7 @@ configure_file(
   "${PROJECT_SOURCE_DIR}/cmake/Modules/FindASIO.cmake"
   FindASIO.cmake @ONLY)
 
-install(TARGETS openshot-audio openshot-audio-demo
+install(TARGETS openshot-audio
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
