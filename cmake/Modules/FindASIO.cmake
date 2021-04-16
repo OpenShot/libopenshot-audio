@@ -2,7 +2,7 @@
 #[=======================================================================[.rst:
 FindASIO
 ----------
-Try to find the ASIO SDK, if installed (Windows/Mac only)
+Try to find the ASIO SDK, if installed (Windows only)
 
 IMPORTED targets
 ^^^^^^^^^^^^^^^^
