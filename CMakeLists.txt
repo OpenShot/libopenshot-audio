@@ -115,7 +115,7 @@ add_feature_info("JUCE path" TRUE "Using JUCE sources from: ${_juce_dir}")
 
 # Generate our custom headers from templates
 configure_file(include/OpenShotAudio.h.in include/OpenShotAudio.h @ONLY)
-if(UNIX)
+if(UNIX AND CMAKE_VERSION VERSION_GREATER 3.14)
   # Symlink to the old header name, for backwards compatibility
   file(CREATE_LINK
     OpenShotAudio.h
@@ -302,6 +302,7 @@ install(FILES
   ${_extra_headers}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libopenshot-audio
 )
+
 foreach(j_module IN LISTS JUCE_MODULES)
   install(CODE "message(STATUS \"Installing ${j_module} headers\")")
   install(DIRECTORY ${JUCE_MODULES_PATH}/${j_module}/
