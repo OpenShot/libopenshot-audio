@@ -27,6 +27,16 @@
 add_executable(openshot-audio-demo Main.cpp)
 target_link_libraries(openshot-audio-demo OpenShot::Audio)
 
+# Set compile features in ancient CMake (newer releases would
+# make them transitive from the library)
+if(CMAKE_VERSION VERSION_LESS 3.8)
+  set_target_properties(openshot-audio-demo PROPERTIES
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+  )
+endif()
+
 install(TARGETS openshot-audio-demo
   EXPORT OpenShotAudioTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
