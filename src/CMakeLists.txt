@@ -38,7 +38,6 @@ if(CMAKE_VERSION VERSION_LESS 3.8)
 endif()
 
 install(TARGETS openshot-audio-demo
-  EXPORT OpenShotAudioTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
