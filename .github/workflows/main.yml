@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install cmake doxygen graphviz python3
+          sudo apt install cmake libasound2-dev doxygen graphviz python3
 
       - name: Build libopenshot-audio docs
         run: |
