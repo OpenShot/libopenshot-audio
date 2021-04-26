@@ -366,7 +366,7 @@ if(PYTHONINTERP_FOUND)
       ${PYTHON_EXECUTABLE}
       ${CMAKE_CURRENT_SOURCE_DIR}/doc/process_source_files.py
       ${JUCE_MODULES_PATH}
-      "docs"
+      "processed_source"
     COMMENT "Formatting source code for documentation"
     VERBATIM
   )
@@ -375,7 +375,7 @@ if(PYTHONINTERP_FOUND)
   # Processed docs are removed on "make clean"
   set_property(DIRECTORY
     APPEND PROPERTY
-      ADDITIONAL_MAKE_CLEAN_FILES "docs" )
+      ADDITIONAL_MAKE_CLEAN_FILES "processed_source" )
 
   # Find Doxygen (used for documentation)
   include(cmake/Modules/UseDoxygen.cmake)
