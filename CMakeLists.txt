@@ -115,17 +115,7 @@ add_feature_info("JUCE path" TRUE "Using JUCE sources from: ${_juce_dir}")
 
 # Generate our custom headers from templates
 configure_file(include/OpenShotAudio.h.in include/OpenShotAudio.h @ONLY)
-if(UNIX AND CMAKE_VERSION VERSION_GREATER 3.14)
-  # Symlink to the old header name, for backwards compatibility
-  file(CREATE_LINK
-    OpenShotAudio.h
-    "${CMAKE_CURRENT_BINARY_DIR}/include/JuceHeader.h"
-    SYMBOLIC
-  )
-else()
-  # We can't symlink it, so just make a copy
-  configure_file(include/OpenShotAudio.h.in include/JuceHeader.h @ONLY)
-endif()
+configure_file(include/JuceHeader.h.in include/JuceHeader.h @ONLY)
 configure_file(include/AppConfig.h.in include/AppConfig.h @ONLY)
 list(APPEND _extra_headers
   ${CMAKE_CURRENT_BINARY_DIR}/include/OpenShotAudio.h
