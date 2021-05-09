@@ -39,7 +39,7 @@ jobs:
       run: |
         mkdir build
         pushd build
-        cmake -B . -S .. -G "${{ steps.generator.outputs.value }}" -DCMAKE_INSTALL_PREFIX:PATH="dist" -DCMAKE_BUILD_TYPE="Debug"
+        cmake -B . -S .. -G "${{ steps.generator.outputs.value }}" -DCMAKE_INSTALL_PREFIX:PATH="dist" -DCMAKE_BUILD_TYPE="Debug" -DAUTO_INSTALL_DOCS=0
         cmake --build . -- VERBOSE=1
         popd
 
