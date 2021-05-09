@@ -315,9 +315,7 @@ export(EXPORT OpenShotAudioTargets
 # Package the exported targets for external consumers
 include(CMakePackageConfigHelpers)
 
-# (Borrowed from cppzmq/CMakeList.txt)
-# GNUInstallDirs "DATADIR" wrong here; CMake search path wants "share".
-set(CMAKECONFIG_INSTALL_DIR "share/cmake/${PROJECT_NAME}"
+set(CMAKECONFIG_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
   CACHE STRING "install path for CMake configuration")
 
 # Install EXPORTED configuration
