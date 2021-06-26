@@ -14,14 +14,13 @@
 
 #include "AppConfig.h"
 
-#define Point IgnorePoint
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_core/juce_core.h>
 #include <juce_data_structures/juce_data_structures.h>
+#include <juce_dsp/juce_dsp.h>
 #include <juce_events/juce_events.h>
-#undef Point
 
 
 #if defined (JUCE_PROJUCER_VERSION) && JUCE_PROJUCER_VERSION < JUCE_VERSION
@@ -42,9 +41,9 @@
 #if ! JUCE_DONT_DECLARE_PROJECTINFO
 namespace ProjectInfo
 {
-    const char* const  projectName    = "libopenshot-audio";
+    const char* const  projectName    = "OpenShotAudio";
     const char* const  companyName    = "OpenShot Studios, LLC";
-    const char* const  versionString  = "0.2.0";
-    const int          versionNumber  = 0x200;
+    const char* const  versionString  = "0.2.1";
+    const int          versionNumber  = 0x201;
 }
 #endif

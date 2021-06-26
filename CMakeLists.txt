@@ -24,7 +24,7 @@
 # along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.1...3.18 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.1...3.20 FATAL_ERROR)
 
 message("\
 -----------------------------------------------------------------
@@ -40,7 +40,7 @@ For more information, please visit <http://www.openshot.org/>.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
-set(PROJECT_VERSION_FULL "0.2.0-dev4")
+set(PROJECT_VERSION_FULL "0.2.0-dev5")
 set(PROJECT_SO_VERSION 7)
 
 # Remove the dash and anything following, to get the #.#.# version for project()
@@ -147,6 +147,7 @@ set(JUCE_MODULES
   juce_audio_formats
   juce_core
   juce_data_structures
+  juce_dsp
   juce_events )
 # Convert to list of source files (extension based on OS)
 foreach(j_module IN LISTS JUCE_MODULES)
@@ -173,13 +174,13 @@ set_target_properties(openshot-audio PROPERTIES
 # Require language features we use
 if(CMAKE_VERSION VERSION_GREATER 3.8)
   target_compile_features(openshot-audio PUBLIC
-    cxx_std_11
+    cxx_std_14
     cxx_range_for
     cxx_override
   )
 else()
   set_target_properties(openshot-audio PROPERTIES
-    CXX_STANDARD 11
+    CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
   )
