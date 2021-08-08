@@ -54,7 +54,22 @@ void display_device_probe(juce::AudioDeviceManager& deviceManager) {
             std::cout << "  - " << deviceName << std::endl;
         }
     }
-    std::cout << "Discovered " << device_count << " total audio devices.\n";
+    std::cout << "Discovered " << device_count << " total audio devices.\n\n";
+
+    std::cout << "Current audio device type: "
+              << (deviceManager.getCurrentDeviceTypeObject() != nullptr
+                  ? deviceManager.getCurrentDeviceTypeObject()->getTypeName()
+                  : "<none>") << '\n';
+    std::cout << "Current audio device: ";
+    auto* device = deviceManager.getCurrentAudioDevice();
+    if (!device) {
+        std::cout << "No audio device open.\n";
+        return;
+    }
+    std::cout << device->getName().quoted() << '\n';
+    std::cout << "Sample rate: " << device->getCurrentSampleRate() << " Hz\n";
+    std::cout << "Block size: " << device->getCurrentBufferSizeSamples() << " samples\n";
+    std::cout << "Bit depth: " << device->getCurrentBitDepth() << '\n';
 }
 
 
