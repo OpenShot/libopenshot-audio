@@ -198,6 +198,8 @@ endif()
 # (Ruby) have issues dealing with JUCE's use of isFinite()
 target_compile_definitions(openshot-audio INTERFACE HAVE_ISFINITE=1)
 
+# For EXPORTED config
+set(NEED_ASIO FALSE)
 if(WIN32)
   # Try to load ASIO SDK
   find_package(ASIO)
