@@ -1,9 +1,8 @@
 OpenShot Audio Library (libopenshot-openshot) is a free, open-source C++ library dedicated to
 delivering high quality audio editing and audio playback solutions to the world.
 
-## Build Status
-
-[![Build Status](https://img.shields.io/travis/OpenShot/libopenshot-audio/develop.svg?label=libopenshot-audio)](https://travis-ci.org/OpenShot/libopenshot-audio)
+## Build status
+[![CI Build](https://github.com/OpenShot/libopenshot-audio/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenShot/libopenshot-audio/actions/workflows/ci.yml)
 
 ## Features
 
@@ -24,9 +23,9 @@ are also available in the /docs/ source folder.
 
 ## Developers
 
-Are you interested in becoming more involved in the development of 
-OpenShot? Build exciting new features, fix bugs, make friends, and become a hero! 
-Please read the [step-by-step](https://github.com/OpenShot/openshot-qt/wiki/Become-a-Developer) 
+Are you interested in becoming more involved in the development of
+OpenShot? Build exciting new features, fix bugs, make friends, and become a hero!
+Please read the [step-by-step](https://github.com/OpenShot/openshot-qt/wiki/Become-a-Developer)
 instructions for getting source code, configuring dependencies, and building OpenShot.
 
 ## Report a bug
@@ -45,7 +44,7 @@ https://github.com/OpenShot/libopenshot-audio/issues
 
 ### License
 
-Copyright (c) 2008-2019 OpenShot Studios, LLC.
+Copyright (c) 2008-2021 OpenShot Studios, LLC.
 
 Copyright 2004-2014 by Raw Material Software Ltd.
 

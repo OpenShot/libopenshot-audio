@@ -1,0 +1,50 @@
+###
+# @file
+# @brief CMake EXPORTED configuration for @PROJECT_NAME@
+# @author FeRD (Frank Dana) <ferdnyc@gmail.com>
+#
+# Copyright (c) 2008-2020 OpenShot Studios, LLC
+# <http://www.openshotstudios.com/>. This file is part of
+# OpenShot Audio Library (libopenshot-audio), an open-source project dedicated
+# to delivering high quality audio editing and playback solutions to the
+# world. For more information visit <http://www.openshot.org/>.
+#
+# OpenShot Audio Library (libopenshot-audio) is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# OpenShot Audio Library (libopenshot-audio) is distributed in the hope that it
+# will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OpenShot Audio Library. If not, see <http://www.gnu.org/licenses/>.
+################################################################################
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+if(@NEED_ASIO@)
+  list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+  find_dependency(ASIO)
+endif()
+
+if(@NEED_ALSA@)
+  find_dependency(ALSA)
+  if (ALSA_FOUND AND NOT TARGET ALSA::ALSA)  # CMake < 3.12
+    add_library(ALSA::ALSA INTERFACE IMPORTED)
+    set_target_properties(ALSA::ALSA PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES ${ALSA_INCLUDE_DIR}
+      INTERFACE_LINK_LIBRARIES ${ALSA_LIBRARIES}
+    )
+  endif()
+endif()
+
+find_dependency(ZLIB)
+
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+
+check_required_components(@PROJECT_NAME@)

@@ -1,0 +1,58 @@
+name: libopenshot-audio CI Build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, macos-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: msys2/setup-msys2@v2
+      if: ${{ runner.os == 'Windows' }}
+      with:
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-make
+          make
+          pkgconf
+
+    - uses: haya14busa/action-cond@v1
+      id: generator
+      with:
+        cond: ${{ runner.os == 'Windows' }}
+        if_true: "MinGW Makefiles"
+        if_false: "Unix Makefiles"
+
+    - name: Install Linux dependencies
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        sudo apt update
+        sudo apt install cmake doxygen graphviz
+        sudo apt install libasound2-dev
+
+    - name: Build libopenshot-audio
+      run: |
+        mkdir build
+        pushd build
+        cmake -B . -S .. -G "${{ steps.generator.outputs.value }}" -DCMAKE_INSTALL_PREFIX:PATH="dist" -DCMAKE_BUILD_TYPE="Debug"
+        cmake --build . -- VERBOSE=1
+        popd
+
+    - name: Generate API documentation
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        pushd build
+        cmake --build . --target doc
+        popd
+
+    - name: Install libopenshot-audio
+      run: |
+        pushd build
+        cmake --build . --target install -- VERBOSE=1
+        popd

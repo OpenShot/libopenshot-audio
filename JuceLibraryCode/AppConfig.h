@@ -40,12 +40,14 @@
 #endif
 
 #ifndef JUCE_REPORT_APP_USAGE
- #define JUCE_REPORT_APP_USAGE 1
+ #define JUCE_REPORT_APP_USAGE 0
 #endif
 
 // END SECTION A
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
+
+#define JUCE_PROJUCER_VERSION 0x50407
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics         1
@@ -53,6 +55,7 @@
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats        1
 #define JUCE_MODULE_AVAILABLE_juce_core                 1
 #define JUCE_MODULE_AVAILABLE_juce_data_structures      1
+#define JUCE_MODULE_AVAILABLE_juce_dsp                  1
 #define JUCE_MODULE_AVAILABLE_juce_events               1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
@@ -143,7 +146,7 @@
 #endif
 
 #ifndef    JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES
- //#define JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES 0
+ #define   JUCE_DONT_AUTOLINK_TO_WIN32_LIBRARIES 1
 #endif
 
 #ifndef    JUCE_INCLUDE_ZLIB_CODE
@@ -151,7 +154,7 @@
 #endif
 
 #ifndef    JUCE_USE_CURL
- #define JUCE_USE_CURL 0
+ #define   JUCE_USE_CURL 0
 #endif
 
 #ifndef    JUCE_LOAD_CURL_SYMBOLS_LAZILY
@@ -159,11 +162,11 @@
 #endif
 
 #ifndef    JUCE_CATCH_UNHANDLED_EXCEPTIONS
- //#define JUCE_CATCH_UNHANDLED_EXCEPTIONS 1
+ //#define JUCE_CATCH_UNHANDLED_EXCEPTIONS 0
 #endif
 
 #ifndef    JUCE_ALLOW_STATIC_NULL_VARIABLES
- //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 1
+ //#define JUCE_ALLOW_STATIC_NULL_VARIABLES 0
 #endif
 
 #ifndef    JUCE_STRICT_REFCOUNTEDPOINTER
@@ -171,10 +174,33 @@
 #endif
 
 //==============================================================================
+// juce_dsp flags:
+
+#ifndef    JUCE_ASSERTION_FIRFILTER
+ //#define JUCE_ASSERTION_FIRFILTER 1
+#endif
+
+#ifndef    JUCE_DSP_USE_INTEL_MKL
+ //#define JUCE_DSP_USE_INTEL_MKL 0
+#endif
+
+#ifndef    JUCE_DSP_USE_SHARED_FFTW
+ //#define JUCE_DSP_USE_SHARED_FFTW 0
+#endif
+
+#ifndef    JUCE_DSP_USE_STATIC_FFTW
+ //#define JUCE_DSP_USE_STATIC_FFTW 0
+#endif
+
+#ifndef    JUCE_DSP_ENABLE_SNAP_TO_ZERO
+ //#define JUCE_DSP_ENABLE_SNAP_TO_ZERO 1
+#endif
+
+//==============================================================================
 // juce_events flags:
 
-#ifndef    JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK
- //#define JUCE_EXECUTE_APP_SUSPEND_ON_IOS_BACKGROUND_TASK 0
+#ifndef    JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK
+ //#define JUCE_EXECUTE_APP_SUSPEND_ON_BACKGROUND_TASK 0
 #endif
 
 //==============================================================================

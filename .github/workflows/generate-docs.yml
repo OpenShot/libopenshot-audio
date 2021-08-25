@@ -1,0 +1,37 @@
+name: libopenshot-audio documentation
+on:
+  # Triggers the workflow on push or pull request events but only for the develop branch
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install cmake libasound2-dev doxygen graphviz python3
+
+      - name: Build libopenshot-audio docs
+        run: |
+          mkdir build
+          pushd build
+          cmake -B . -S ..
+          cmake --build . --target doc
+          popd
+
+      # Create an artifact out of the generated HTML
+      - uses: actions/upload-artifact@v2.2.4
+        with:
+          name: "OpenShotAudio-docs"
+          path: "build/doc/html/"
