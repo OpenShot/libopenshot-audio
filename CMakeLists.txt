@@ -40,7 +40,7 @@ For more information, please visit <http://www.openshot.org/>.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
-set(PROJECT_VERSION_FULL "0.2.1-dev")
+set(PROJECT_VERSION_FULL "0.2.2")
 set(PROJECT_SO_VERSION 8)
 
 # Remove the dash and anything following, to get the #.#.# version for project()
