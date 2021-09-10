@@ -40,7 +40,7 @@ For more information, please visit <http://www.openshot.org/>.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
-set(PROJECT_VERSION_FULL "0.2.1")
+set(PROJECT_VERSION_FULL "0.2.2")
 set(PROJECT_SO_VERSION 8)
 
 # Remove the dash and anything following, to get the #.#.# version for project()
@@ -198,6 +198,8 @@ endif()
 # (Ruby) have issues dealing with JUCE's use of isFinite()
 target_compile_definitions(openshot-audio INTERFACE HAVE_ISFINITE=1)
 
+# For EXPORTED config
+set(NEED_ASIO FALSE)
 if(WIN32)
   # Try to load ASIO SDK
   find_package(ASIO)
