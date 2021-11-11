@@ -40,8 +40,38 @@
 #endif
 #include "OpenShotAudio.h"
 
+// Subclass the AudioDeviceManager so we can skip WASAPI devices on Windows
+class TestAudioDeviceManager : public juce::AudioDeviceManager {
+public:
+    static void addIfNotNull (
+        juce::OwnedArray<juce::AudioIODeviceType>& list,
+        juce::AudioIODeviceType* const device)
+    {
+        if (device != nullptr)
+            list.add (device);
+    }
 
-void display_device_probe(juce::AudioDeviceManager& deviceManager) {
+    void createAudioDeviceTypes (juce::OwnedArray<juce::AudioIODeviceType>& list) override
+    {
+        /*
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (false));
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (true));
+        */
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_DirectSound());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_ASIO());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_CoreAudio());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_iOSAudio());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_Bela());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_ALSA());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_JACK());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_Oboe());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_OpenSLES());
+        addIfNotNull (list, juce::AudioIODeviceType::createAudioIODeviceType_Android());
+    }
+};
+
+
+void display_device_probe(TestAudioDeviceManager& deviceManager) {
     std::cout << "Audio device probe results:\n";
     int device_count = 0;
     for (const auto& t : deviceManager.getAvailableDeviceTypes()) {
@@ -54,7 +84,24 @@ void display_device_probe(juce::AudioDeviceManager& deviceManager) {
             std::cout << "  - " << deviceName << std::endl;
         }
     }
-    std::cout << "Discovered " << device_count << " total audio devices.\n";
+    std::cout << "Discovered " << device_count << " total audio devices.\n\n";
+
+    const auto* curType = deviceManager.getCurrentDeviceTypeObject();
+    auto* curDevice = deviceManager.getCurrentAudioDevice();
+
+    std::cout << "Current audio device: ";
+    if (curType == nullptr || curDevice == nullptr) {
+        std::cout << "<none>\n";
+    } else {
+        std::cout << curType->getTypeName()
+                  << " - " << curDevice->getName().quoted() << '\n';
+        std::cout << "Sample rate: "
+                  << curDevice->getCurrentSampleRate() << " Hz\n";
+        std::cout << "Block size: "
+                  << curDevice->getCurrentBufferSizeSamples() << " samples\n";
+        std::cout << "Bit depth: "
+                  << curDevice->getCurrentBitDepth() << '\n';
+    }
 }
 
 
@@ -64,7 +111,7 @@ int main(int argc, char* argv[])
 
     // Initialize default audio device
     std::cout << "Initialising audio playback device.\n";
-    juce::AudioDeviceManager deviceManager;
+    TestAudioDeviceManager deviceManager;
 
     auto error = deviceManager.initialise (
         0,        // numInputChannelsNeeded
