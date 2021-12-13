@@ -31,7 +31,7 @@ jobs:
           popd
 
       # Create an artifact out of the generated HTML
-      - uses: actions/upload-artifact@v2.2.4
+      - uses: actions/upload-artifact@v2.3.0
         with:
           name: "OpenShotAudio-docs"
           path: "build/doc/html/"
