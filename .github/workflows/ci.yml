@@ -7,7 +7,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04, ubuntu-20.04, macos-latest, windows-latest]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - uses: msys2/setup-msys2@v2
       if: ${{ runner.os == 'Windows' }}
