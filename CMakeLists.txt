@@ -100,6 +100,15 @@ include(FeatureSummary)
 ### Build configuration (options)
 option(ENABLE_AUDIO_DOCS "Attempt to build API docs for audio library" ON)
 option(AUTO_INSTALL_DOCS "Include documentation in the default install" ON)
+option(APPIMAGE_BUILD "Build to install in an AppImage (Linux only)" OFF)
+
+if (APPIMAGE_BUILD)
+  # Force older version of glibc and -pthread flag when building AppImage
+  # for better backwards compatibility (i.e older distros)
+  message("Wrapping libc for compatibility with version glibc_2.23")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include /usr/local/include/force_link_glibc_2.23.h -pthread -static-libgcc")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include /usr/local/include/force_link_glibc_2.23.h -pthread -static-libgcc")
+endif()
 
 # Alternative location for JUCE modules (debian has their own)
 set(JUCE_MODULES_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JuceLibraryCode/modules" CACHE PATH
