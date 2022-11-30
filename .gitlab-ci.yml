@@ -13,7 +13,7 @@ linux-builder:
     - build/install-x64/*
   script:
     - mkdir -p build; cd build;
-    - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -D"CMAKE_BUILD_TYPE:STRING=Release" ../
+    - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -D"CMAKE_INSTALL_PREFIX:PATH=install-x64" -D"CMAKE_BUILD_TYPE:STRING=Release" -DAPPIMAGE_BUILD=1 ../
     - make -j 2
     - make install
     - PROJECT_VERSION=$(grep -E '^set\(PROJECT_VERSION_FULL "(.*)' ../CMakeLists.txt | awk '{print $2}' | tr -d '")')
@@ -24,7 +24,7 @@ linux-builder:
   except:
   - tags
   tags:
-    - linux-bionic
+    - linux-focal
 
 mac-builder:
   stage: build-libopenshot-audio
