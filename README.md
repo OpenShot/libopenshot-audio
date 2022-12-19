@@ -42,25 +42,31 @@ https://github.com/OpenShot/libopenshot-audio/issues
 - https://github.com/OpenShot/openshot-qt/ (source code for Qt client)
 - https://launchpad.net/openshot/
 
-### License
+### Copyright & License
 
-Copyright (c) 2008-2021 OpenShot Studios, LLC.
+Copyright (c) 2008-2022 OpenShot Studios, LLC. This file is part of
+OpenShot Video Editor (https://www.openshot.org), an open-source project
+dedicated to delivering high quality video editing and animation solutions
+to the world.
 
-Copyright 2004-2014 by Raw Material Software Ltd.
+Copyright 2004-2022 by Raw Material Software Ltd. Some files are included from
+the amazing, open-source JUCE Audio Library. These files are dual-licensed
+under the GPLv3 and also available under a commercial license.
 
-OpenShot Audio Library (libopenshot-audio) is free software: you can redistribute it
-and/or modify it under the terms of the GNU Lesser General Public License
-as published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
+OpenShot Audio Library (libopenshot-audio) is free software: you can redistribute 
+it and/or modify it under the terms of the GNU General Public License as published 
+by the Free Software Foundation, either version 3 of the License, or (at your option) 
+any later version.
 
-OpenShot Audio Library (libopenshot-audio) is distributed in the hope that it will be
-useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Lesser General Public License for more details.
+OpenShot Audio Library (libopenshot-audio) is distributed in the hope that it will 
+be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public 
+License for more details.
 
-You should have received a copy of the GNU Lesser General Public License
-along with OpenShot Audio Library. If not, see http://www.gnu.org/licenses/.
+You should have received a copy of the GNU General Public License along with 
+OpenShot Library. If not, see http://www.gnu.org/licenses/.
 
-To release a closed-source product which uses libopenshot-audio (i.e. audio
+To release a commercial product which uses libopenshot-audio (i.e. audio
 editing and playback), commercial licenses are also available: contact
-sales@openshot.org for more information.
+sales@openshot.org for more information. NOTE: commercial licenses are also
+available for the JUCE Audio Library, from Raw Material Software Ltd.
