@@ -44,7 +44,7 @@ https://github.com/OpenShot/libopenshot-audio/issues
 
 ### Copyright & License
 
-Copyright (c) 2008-2022 OpenShot Studios, LLC. This file is part of
+Copyright (c) 2008-2024 OpenShot Studios, LLC. This file is part of
 OpenShot Video Editor (https://www.openshot.org), an open-source project
 dedicated to delivering high quality video editing and animation solutions
 to the world.
