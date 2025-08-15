@@ -254,6 +254,11 @@ if(APPLE)
     -flax-vector-conversions)
 endif()
 
+# Enforce LFS64 in glibc.
+if(UNIX AND NOT APPLE)
+  target_compile_definitions(openshot-audio PUBLIC _FILE_OFFSET_BITS=64)
+endif()
+
 # ALSA (Linux only)
 if(UNIX AND NOT APPLE)
   set(NEED_ALSA TRUE)
