@@ -243,7 +243,6 @@ if(APPLE)
     "-framework CoreAudio"
     "-framework CoreMidi"
     "-framework IOKit"
-    "-framework AGL"
     "-framework AudioToolbox"
     "-framework QuartzCore"
     "-framework Accelerate"
