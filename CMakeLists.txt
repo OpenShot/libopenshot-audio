@@ -241,7 +241,7 @@ if(APPLE)
     "-framework Cocoa"
     "-framework CoreFoundation"
     "-framework CoreAudio"
-    "-framework CoreMidi"
+    "-framework CoreMIDI"
     "-framework IOKit"
     "-framework AGL"
     "-framework AudioToolbox"
