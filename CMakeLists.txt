@@ -40,7 +40,7 @@ For more information, please visit <http://www.openshot.org/>.
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 ################ PROJECT VERSION ####################
-set(PROJECT_VERSION_FULL "1.0.0")
+set(PROJECT_VERSION_FULL "1.0.1")
 set(PROJECT_SO_VERSION 10)
 
 #### Set C++ standard level
