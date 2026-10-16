@@ -56,3 +56,48 @@ jobs:
         pushd build
         cmake --build . --target install -- VERBOSE=1
         popd
+
+  # Supplemental native Arm64 presubmit. Its output is never a release
+  # artifact; GitLab remains the production artifact chain.
+  build-arm64-presubmit:
+    runs-on: windows-11-arm
+    continue-on-error: true
+    steps:
+    - name: Preserve repository line endings
+      run: git config --global core.autocrlf input
+
+    - uses: actions/checkout@v4
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: CLANGARM64
+        # Intentionally refresh repository metadata. The subsequent exact
+        # lock verification fails on version drift until maintainers refresh
+        # the lock or provide the G1 signed snapshot.
+        update: true
+
+    - name: Install exact CLANGARM64 package versions
+      shell: msys2 {0}
+      run: |
+        mapfile -t packages < <(sed -n '/^[^#[:space:]][^=]*=/s/,[^,]*$//p' ci/windows-arm64-packages.lock)
+        pacman --noconfirm -S --needed -- "${packages[@]}"
+
+    - name: Build libopenshot-audio (CLANGARM64, presubmit only)
+      shell: msys2 {0}
+      run: |
+        cmake -B build -S . -G Ninja \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_INSTALL_PREFIX="$PWD/dist-arm64" \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_AUDIO_DOCS=OFF
+        cmake --build build
+        ctest --test-dir build --output-on-failure -VV
+        cmake --install build
+        python -m unittest discover -s ci -p "test_*.py" -v
+        python ci/validate_arm64_architecture.py \
+          --require-native-arm64 \
+          --package-lock ci/windows-arm64-packages.lock \
+          --payload-root dist-arm64 \
+          --require-payload \
+          --json-report build/arm64-presubmit-report.json
