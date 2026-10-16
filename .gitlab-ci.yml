@@ -109,9 +109,11 @@ windows-builder-arm64:
     - New-Item -path "build/install-arm64/share/" -Name "$CI_PROJECT_NAME.env" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID`nCI_PIPELINE_ID:$CI_PIPELINE_ID`nVERSION:$PROJECT_VERSION`nSO:$PROJECT_SO`nTARGET_TRIPLET:aarch64-w64-mingw32`nPE_MACHINE:0xAA64" -ItemType file -force
     - $PREV_GIT_LABEL=(git describe --tags --abbrev=0 '@^')
     - git log "$PREV_GIT_LABEL..@" --oneline --pretty=format:"- %C(auto,yellow)%h%C(auto,magenta)% %C(auto,blue)%>(12,trunc)%ad %C(auto,green)%<(25,trunc)%aN%C(auto,reset)%s%C(auto,red)% gD% D" --date=short > "build/install-arm64/share/$CI_PROJECT_NAME.log"
-  rules:
-    - if: '$ENABLE_WINDOWS_ARM64 == "1" && $CI_COMMIT_TAG == null'
-    - when: never
+  only:
+    variables:
+      - $ENABLE_WINDOWS_ARM64 == "1"
+  except:
+    - tags
   tags: [windows-arm64]
   # Requires release infrastructure's native/virtual Windows Arm64 GitLab
   # runner tagged windows-arm64 (design-spec.md "Release-infrastructure
