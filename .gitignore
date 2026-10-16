@@ -3,3 +3,6 @@
 .settings
 .idea/*
 cmake-build-debug/*
+
+# Python validator bytecode
+__pycache__/
