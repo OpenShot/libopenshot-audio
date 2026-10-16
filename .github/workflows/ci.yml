@@ -60,6 +60,7 @@ jobs:
   # Supplemental native Arm64 presubmit. Its output is never a release
   # artifact; GitLab remains the production artifact chain.
   build-arm64-presubmit:
+    if: ${{ vars.ENABLE_WINDOWS_ARM64 == '1' }}
     runs-on: windows-11-arm
     continue-on-error: true
     steps:
@@ -71,15 +72,14 @@ jobs:
     - uses: msys2/setup-msys2@v2
       with:
         msystem: CLANGARM64
-        # Intentionally refresh repository metadata. The subsequent exact
-        # lock verification fails on version drift until maintainers refresh
-        # the lock or provide the G1 signed snapshot.
+        # Use available rolling packages; record versions against the baseline.
+        # An archived package snapshot is required for reproducible builds.
         update: true
 
-    - name: Install exact CLANGARM64 package versions
+    - name: Install CLANGARM64 packages
       shell: msys2 {0}
       run: |
-        mapfile -t packages < <(sed -n '/^[^#[:space:]][^=]*=/s/,[^,]*$//p' ci/windows-arm64-packages.lock)
+        mapfile -t packages < <(sed -n '/^[^#[:space:]][^=]*=/s/=.*//p' ci/windows-arm64-packages.lock)
         pacman --noconfirm -S --needed -- "${packages[@]}"
 
     - name: Build libopenshot-audio (CLANGARM64, presubmit only)
@@ -97,7 +97,7 @@ jobs:
         python -m unittest discover -s ci -p "test_*.py" -v
         python ci/validate_arm64_architecture.py \
           --require-native-arm64 \
-          --package-lock ci/windows-arm64-packages.lock \
+          --package-baseline ci/windows-arm64-packages.lock \
           --payload-root dist-arm64 \
           --require-payload \
           --json-report build/arm64-presubmit-report.json

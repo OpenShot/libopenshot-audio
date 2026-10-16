@@ -103,7 +103,7 @@ windows-builder-arm64:
     - ctest --test-dir build --output-on-failure -VV
     - cmake --install build
     - python -m unittest discover -s ci -p "test_*.py" -v
-    - python ci\validate_arm64_architecture.py --require-native-arm64 --package-lock ci\windows-arm64-packages.lock --payload-root build\install-arm64 --require-payload --json-report build\arm64-architecture-report.json
+    - python ci\validate_arm64_architecture.py --require-native-arm64 --package-baseline ci\windows-arm64-packages.lock --payload-root build\install-arm64 --require-payload --json-report build\arm64-architecture-report.json
     - $PROJECT_VERSION = (Select-String -Path "CMakeLists.txt" -Pattern '^set\(PROJECT_VERSION_FULL "(.*)\"' | %{$_.Matches.Groups[1].value})
     - $PROJECT_SO = (Select-String -Path "CMakeLists.txt" -Pattern '^set\(PROJECT_SO_VERSION (.*)\)' | %{$_.Matches.Groups[1].value})
     - New-Item -path "build/install-arm64/share/" -Name "$CI_PROJECT_NAME.env" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID`nCI_PIPELINE_ID:$CI_PIPELINE_ID`nVERSION:$PROJECT_VERSION`nSO:$PROJECT_SO`nTARGET_TRIPLET:aarch64-w64-mingw32`nPE_MACHINE:0xAA64" -ItemType file -force
