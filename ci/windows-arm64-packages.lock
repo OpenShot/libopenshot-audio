@@ -1,0 +1,20 @@
+# Windows ARM64 MSYS2 CLANGARM64 reference package versions
+# SPDX-FileCopyrightText: 2026 OpenShot Studios, LLC
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#
+# Integration builds install available packages from the rolling MSYS2 repo.
+# --package-baseline records installed versions and reports drift from this
+# reference. It still rejects missing packages. --package-lock instead
+# requires an exact version match, for a separately provisioned environment.
+# This file does not provide archived packages or verify archive checksums.
+# This list contains the audio build and validation dependencies.
+#
+# name=version-release,sha256
+mingw-w64-clang-aarch64-clang=22.1.8-2,UNVERIFIED-NO-SIGNED-SNAPSHOT
+mingw-w64-clang-aarch64-libc++=22.1.8-1,UNVERIFIED-NO-SIGNED-SNAPSHOT
+mingw-w64-clang-aarch64-compiler-rt=22.1.8-2,UNVERIFIED-NO-SIGNED-SNAPSHOT
+mingw-w64-clang-aarch64-llvm-openmp=22.1.8-1,UNVERIFIED-NO-SIGNED-SNAPSHOT
+mingw-w64-clang-aarch64-libwinpthread=14.0.0.r302.gd7f3c5201-1,UNVERIFIED-NO-SIGNED-SNAPSHOT
+mingw-w64-clang-aarch64-cmake=4.4.2-2,UNVERIFIED-NO-SIGNED-SNAPSHOT
+mingw-w64-clang-aarch64-ninja=1.13.2-1,UNVERIFIED-NO-SIGNED-SNAPSHOT
+mingw-w64-clang-aarch64-python=3.14.7-1,UNVERIFIED-NO-SIGNED-SNAPSHOT

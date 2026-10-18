@@ -215,6 +215,8 @@ if(WIN32)
   if(TARGET ASIO::SDK)
     target_link_libraries(openshot-audio PRIVATE ASIO::SDK)
     set(NEED_ASIO TRUE)
+  else()
+    target_compile_definitions(openshot-audio PUBLIC JUCE_ASIO=0)
   endif()
   # Order here can be important!
   # For example, winmm.lib must come before kernel32.lib (if linked)

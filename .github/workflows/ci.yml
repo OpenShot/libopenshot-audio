@@ -56,3 +56,73 @@ jobs:
         pushd build
         cmake --build . --target install -- VERBOSE=1
         popd
+
+  windows-arm64:
+    name: Windows ARM64 build and tests
+    runs-on: windows-11-arm
+    steps:
+    - name: Preserve repository line endings
+      run: git config --global core.autocrlf input
+
+    - uses: actions/checkout@v4
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: CLANGARM64
+        # Use available rolling packages; record versions against the baseline.
+        # An archived package snapshot is required for reproducible builds.
+        update: true
+
+    - name: Install CLANGARM64 packages
+      shell: msys2 {0}
+      run: |
+        mapfile -t packages < <(sed -n '/^[^#[:space:]][^=]*=/s/=.*//p' ci/windows-arm64-packages.lock)
+        pacman --noconfirm -S --needed -- "${packages[@]}"
+
+    - name: Build libopenshot-audio (CLANGARM64, ARM64)
+      shell: msys2 {0}
+      run: |
+        cmake -B build -S . -G Ninja \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_INSTALL_PREFIX="$PWD/dist-arm64" \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_AUDIO_DOCS=OFF
+        cmake --build build
+        cmake --install build
+        cmake -S ci/audio-smoke -B smoke-build -G Ninja \
+          -DCMAKE_PREFIX_PATH="$PWD/dist-arm64" -DREQUIRE_ARM64=ON
+        cmake --build smoke-build
+        PATH="$PWD/dist-arm64/bin:$PATH" ctest --test-dir smoke-build --output-on-failure --no-tests=error
+        python -m unittest discover -s ci -p "test_*.py" -v
+        python ci/validate_arm64_architecture.py \
+          --require-native-arm64 \
+          --package-baseline ci/windows-arm64-packages.lock \
+          --payload-root dist-arm64 \
+          --require-payload \
+          --json-report build/arm64-report.json
+
+  linux-arm64:
+    name: Linux ARM64 build and tests
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libasound2-dev python3
+      - name: Build and install audio library
+        run: |
+          test "$(uname -m)" = aarch64
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/install-arm64" -DENABLE_AUDIO_DOCS=OFF
+          cmake --build build --parallel 2
+          cmake --install build
+          readelf -h install-arm64/lib/libopenshot-audio.so | grep -Eq 'Machine:.*AArch64'
+      - name: Test installed audio library and validator
+        run: |
+          cmake -S ci/audio-smoke -B smoke-build -G Ninja \
+            -DCMAKE_PREFIX_PATH="$PWD/install-arm64" -DREQUIRE_ARM64=ON
+          cmake --build smoke-build
+          ctest --test-dir smoke-build --output-on-failure --no-tests=error
+          python3 -m unittest discover -s ci -p 'test_*.py' -v
