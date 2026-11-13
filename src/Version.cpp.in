@@ -1,4 +1,12 @@
+/**
+ * @file
+ * @brief Runtime audio version implementation, configured by CMake.
+ * @author OpenShot Studios, LLC
+ */
+
+// SPDX-FileCopyrightText: 2026 OpenShot Studios, LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "OpenShotAudioVersion.h"
 
 const char* openshot_audio::GetVersion() {

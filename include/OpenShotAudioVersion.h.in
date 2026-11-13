@@ -1,5 +1,12 @@
+/**
+ * @file
+ * @brief Public runtime version API for the loaded audio library.
+ * @author OpenShot Studios, LLC
+ */
+
+// SPDX-FileCopyrightText: 2026 OpenShot Studios, LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Runtime version of the loaded OpenShot Audio library.
+
 #pragma once
 
 #if defined(_WIN32)
