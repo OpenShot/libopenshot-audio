@@ -169,6 +169,12 @@ endforeach()
 
 add_library(openshot-audio SHARED ${JUCE_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/src/Version.cpp)
 target_compile_definitions(openshot-audio PRIVATE OPENSHOT_AUDIO_BUILD=1)
+if(MINGW)
+  # One explicit dllexport (the version getter) disables MinGW's implicit
+  # exports. Keep the existing JUCE API available to the demo and consumers.
+  set_property(TARGET openshot-audio APPEND_STRING PROPERTY LINK_FLAGS
+    " -Wl,--export-all-symbols")
+endif()
 
 # Include header directories
 target_include_directories(openshot-audio PUBLIC
