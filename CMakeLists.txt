@@ -124,9 +124,12 @@ add_feature_info("JUCE path" TRUE "Using JUCE sources from: ${_juce_dir}")
 
 # Generate our custom headers from templates
 configure_file(include/OpenShotAudio.h.in include/OpenShotAudio.h @ONLY)
+configure_file(include/OpenShotAudioVersion.h.in include/OpenShotAudioVersion.h @ONLY)
+configure_file(src/Version.cpp.in src/Version.cpp @ONLY)
 configure_file(include/JuceHeader.h.in include/JuceHeader.h @ONLY)
 configure_file(include/AppConfig.h.in include/AppConfig.h @ONLY)
 list(APPEND _extra_headers
+  ${CMAKE_CURRENT_BINARY_DIR}/include/OpenShotAudioVersion.h
   ${CMAKE_CURRENT_BINARY_DIR}/include/OpenShotAudio.h
   ${CMAKE_CURRENT_BINARY_DIR}/include/JuceHeader.h
   ${CMAKE_CURRENT_BINARY_DIR}/include/AppConfig.h
@@ -164,7 +167,8 @@ foreach(j_module IN LISTS JUCE_MODULES)
     JuceLibraryCode/include_${j_module}.${SOURCE_EXTENSION} )
 endforeach()
 
-add_library(openshot-audio SHARED ${JUCE_SOURCES})
+add_library(openshot-audio SHARED ${JUCE_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/src/Version.cpp)
+target_compile_definitions(openshot-audio PRIVATE OPENSHOT_AUDIO_BUILD=1)
 
 # Include header directories
 target_include_directories(openshot-audio PUBLIC

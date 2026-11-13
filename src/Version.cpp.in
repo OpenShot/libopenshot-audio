@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#include "OpenShotAudioVersion.h"
+
+const char* openshot_audio::GetVersion() {
+    return "@PROJECT_VERSION_FULL@";
+}
