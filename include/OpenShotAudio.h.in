@@ -13,6 +13,7 @@
 #pragma once
 
 #include "AppConfig.h"
+#include "OpenShotAudioVersion.h"
 
 #define Point IgnorePoint
 #include <juce_audio_basics/juce_audio_basics.h>

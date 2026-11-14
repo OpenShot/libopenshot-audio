@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iostream>
 #include <memory>
+#include <string>
 #include "OpenShotAudio.h"
 
 #if defined(REQUIRE_ARM64) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -12,6 +13,11 @@
 
 int main()
 {
+    // This must call the installed library, rather than a header-only version.
+    const std::string audio_version = openshot_audio::GetVersion();
+    if (audio_version.empty() || audio_version != ProjectInfo::versionString) return 1;
+    std::cout << "Installed audio version: " << audio_version << '\n';
+
     // Exercise the installed library without requiring an audio device.
     juce::AudioBuffer<float> samples(2, 128);
     for (int i = 0; i < samples.getNumSamples(); ++i) {
