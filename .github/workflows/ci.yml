@@ -7,7 +7,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: msys2/setup-msys2@v2
       if: ${{ runner.os == 'Windows' }}
@@ -64,7 +64,7 @@ jobs:
     - name: Preserve repository line endings
       run: git config --global core.autocrlf input
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - uses: msys2/setup-msys2@v2
       with:
@@ -106,7 +106,7 @@ jobs:
     name: Linux ARM64 build and tests
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install dependencies
         run: |
           sudo apt-get update
